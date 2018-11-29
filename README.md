@@ -1,6 +1,6 @@
 # protocol
 
-0xFutures protocol implementation
+[0xFutures](https://0xfutures.com) protocol implementation
 
 ## Setup
 
@@ -12,6 +12,7 @@
 ## Test
 
 ```
+npm run publish-abi
 npm test
 ```
 

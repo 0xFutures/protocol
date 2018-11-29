@@ -12,6 +12,7 @@ copyABI 'Feeds'
 copyABI 'ForwardFactory'
 copyABI 'ContractForDifference'
 copyABI 'ContractForDifferenceFactory'
+copyABI 'ContractForDifferenceLibrary'
 copyABI 'ContractForDifferenceRegistry'
 
 cd -

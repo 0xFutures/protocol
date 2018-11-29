@@ -1,6 +1,6 @@
 {
   "name": "@0xfutures/protocol",
-  "version": "0.0.72",
+  "version": "0.1.0",
   "license": "GPL-3.0",
   "description": "0xFutures Protocol Implementation",
   "repository": "0xFutures/protocol",
@@ -11,6 +11,16 @@
     "derivatives",
     "blockchain",
     "solidity"
+  ],
+  "contributors": [
+    {
+      "name": "Chris Hatch",
+      "email": "hatch@tuta.io"
+    },
+    {
+      "name": "Julien Regnier",
+      "email": "julien.regnier10@gmail.com"
+    }
   ],
   "directories": {
     "test": "test"
