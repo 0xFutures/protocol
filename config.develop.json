@@ -1,0 +1,13 @@
+{
+  "network": "develop",
+  "rpcAddr": "http://localhost:9545",
+  "gasDefault": 2000000,
+  "gasPrice": 100000000000,
+  "registryAddr": "0x345ca3e014aaf5dca488057592ee47305d9b3e10",
+  "feesAccountAddr": "0x6330a553fc93768f612722bb8c2ec78ac90b3bbc",
+  "feedContractAddr": "0x9fbda871d559710256a2502a2517b794b482db40",
+  "cfdFactoryContractAddr": "0xa4392264a2d8c998901d10c154c91725b1bf0158",
+  "cfdRegistryContractAddr": "0xbaaa2a3237035a2c7fa2a33c76b44a8c6fe18e87",
+  "daemonAccountAddr": "0x821aea9a577a9b44299b9c15c88cf3087f3b5544",
+  "ownerAccountAddr": "0x627306090abab3a6e1400e9345bc60c78a8bef57"
+}

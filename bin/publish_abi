@@ -1,0 +1,17 @@
+#!/bin/sh
+copyABI () {
+  babel-node bin/filterABI.js build/contracts/$1.json abi/$1.json
+}
+
+cd `dirname $0`/..
+rm -rf build/
+truffle compile
+
+copyABI 'Registry'
+copyABI 'Feeds'
+copyABI 'ForwardFactory'
+copyABI 'ContractForDifference'
+copyABI 'ContractForDifferenceFactory'
+copyABI 'ContractForDifferenceRegistry'
+
+cd -

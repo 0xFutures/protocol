@@ -1,0 +1,11 @@
+{
+  "rpcAddr": "http://localhost:8545",
+  "gasPrice": 100000000000,
+  "ownerAccountAddr": "<contracts admin account>",
+  "daemonAccountAddr": "<daemons account>",
+  "feesAccountAddr": "<fees collecting account>",
+  "registryAddr": "<address>",
+  "feedContractAddr": "<address>",
+  "cfdFactoryContractAddr": "<address>",
+  "cfdRegistryContractAddr": "<address>"
+}

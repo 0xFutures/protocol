@@ -1,0 +1,66 @@
+{
+  "name": "@0xfutures/protocol",
+  "version": "0.0.72",
+  "license": "GPL-3.0",
+  "description": "0xFutures Protocol Implementation",
+  "repository": "0xFutures/protocol",
+  "main": "truffle.js",
+  "keywords": [
+    "ethereum",
+    "smart contracts",
+    "derivatives",
+    "blockchain",
+    "solidity"
+  ],
+  "directories": {
+    "test": "test"
+  },
+  "config": {
+    "build_cmd": "babel src -d lib --ignore __tests__/* --copy-files"
+  },
+  "scripts": {
+    "build": "babel src -d lib --ignore __tests__/* --copy-files",
+    "build-watch": "$npm_package_config_build_cmd --watch",
+    "deploy-develop": "npm run prepare && babel-node bin/deployContracts config.develop.json",
+    "deploy-develop-first-time": "npm run prepare && babel-node bin/deployContracts config.develop.json --first-time",
+    "deploy-kovan": "npm run prepare && babel-node bin/deployContracts config.kovan.json",
+    "deploy-kovan-first-time": "npm run prepare && babel-node bin/deployContracts config.kovan.json --first-time",
+    "deploy-live": "npm run prepare && babel-node bin/deployContracts config.live.json",
+    "deploy-live-first-time": "npm run prepare && babel-node bin/deployContracts config.live.json --first-time",
+    "develop-console": "truffle console --network develop",
+    "develop-server": "bin/develop_server",
+    "lint": "solium -d contracts",
+    "prepare": "npm run build && npm run publish-abi && npm run lint && npm run test",
+    "publish-abi": "bin/publish_abi",
+    "test-server": "bin/test_server",
+    "test": "bin/test"
+  },
+  "dependencies": {
+    "babel-runtime": "^6.26.0",
+    "bignumber.js": "^4.1.0",
+    "bluebird": "^3.5.3",
+    "openzeppelin-solidity": "^1.12.0",
+    "truffle-contract": "^3.0.6",
+    "web3": "0.20.7"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.8.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^6.0.0",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
+    "ganache-cli": "^6.2.1",
+    "mocha": "^5.2.0",
+    "pm2": "^3.2.2",
+    "solium": "^1.1.8",
+    "truffle": "^4.1.14",
+    "truffle-hdwallet-provider": "0.0.6"
+  }
+}

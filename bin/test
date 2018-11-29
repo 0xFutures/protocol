@@ -1,0 +1,7 @@
+#!/bin/sh
+cd `dirname $0`/..
+$(npm bin)/pm2 start bin/test_server --interpreter=sh
+sleep 2
+$(npm bin)/mocha
+$(npm bin)/pm2 stop bin/test_server --interpreter=sh
+cd -

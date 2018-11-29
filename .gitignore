@@ -1,0 +1,8 @@
+.env
+*.swp
+build/
+config.json
+infura.json
+lib/
+node_modules/
+.vscode

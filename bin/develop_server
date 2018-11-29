@@ -1,0 +1,13 @@
+#!/bin/sh
+cd `dirname $0`/..
+
+# replicate truffle develop settings
+MNEMONIC="candy maple cake sugar pudding cream honey rich smooth crumble sweet treat"
+PORT=9545
+
+# Raise gas limit for ContractForDifference.sol
+BLOCK_GAS_LIMIT=7000000
+
+node_modules/.bin/ganache-cli -m "$MNEMONIC" -p $PORT -l $BLOCK_GAS_LIMIT
+
+cd -

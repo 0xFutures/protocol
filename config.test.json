@@ -1,0 +1,9 @@
+{
+  "network": "test",
+  "rpcAddr": "http://localhost:7545",
+  "gasDefault": 2000000,
+  "gasPrice": 100000000000,
+  "ownerAccountAddr": "0x627306090abab3a6e1400e9345bc60c78a8bef57",
+  "daemonAccountAddr": "0x821aea9a577a9b44299b9c15c88cf3087f3b5544",
+  "feesAccountAddr": "0x6330a553fc93768f612722bb8c2ec78ac90b3bbc"
+}

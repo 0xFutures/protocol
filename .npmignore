@@ -1,0 +1,6 @@
+build/
+contracts/
+infura.json
+migrations/
+src/
+test/

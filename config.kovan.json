@@ -1,0 +1,13 @@
+{
+  "network": "kovan",
+  "rpcAddr": "http://localhost:8545",
+  "gasDefault": 2000000,
+  "gasPrice": 2000000000,
+  "ownerAccountAddr": "",
+  "daemonAccountAddr": "",
+  "feesAccountAddr": "",
+  "registryAddr": "",
+  "feedContractAddr": "",
+  "cfdRegistryContractAddr": "",
+  "cfdFactoryContractAddr": ""
+}
