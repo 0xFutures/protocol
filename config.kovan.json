@@ -3,11 +3,11 @@
   "rpcAddr": "http://localhost:8545",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
-  "ownerAccountAddr": "",
-  "daemonAccountAddr": "",
-  "feesAccountAddr": "",
-  "registryAddr": "",
-  "feedContractAddr": "",
-  "cfdRegistryContractAddr": "",
-  "cfdFactoryContractAddr": ""
+  "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
+  "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
+  "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
+  "registryAddr": "0xa40eedc4d5d2eb9f3b505a85a8eaf697a2622a17",
+  "feedContractAddr": "0x88dd2a9706d9a59b10bfae66dea8474ec73d2075",
+  "cfdRegistryContractAddr": "0xfa3dc61072fec7bc595f2813b906a045f4fa63b7",
+  "cfdFactoryContractAddr": "0x54133ba2b2bc047800e8b50a6df84ebd586d66c9"
 }

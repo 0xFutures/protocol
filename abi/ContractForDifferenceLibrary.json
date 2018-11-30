@@ -1,11 +1,323 @@
 {
   "contractName": "ContractForDifferenceLibrary",
-  "abi": [],
-  "bytecode": "0x604c602c600b82828239805160001a60731460008114601c57601e565bfe5b5030600052607381538281f30073000000000000000000000000000000000000000030146080604052600080fd00a165627a7a7230582098148c50ea91b28c1c639a1011a9ff589fbdfe44baebd1310cb06bc74d1bca140029",
-  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600080fd00a165627a7a7230582098148c50ea91b28c1c639a1011a9ff589fbdfe44baebd1310cb06bc74d1bca140029",
-  "sourceMap": "276:7213:7:-;;132:2:-1;166:7;155:9;146:7;137:37;252:7;246:14;243:1;238:23;232:4;229:33;270:1;265:20;;;;222:63;;265:20;274:9;222:63;;298:9;295:1;288:20;328:4;319:7;311:22;352:7;343;336:24",
-  "deployedSourceMap": "276:7213:7:-;;;;;;;;",
-  "source": "pragma solidity ^0.4.23;\npragma experimental \"v0.5.0\";\n\nimport \"openzeppelin-solidity/contracts/math/SafeMath.sol\";\n\n/**\n * @title Contract for difference\n *\n * Contract for difference for a given market between a\n * \"buyer\" (long position) and \"seller\" (short position).\n */\nlibrary ContractForDifferenceLibrary {\n    using SafeMath for uint;\n\n    uint internal constant FACTOR_UINT = 10 ** 20; // raise numbers to avoid fractions\n    int  internal constant FACTOR_INT = int(FACTOR_UINT);\n\n    uint internal constant MINIMUM_COLLATERAL_PERCENT = 20; // 5x leverage\n    uint internal constant MAXIMUM_COLLATERAL_PERCENT = 500; // 0.2x leverage\n\n    // 5% of collateral triggers a liquidate\n    uint internal constant LIQUIDATE_THRESHOLD_PERCENT = 5;\n\n    // 5% as 0.05 adjusted up by the FACTOR (to avoid a fraction)\n    uint internal constant LIQUIDATE_THRESHOLD_PERCENT_RAISED = LIQUIDATE_THRESHOLD_PERCENT * FACTOR_UINT / 100;\n\n    // Buyer and seller initial adjustment in cut off formulas.\n    // Declare constants up here to save gas.\n    uint constant BUYER_CUTOFF_ADJUSTMENT = (FACTOR_UINT * 105) / 100; // 1.05\n    uint constant SELLER_CUTOFF_ADJUSTMENT = (FACTOR_UINT * 95) / 100; // 0.95\n\n\n    /**\n     * Creator fee - 0.3% of notional.\n     */\n    function creatorFee(uint _notional) internal pure returns (uint fee) {\n        fee = percentOf(_notional, 3) / 10;\n    }\n\n    /**\n     * Joiner (deposit or buy) percentage fee - 0.5% of notional.\n     */\n    function joinerFee(uint _notional) internal pure returns (uint fee) {\n        fee = percentOf(_notional, 5) / 10;\n    }\n\n    /**\n     * @dev Calculate new notional amount after a side has been sold at a new\n     *      strike price.\n     *\n     * Formula is:\n     *  N2 = N1 * S2 / S1\n     * Where:\n     *  N1 = previous notional\n     *  S1 = previous strike price\n     *  S2 = sale strike price\n     *\n     * @param _oldNotional Existing notional.\n     * @param _oldStrikePrice Existing strike price.\n     * @param _newStrikePrice New / Sale strike price.\n     * @return newNotional Result of the calculation.\n     */\n    function calculateNewNotional(\n        uint _oldNotional,\n        uint _oldStrikePrice,\n        uint _newStrikePrice\n    )\n        internal\n        pure\n        returns (uint newNotional)\n    {\n        newNotional = (\n            _oldNotional.mul(\n                (_newStrikePrice.mul(FACTOR_UINT) / (_oldStrikePrice))\n            )\n        ) / (FACTOR_UINT);\n    }\n\n    /**\n     * @dev Calculate the change in contract value based on the price change.\n     * @param _currentPrice Current market price\n     */\n    function changeInWei(\n        uint _strikePrice,\n        uint _currentPrice,\n        uint _notionalAmount\n    )\n        internal\n        pure\n        returns (uint change)\n    {\n        uint changePercent = percentChange(_strikePrice, _currentPrice);\n        change = percentOf(_notionalAmount, changePercent);\n    }\n\n    /**\n     * @dev Return a percentage change comparing a value with a new value.\n     * @param _value The existing value to compare against\n     * @param _newValue The new value to compare the change against\n     * @return Percentage change (eg. _value = 100, _newValue = 90 then return 10)\n     */\n    function percentChange(uint _value, uint _newValue)\n        internal\n        pure\n        returns (uint percent)\n    {\n        if (_value == _newValue) return 0;\n        int changeAmount = int(_newValue) - int(_value);\n        int percentInt = (changeAmount * 100) / int(_value);\n        percent = uint((percentInt > 0) ? percentInt : -percentInt);\n    }\n\n    /**\n     * @dev Return a percentage of a given amount.\n     * @param _amount Amount to calculate the percentage of\n     * @param _percent Percent amount (1 - 100)\n     */\n    function percentOf(uint _amount, uint _percent)\n        internal\n        pure\n        returns (uint adjusted)\n    {\n        adjusted = (_amount * _percent) / 100;\n    }\n\n    /**\n     * @dev Calculate the collateral amount for one party given the current\n     *      market price and original strike price, notional amount and the\n     *      amount the party has deposited into the contract.\n     *\n     * @param _marketPrice Current market price\n     * @param _strikePrice CFD strike price\n     * @param _notionalAmount CFD notional amount\n     * @param _depositBalance Balances of deposits into the contract\n     * @param _isBuyer Buyer or Seller / Long or short party?\n     *\n     * @return collateral Amount of collateral for the party\n     */\n    function calculateCollateralAmount(\n        uint _strikePrice,\n        uint _marketPrice,\n        uint _notionalAmount,\n        uint _depositBalance,\n        bool _isBuyer\n    )\n        internal\n        pure\n        returns (uint collateral)\n    {\n        // Formulas are:\n        //     Cl = depositBalanceLong  + N * (P - S) / S\n        //     Cs = depositBalanceShort - N * (P - S) / S\n        // however we need to use a multiplication factor to avoid fractions in\n        // solidity so these formulas are a little different to the above:\n        int N = int(_notionalAmount) * FACTOR_INT;\n        int So = int(_strikePrice);\n        int P = int(_marketPrice);\n        int D = int(_depositBalance);\n\n        int difference = (\n            N * (((P - So) * FACTOR_INT) / So) / FACTOR_INT\n        ) / FACTOR_INT;\n        int collateralInt = _isBuyer ? D + difference : D - difference;\n\n        assert(collateralInt >= 0);\n        collateral = uint(collateralInt);\n    }\n\n    function collateralInRange(\n        uint _notionalAmount,\n        uint _amount\n    )\n        internal\n        pure\n        returns (bool inRange)\n    {\n        inRange = (_amount >= percentOf(_notionalAmount, MINIMUM_COLLATERAL_PERCENT)) &&\n            (_amount <= percentOf(_notionalAmount, MAXIMUM_COLLATERAL_PERCENT));\n    }\n\n    /**\n     * @dev Calculate the cut off price for buyer or seller.\n     *\n     * This is the price that if passed would raise a liquidation event.\n     *\n     * Base Formulas are:\n     *     Buyer:  1.05 * S - depositBalanceLong  * S / N\n     *     Seller: 0.95 * S + depositBalanceShort * S / N\n     *\n     * However for Solidity we need to adjust parts by FACTOR_UINT to ensure\n     * no fractions.\n     *\n     * @param _notionalAmountWei Contract notional amount\n     * @param _depositBalance Balance of deposits for one party\n     *\n     * @return cut off price\n     */\n\n    function cutOffPrice(\n        uint _notionalAmountWei,\n        uint _depositBalance,\n        uint _strikePrice,\n        bool _calcForBuyerSide\n    )\n        internal\n        pure\n        returns (uint price)\n    {\n        // 1st part: Buyer: [1.05 * S] or Seller: [0.95 * S]\n        uint strikePriceAdjuster = (_calcForBuyerSide) ?\n            BUYER_CUTOFF_ADJUSTMENT :\n            SELLER_CUTOFF_ADJUSTMENT;\n        uint strikeFivePercent = (_strikePrice * strikePriceAdjuster) / FACTOR_UINT;\n\n\n        // 2nd part: [depositBalance * S / N]\n        uint difference = (\n            _depositBalance * (_strikePrice * FACTOR_UINT) / _notionalAmountWei\n        ) / FACTOR_UINT;\n\n        // check for case where difference is greater (when buyer has deposits > notional)\n        // in this case we set the price to 0\n        if (_calcForBuyerSide && difference > strikeFivePercent)\n            return 0;\n\n        // finally: add or subtract the difference\n        price = (_calcForBuyerSide) ?\n            strikeFivePercent - difference :\n            strikeFivePercent + difference;\n    }\n\n}\n",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "FACTOR_INT",
+      "outputs": [
+        {
+          "name": "",
+          "type": "int256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "MINIMUM_COLLATERAL_PERCENT",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "LIQUIDATE_THRESHOLD_PERCENT_RAISED",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "MAXIMUM_COLLATERAL_PERCENT",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "LIQUIDATE_THRESHOLD_PERCENT",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "FACTOR_UINT",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "notional",
+          "type": "uint256"
+        }
+      ],
+      "name": "creatorFee",
+      "outputs": [
+        {
+          "name": "fee",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "notional",
+          "type": "uint256"
+        }
+      ],
+      "name": "joinerFee",
+      "outputs": [
+        {
+          "name": "fee",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_oldNotional",
+          "type": "uint256"
+        },
+        {
+          "name": "_oldStrikePrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_newStrikePrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "calculateNewNotional",
+      "outputs": [
+        {
+          "name": "newNotional",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_strikePrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_currentPrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_notionalAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "changeInWei",
+      "outputs": [
+        {
+          "name": "change",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_value",
+          "type": "uint256"
+        },
+        {
+          "name": "_newValue",
+          "type": "uint256"
+        }
+      ],
+      "name": "percentChange",
+      "outputs": [
+        {
+          "name": "percent",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_amount",
+          "type": "uint256"
+        },
+        {
+          "name": "_percent",
+          "type": "uint256"
+        }
+      ],
+      "name": "percentOf",
+      "outputs": [
+        {
+          "name": "adjusted",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_strikePrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_marketPrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_notionalAmount",
+          "type": "uint256"
+        },
+        {
+          "name": "_depositBalance",
+          "type": "uint256"
+        },
+        {
+          "name": "_isBuyer",
+          "type": "bool"
+        }
+      ],
+      "name": "calculateCollateralAmount",
+      "outputs": [
+        {
+          "name": "collateral",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_notionalAmount",
+          "type": "uint256"
+        },
+        {
+          "name": "_amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "collateralInRange",
+      "outputs": [
+        {
+          "name": "inRange",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_notionalAmountWei",
+          "type": "uint256"
+        },
+        {
+          "name": "_depositBalance",
+          "type": "uint256"
+        },
+        {
+          "name": "_strikePrice",
+          "type": "uint256"
+        },
+        {
+          "name": "_calcForBuyerSide",
+          "type": "bool"
+        }
+      ],
+      "name": "cutOffPrice",
+      "outputs": [
+        {
+          "name": "price",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "pure",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x610760610030600b82828239805160001a6073146000811461002057610022565bfe5b5030600052607381538281f30073000000000000000000000000000000000000000030146080604052600436106100f2576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806328970492146100f75780632f301a7814610115578063393d85331461015d5780635ab3076c146101b15780635dfa360a146101cf5780636ca6bbd81461022d57806378c3829b1461024b5780637b433e091461027f5780638505571e1461029d578063917faf0e146102d15780639c03d24a146102ef578063a6f408211461032d578063d7a7afac1461036b578063dc2ae6e814610389578063f7d740ac146103cb575b600080fd5b6100ff610413565b6040518082815260200191505060405180910390f35b610147600480360381019080803590602001909291908035906020019092919080359060200190929190505050610420565b6040518082815260200191505060405180910390f35b61019b600480360381019080803590602001909291908035906020019092919080359060200190929190803515159060200190929190505050610478565b6040518082815260200191505060405180910390f35b6101b961053e565b6040518082815260200191505060405180910390f35b61021760048036038101908080359060200190929190803590602001909291908035906020019092919080359060200190929190803515159060200190929190505050610543565b6040518082815260200191505060405180910390f35b6102356105d3565b6040518082815260200191505060405180910390f35b610269600480360381019080803590602001909291905050506105ef565b6040518082815260200191505060405180910390f35b61028761060f565b6040518082815260200191505060405180910390f35b6102bb60048036038101908080359060200190929190505050610615565b6040518082815260200191505060405180910390f35b6102d9610635565b6040518082815260200191505060405180910390f35b610317600480360381019080803590602001909291908035906020019092919050505061063a565b6040518082815260200191505060405180910390f35b6103556004803603810190808035906020019092919080359060200190929190505050610684565b6040518082815260200191505060405180910390f35b61037361069d565b6040518082815260200191505060405180910390f35b6103b160048036038101908080359060200190929190803590602001909291905050506106aa565b604051808215151515815260200191505060405180910390f35b6103fd6004803603810190808035906020019092919080359060200190929190803590602001909291905050506106d9565b6040518082815260200191505060405180910390f35b68056bc75e2d6310000081565b600068056bc75e2d631000006104658461044c68056bc75e2d63100000866106fc90919063ffffffff16565b81151561045557fe5b04866106fc90919063ffffffff16565b81151561046e57fe5b0490509392505050565b600080600080846104a1576064605f68056bc75e2d631000000281151561049b57fe5b046104bb565b6064606968056bc75e2d63100000028115156104b957fe5b045b925068056bc75e2d631000008387028115156104d357fe5b04915068056bc75e2d631000008868056bc75e2d63100000880289028115156104f857fe5b0481151561050257fe5b04905084801561051157508181115b1561051f5760009350610533565b8461052c57808201610530565b8082035b93505b505050949350505050565b601481565b600080600080600080600068056bc75e2d631000008a0295508b94508a935088925068056bc75e2d63100000808668056bc75e2d631000008888030281151561058857fe5b05880281151561059457fe5b0581151561059e57fe5b059150876105ae578183036105b2565b8183015b9050600081121515156105c157fe5b80965050505050505095945050505050565b606468056bc75e2d631000006005028115156105eb57fe5b0481565b6000600a6105fe836003610684565b81151561060757fe5b049050919050565b6101f481565b6000600a610624836005610684565b81151561062d57fe5b049050919050565b600581565b600080600083851415610650576000925061067c565b8484039150846064830281151561066357fe5b059050600081136106775780600003610679565b805b92505b505092915050565b6000606482840281151561069457fe5b04905092915050565b68056bc75e2d6310000081565b60006106b7836014610684565b82101580156106d157506106cd836101f4610684565b8211155b905092915050565b6000806106e6858561063a565b90506106f28382610684565b9150509392505050565b60008083141561070f576000905061072e565b818302905081838281151561072057fe5b0414151561072a57fe5b8090505b929150505600a165627a7a723058205a84c2ce7365aa0adcdfd76f1e5236885313c831ab993b5a1ade87ec9f1fca1b0029",
+  "deployedBytecode": "0x73000000000000000000000000000000000000000030146080604052600436106100f2576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806328970492146100f75780632f301a7814610115578063393d85331461015d5780635ab3076c146101b15780635dfa360a146101cf5780636ca6bbd81461022d57806378c3829b1461024b5780637b433e091461027f5780638505571e1461029d578063917faf0e146102d15780639c03d24a146102ef578063a6f408211461032d578063d7a7afac1461036b578063dc2ae6e814610389578063f7d740ac146103cb575b600080fd5b6100ff610413565b6040518082815260200191505060405180910390f35b610147600480360381019080803590602001909291908035906020019092919080359060200190929190505050610420565b6040518082815260200191505060405180910390f35b61019b600480360381019080803590602001909291908035906020019092919080359060200190929190803515159060200190929190505050610478565b6040518082815260200191505060405180910390f35b6101b961053e565b6040518082815260200191505060405180910390f35b61021760048036038101908080359060200190929190803590602001909291908035906020019092919080359060200190929190803515159060200190929190505050610543565b6040518082815260200191505060405180910390f35b6102356105d3565b6040518082815260200191505060405180910390f35b610269600480360381019080803590602001909291905050506105ef565b6040518082815260200191505060405180910390f35b61028761060f565b6040518082815260200191505060405180910390f35b6102bb60048036038101908080359060200190929190505050610615565b6040518082815260200191505060405180910390f35b6102d9610635565b6040518082815260200191505060405180910390f35b610317600480360381019080803590602001909291908035906020019092919050505061063a565b6040518082815260200191505060405180910390f35b6103556004803603810190808035906020019092919080359060200190929190505050610684565b6040518082815260200191505060405180910390f35b61037361069d565b6040518082815260200191505060405180910390f35b6103b160048036038101908080359060200190929190803590602001909291905050506106aa565b604051808215151515815260200191505060405180910390f35b6103fd6004803603810190808035906020019092919080359060200190929190803590602001909291905050506106d9565b6040518082815260200191505060405180910390f35b68056bc75e2d6310000081565b600068056bc75e2d631000006104658461044c68056bc75e2d63100000866106fc90919063ffffffff16565b81151561045557fe5b04866106fc90919063ffffffff16565b81151561046e57fe5b0490509392505050565b600080600080846104a1576064605f68056bc75e2d631000000281151561049b57fe5b046104bb565b6064606968056bc75e2d63100000028115156104b957fe5b045b925068056bc75e2d631000008387028115156104d357fe5b04915068056bc75e2d631000008868056bc75e2d63100000880289028115156104f857fe5b0481151561050257fe5b04905084801561051157508181115b1561051f5760009350610533565b8461052c57808201610530565b8082035b93505b505050949350505050565b601481565b600080600080600080600068056bc75e2d631000008a0295508b94508a935088925068056bc75e2d63100000808668056bc75e2d631000008888030281151561058857fe5b05880281151561059457fe5b0581151561059e57fe5b059150876105ae578183036105b2565b8183015b9050600081121515156105c157fe5b80965050505050505095945050505050565b606468056bc75e2d631000006005028115156105eb57fe5b0481565b6000600a6105fe836003610684565b81151561060757fe5b049050919050565b6101f481565b6000600a610624836005610684565b81151561062d57fe5b049050919050565b600581565b600080600083851415610650576000925061067c565b8484039150846064830281151561066357fe5b059050600081136106775780600003610679565b805b92505b505092915050565b6000606482840281151561069457fe5b04905092915050565b68056bc75e2d6310000081565b60006106b7836014610684565b82101580156106d157506106cd836101f4610684565b8211155b905092915050565b6000806106e6858561063a565b90506106f28382610684565b9150509392505050565b60008083141561070f576000905061072e565b818302905081838281151561072057fe5b0414151561072a57fe5b8090505b929150505600a165627a7a723058205a84c2ce7365aa0adcdfd76f1e5236885313c831ab993b5a1ade87ec9f1fca1b0029",
+  "sourceMap": "276:7179:7:-;;132:2:-1;166:7;155:9;146:7;137:37;252:7;246:14;243:1;238:23;232:4;229:33;270:1;265:20;;;;222:63;;265:20;274:9;222:63;;298:9;295:1;288:20;328:4;319:7;311:22;352:7;343;336:24",
+  "deployedSourceMap": "276:7179:7:-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;434:50;;;;;;;;;;;;;;;;;;;;;;;2071:363;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;6371:1081;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;491:52;;;;;;;;;;;;;;;;;;;;;;;4487:970;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;811:105;;;;;;;;;;;;;;;;;;;;;;;1248:116;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;564:53;;;;;;;;;;;;;;;;;;;;;;;1452:115;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;686:52;;;;;;;;;;;;;;;;;;;;;;;3204:352;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;3737:166;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;349:43;;;;;;;;;;;;;;;;;;;;;;;5463:325;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;2583:314;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;434:50;384:8;434:50;:::o;2071:363::-;2239:16;384:8;2299:102;2370:15;2334:32;384:8;2334:15;:19;;:32;;;;:::i;:::-;:52;;;;;;;;2299:12;:16;;:102;;;;:::i;:::-;2285:142;;;;;;;;2271:156;;2071:363;;;;;:::o;6371:1081::-;6565:10;6652:24;6785:22;6918:15;6680:17;6679:96;;1174:3;1168:2;384:8;1154:16;1153:24;;;;;;;;6679:96;;;1095:3;1088;384:8;1074:17;1073:25;;;;;;;;6679:96;6652:123;;384:8;6826:19;6811:12;:34;6810:50;;;;;;;;6785:75;;384:8;6999:18;384:8;6969:12;:26;6950:15;:46;:67;;;;;;;;6936:105;;;;;;;;6918:123;;7193:17;:51;;;;;7227:17;7214:10;:30;7193:51;7189:77;;;7265:1;7258:8;;;;7189:77;7337:17;7336:109;;7435:10;7415:17;:30;7336:109;;;7390:10;7370:17;:30;7336:109;7328:117;;6371:1081;;;;;;;;;;:::o;491:52::-;541:2;491:52;:::o;4487:970::-;4710:15;5037:5;5088:6;5124:5;5159;5198:14;5309:17;384:8;5049:15;5045:33;5037:41;;5101:12;5088:26;;5136:12;5124:25;;5171:15;5159:28;;384:8;;5260:2;384:8;5240:2;5236:1;:6;5235:21;5234:28;;;;;;;;5229:1;:34;:47;;;;;;;;5215:84;;;;;;;;5198:101;;5329:8;:42;;5361:10;5357:1;:14;5329:42;;;5344:10;5340:1;:14;5329:42;5309:62;;5406:1;5389:13;:18;;5382:26;;;;;;5436:13;5418:32;;4487:970;;;;;;;;;;;;;:::o;811:105::-;913:3;384:8;737:1;869:41;:47;;;;;;;;811:105;:::o;1248:116::-;1304:8;1355:2;1330:22;1340:8;1350:1;1330:9;:22::i;:::-;:27;;;;;;;;1324:33;;1248:116;;;:::o;564:53::-;614:3;564:53;:::o;1452:115::-;1507:8;1558:2;1533:22;1543:8;1553:1;1533:9;:22::i;:::-;:27;;;;;;;;1527:33;;1452:115;;;:::o;686:52::-;737:1;686:52;:::o;3204:352::-;3301:12;3372:16;3429:14;3343:9;3333:6;:19;3329:33;;;3361:1;3354:8;;;;3329:33;3412:6;3395:9;3391:28;3372:47;;3473:6;3462:3;3447:12;:18;3446:34;;;;;;;;3429:51;;3519:1;3506:10;:14;3505:43;;3538:10;3537:11;;3505:43;;;3524:10;3505:43;3490:59;;3204:352;;;;;;;:::o;3737:166::-;3830:13;3893:3;3881:8;3871:7;:18;3870:26;;;;;;;;3859:37;;3737:166;;;;:::o;349:43::-;384:8;349:43;:::o;5463:325::-;5593:12;5643:54;5653:15;541:2;5643:9;:54::i;:::-;5632:7;:65;;5631:150;;;;;5726:54;5736:15;614:3;5726:9;:54::i;:::-;5715:7;:65;;5631:150;5621:160;;5463:325;;;;:::o;2583:314::-;2740:11;2767:18;2788:42;2802:12;2816:13;2788;:42::i;:::-;2767:63;;2849:41;2859:15;2876:13;2849:9;:41::i;:::-;2840:50;;2583:314;;;;;;:::o;203:380:9:-;263:9;495:1;489:2;:7;485:36;;;513:1;506:8;;;;485:36;536:2;531;:7;527:11;;561:2;555;551:1;:6;;;;;;;;:12;544:20;;;;;;577:1;570:8;;203:380;;;;;:::o",
+  "source": "pragma solidity ^0.4.23;\npragma experimental \"v0.5.0\";\n\nimport \"openzeppelin-solidity/contracts/math/SafeMath.sol\";\n\n/**\n * @title Contract for difference\n *\n * Contract for difference for a given market between a\n * \"buyer\" (long position) and \"seller\" (short position).\n */\nlibrary ContractForDifferenceLibrary {\n    using SafeMath for uint;\n\n    uint public constant FACTOR_UINT = 10 ** 20; // raise numbers to avoid fractions\n    int  public constant FACTOR_INT = int(FACTOR_UINT);\n\n    uint public constant MINIMUM_COLLATERAL_PERCENT = 20; // 5x leverage\n    uint public constant MAXIMUM_COLLATERAL_PERCENT = 500; // 0.2x leverage\n\n    // 5% of collateral triggers a liquidate\n    uint public constant LIQUIDATE_THRESHOLD_PERCENT = 5;\n\n    // 5% as 0.05 adjusted up by the FACTOR (to avoid a fraction)\n    uint public constant LIQUIDATE_THRESHOLD_PERCENT_RAISED = LIQUIDATE_THRESHOLD_PERCENT * FACTOR_UINT / 100;\n\n    // Buyer and seller initial adjustment in cut off formulas.\n    // Declare constants up here to save gas.\n    uint constant BUYER_CUTOFF_ADJUSTMENT = (FACTOR_UINT * 105) / 100; // 1.05\n    uint constant SELLER_CUTOFF_ADJUSTMENT = (FACTOR_UINT * 95) / 100; // 0.95\n\n\n    /**\n     * Creator fee - 0.3% of notional.\n     */\n    function creatorFee(uint notional) public pure returns (uint fee) {\n        fee = percentOf(notional, 3) / 10;\n    }\n\n    /**\n     * Joiner (deposit or buy) percentage fee - 0.5% of notional.\n     */\n    function joinerFee(uint notional) public pure returns (uint fee) {\n        fee = percentOf(notional, 5) / 10;\n    }\n\n    /**\n     * @dev Calculate new notional amount after a side has been sold at a new\n     *      strike price.\n     *\n     * Formula is:\n     *  N2 = N1 * S2 / S1\n     * Where:\n     *  N1 = previous notional\n     *  S1 = previous strike price\n     *  S2 = sale strike price\n     *\n     * @param _oldNotional Existing notional.\n     * @param _oldStrikePrice Existing strike price.\n     * @param _newStrikePrice New / Sale strike price.\n     * @return newNotional Result of the calculation.\n     */\n    function calculateNewNotional(\n        uint _oldNotional,\n        uint _oldStrikePrice,\n        uint _newStrikePrice\n    )\n        public\n        pure\n        returns (uint newNotional)\n    {\n        newNotional = (\n            _oldNotional.mul(\n                (_newStrikePrice.mul(FACTOR_UINT) / (_oldStrikePrice))\n            )\n        ) / (FACTOR_UINT);\n    }\n\n    /**\n     * @dev Calculate the change in contract value based on the price change.\n     * @param _currentPrice Current market price\n     */\n    function changeInWei(\n        uint _strikePrice,\n        uint _currentPrice,\n        uint _notionalAmount\n    )\n        public\n        pure\n        returns (uint change)\n    {\n        uint changePercent = percentChange(_strikePrice, _currentPrice);\n        change = percentOf(_notionalAmount, changePercent);\n    }\n\n    /**\n     * @dev Return a percentage change comparing a value with a new value.\n     * @param _value The existing value to compare against\n     * @param _newValue The new value to compare the change against\n     * @return Percentage change (eg. _value = 100, _newValue = 90 then return 10)\n     */\n    function percentChange(uint _value, uint _newValue)\n        public\n        pure\n        returns (uint percent)\n    {\n        if (_value == _newValue) return 0;\n        int changeAmount = int(_newValue) - int(_value);\n        int percentInt = (changeAmount * 100) / int(_value);\n        percent = uint((percentInt > 0) ? percentInt : -percentInt);\n    }\n\n    /**\n     * @dev Return a percentage of a given amount.\n     * @param _amount Amount to calculate the percentage of\n     * @param _percent Percent amount (1 - 100)\n     */\n    function percentOf(uint _amount, uint _percent)\n        public\n        pure\n        returns (uint adjusted)\n    {\n        adjusted = (_amount * _percent) / 100;\n    }\n\n    /**\n     * @dev Calculate the collateral amount for one party given the current\n     *      market price and original strike price, notional amount and the\n     *      amount the party has deposited into the contract.\n     *\n     * @param _marketPrice Current market price\n     * @param _strikePrice CFD strike price\n     * @param _notionalAmount CFD notional amount\n     * @param _depositBalance Balances of deposits into the contract\n     * @param _isBuyer Buyer or Seller / Long or short party?\n     *\n     * @return collateral Amount of collateral for the party\n     */\n    function calculateCollateralAmount(\n        uint _strikePrice,\n        uint _marketPrice,\n        uint _notionalAmount,\n        uint _depositBalance,\n        bool _isBuyer\n    )\n        public\n        pure\n        returns (uint collateral)\n    {\n        // Formulas are:\n        //     Cl = depositBalanceLong  + N * (P - S) / S\n        //     Cs = depositBalanceShort - N * (P - S) / S\n        // however we need to use a multiplication factor to avoid fractions in\n        // solidity so these formulas are a little different to the above:\n        int N = int(_notionalAmount) * FACTOR_INT;\n        int So = int(_strikePrice);\n        int P = int(_marketPrice);\n        int D = int(_depositBalance);\n\n        int difference = (\n            N * (((P - So) * FACTOR_INT) / So) / FACTOR_INT\n        ) / FACTOR_INT;\n        int collateralInt = _isBuyer ? D + difference : D - difference;\n\n        assert(collateralInt >= 0);\n        collateral = uint(collateralInt);\n    }\n\n    function collateralInRange(\n        uint _notionalAmount,\n        uint _amount\n    )\n        public\n        pure\n        returns (bool inRange)\n    {\n        inRange = (_amount >= percentOf(_notionalAmount, MINIMUM_COLLATERAL_PERCENT)) &&\n            (_amount <= percentOf(_notionalAmount, MAXIMUM_COLLATERAL_PERCENT));\n    }\n\n    /**\n     * @dev Calculate the cut off price for buyer or seller.\n     *\n     * This is the price that if passed would raise a liquidation event.\n     *\n     * Base Formulas are:\n     *     Buyer:  1.05 * S - depositBalanceLong  * S / N\n     *     Seller: 0.95 * S + depositBalanceShort * S / N\n     *\n     * However for Solidity we need to adjust parts by FACTOR_UINT to ensure\n     * no fractions.\n     *\n     * @param _notionalAmountWei Contract notional amount\n     * @param _depositBalance Balance of deposits for one party\n     *\n     * @return cut off price\n     */\n\n    function cutOffPrice(\n        uint _notionalAmountWei,\n        uint _depositBalance,\n        uint _strikePrice,\n        bool _calcForBuyerSide\n    )\n        public\n        pure\n        returns (uint price)\n    {\n        // 1st part: Buyer: [1.05 * S] or Seller: [0.95 * S]\n        uint strikePriceAdjuster = (_calcForBuyerSide) ?\n            BUYER_CUTOFF_ADJUSTMENT :\n            SELLER_CUTOFF_ADJUSTMENT;\n        uint strikeFivePercent = (_strikePrice * strikePriceAdjuster) / FACTOR_UINT;\n\n\n        // 2nd part: [depositBalance * S / N]\n        uint difference = (\n            _depositBalance * (_strikePrice * FACTOR_UINT) / _notionalAmountWei\n        ) / FACTOR_UINT;\n\n        // check for case where difference is greater (when buyer has deposits > notional)\n        // in this case we set the price to 0\n        if (_calcForBuyerSide && difference > strikeFivePercent)\n            return 0;\n\n        // finally: add or subtract the difference\n        price = (_calcForBuyerSide) ?\n            strikeFivePercent - difference :\n            strikeFivePercent + difference;\n    }\n\n}\n",
   "sourcePath": "/home/hatch/projects/backt/protocol/contracts/cfd/ContractForDifferenceLibrary.sol",
   "compiler": {
     "name": "solc",
@@ -13,5 +325,5 @@
   },
   "networks": {},
   "schemaVersion": "2.0.1",
-  "updatedAt": "2018-11-29T08:21:29.067Z"
+  "updatedAt": "2018-11-28T16:29:19.642Z"
 }
