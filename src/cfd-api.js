@@ -593,9 +593,9 @@ export default class CFDAPI {
   contractsForSale ({fromBlock = 0}, onSuccessCallback, onErrorCallback) {
     const self = this
     const hasSideOnSale = async cfd =>
-      (await cfd.closed.call()) === false &&
+      ((await cfd.closed.call()) === false &&
       ((await cfd.isSellerSelling.call()) === true ||
-        (await cfd.isBuyerSelling.call()) === true)
+        (await cfd.isBuyerSelling.call()) === true))
     const getAttributes = async cfd => cfd.getCfdAttributes.call()
     const getAttributes2 = async cfd => cfd.getCfdAttributes2.call()
     const getMarketStr = async market => self.marketIdBytesToStr(market)
@@ -643,10 +643,20 @@ export default class CFDAPI {
       })
       return result
     }
-
-    // filter out those that have since been sold or liquidated
-    const filterCfds = async cfdRecs =>
-      cfdRecs.filter(async ({cfd}) => hasSideOnSale(cfd))
+    
+    const filterCfds = async cfdRecs => {
+      let result = cfdRecs
+      const hasSideOnSaleArr = await Promise.all(
+        result.map(({cfd}) => hasSideOnSale(cfd))
+      )
+      result = result.filter((rec, idx) => hasSideOnSaleArr[idx] === true)
+      let results = await Promise.all(
+        result.map(({cfd}) => {
+          return cfd
+        })
+      )
+      return results
+    }
 
     const event = this.cfdRegistry.LogCFDRegistrySale(
       {},
