@@ -651,7 +651,7 @@ export default class CFDAPI {
       )
       result = result.filter((rec, idx) => hasSideOnSaleArr[idx] === true)
       let results = await Promise.all(
-        result.map(({cfd}) => {
+        result.map((cfd) => {
           return cfd
         })
       )

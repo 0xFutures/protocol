@@ -297,8 +297,9 @@ describe('cfd-api.js', function () {
         api.contractsForSale(
           {},
           cfds => {
-            assert.equal(cfds.length, 2) // additional one from the sellCFD test
-            assert.equal(cfds[1].cfd.address, cfd.address)
+            assert.equal(cfds.length, 1)
+            console.log(cfds[0])
+            assert.equal(cfds[0].cfd.address, cfd.address)
             resolve()
           },
           error => reject(new Error(`unexpected error [${error}]`))
