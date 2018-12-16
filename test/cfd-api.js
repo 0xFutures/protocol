@@ -298,7 +298,6 @@ describe('cfd-api.js', function () {
           {},
           cfds => {
             assert.equal(cfds.length, 1)
-            console.log(cfds[0])
             assert.equal(cfds[0].cfd.address, cfd.address)
             resolve()
           },

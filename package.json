@@ -29,7 +29,7 @@
     "build_cmd": "babel src -d lib --ignore __tests__/* --copy-files"
   },
   "scripts": {
-    "build": "babel src -d lib --ignore __tests__/* --copy-files",
+    "build": "$npm_package_config_build_cmd",
     "build-watch": "$npm_package_config_build_cmd --watch",
     "deploy-develop": "npm run prepare && babel-node bin/deployContracts config.develop.json",
     "deploy-develop-first-time": "npm run prepare && babel-node bin/deployContracts config.develop.json --first-time",
@@ -41,9 +41,9 @@
     "develop-server": "bin/develop_server",
     "lint": "solium -d contracts",
     "prepare": "npm run build && npm run publish-abi && npm run lint && npm run test",
-    "publish-abi": "sh bin/publish_abi",
-    "test-server": "sh bin/test_server",
-    "test": "sh bin/test"
+    "publish-abi": "bin/publish_abi",
+    "test-server": "bin/test_server",
+    "test": "bin/test"
   },
   "dependencies": {
     "babel-runtime": "^6.26.0",
