@@ -649,13 +649,7 @@ export default class CFDAPI {
       const hasSideOnSaleArr = await Promise.all(
         result.map(({cfd}) => hasSideOnSale(cfd))
       )
-      result = result.filter((rec, idx) => hasSideOnSaleArr[idx] === true)
-      let results = await Promise.all(
-        result.map((cfd) => {
-          return cfd
-        })
-      )
-      return results
+      return result.filter((rec, idx) => hasSideOnSaleArr[idx] === true)
     }
 
     const event = this.cfdRegistry.LogCFDRegistrySale(
