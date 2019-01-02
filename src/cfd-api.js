@@ -327,7 +327,7 @@ export default class CFDAPI {
    * @param valueToWithdraw, The amount (in Wei) the user wants to withdraw
    */
   async withdraw (cfdAddress, account, valueToWithdraw) {
-    const cfd = this.cfd.at(cfdAddress)``
+    const cfd = this.cfd.at(cfdAddress)
     if ((await cfd.isContractParty.call(account)) === false) {
       return Promise.reject(
         new Error(`${account} is not a party to CFD ${cfdAddress}`)
