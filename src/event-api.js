@@ -3,7 +3,11 @@ import {
   cfdInstance
 } from './contracts'
 
+// Transaction event timeout (in ms)
+const TRANSACTIONS_EVENT_TIMEOUT = 30000;
+
 export default class EVENTAPI {
+
   /**
    * Create a new instance of this class setting up contract handles and
    * validiting the config addresses point to actual deployed contracts.
@@ -38,28 +42,46 @@ export default class EVENTAPI {
   ) {
     let self = this
     let transactions = []
-    let nbContracts = contracts.length
+    let nbContracts = (contracts != undefined && contracts.length != undefined) ? contracts.length : 0;
     let nbContractDone = 0
-    // For each contract
-    contracts.forEach(function (contract) {
-      // Get all the events
-      let events = self.cfd.at(contract.cfd.address).allEvents({fromBlock: 0, toBlock: 'latest'})
-      events.get((err, events) => {
-        // If we have at least one event, push them into the transactions array
-        if (err == null && events != null && events !== undefined && events.length > 0) {
-          events.forEach(function (e) {
-            transactions.push(e)
-          })
-        }
-        nbContractDone += 1
-        // Check if we are done with all the contracts
-        if (nbContractDone >= nbContracts) {
-          // Sort array by block number
-          transactions.sort(function (a, b) { return b.blockNumber - a.blockNumber })
-          onSuccessCallback(transactions)
-        }
+    // Check if we have 0 contracts
+    if (nbContracts <= 0)
+      onSuccessCallback(transactions);
+    else {
+      // For each contract
+      contracts.forEach(function (contract) {
+
+        // Get all the events
+        let events = self.cfd.at(contract.cfd.address).allEvents({fromBlock: 0, toBlock: 'latest'})
+        events.get((err, events) => {
+          // If we have at least one event, push them into the transactions array
+          if (err == null && events != null && events !== undefined && events.length > 0) {
+            events.forEach(function (e) {
+              transactions.push(e)
+            })
+          }
+          // Check if we are done with all the contracts
+          nbContractDone += 1
+          if (nbContractDone >= nbContracts) {
+            // Sort array by block number
+            transactions.sort(function (a, b) { return b.blockNumber - a.blockNumber })
+            onSuccessCallback(transactions)
+          }
+        })
+
+        // In case the events never return, use a timeout
+        setTimeout(function() {
+          // Check if we are done with all the contracts
+          nbContractDone += 1
+          if (nbContractDone >= nbContracts) {
+            // Sort array by block number
+            transactions.sort(function (a, b) { return b.blockNumber - a.blockNumber })
+            onSuccessCallback(transactions)
+          }
+        }, TRANSACTIONS_EVENT_TIMEOUT)
+
       })
-    })
+    }
   }
 
   /**
