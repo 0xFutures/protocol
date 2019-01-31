@@ -13,11 +13,6 @@ import "./ContractForDifferenceLibrary.sol";
 /*
  * SOLIUM DISABLE: 
  *
- *   error-reason - as if we use reasons in all revert/require's 
- *      then the contract create tx will exceed the current main net block gas 
- *      limit. For now we put reasons in a select few places. In the future the
- *      contract could be broken down into multiple contracts
- *
  *   security/no-send - using send instead of transfer as we'd like to log an 
  *      event on failure. See each send() below.
  *
@@ -25,7 +20,6 @@ import "./ContractForDifferenceLibrary.sol";
  *       limit.
  */
 
- /* solium-disable error-reason */
  /* solium-disable security/no-block-members */
  /* solium-disable security/no-send */
 

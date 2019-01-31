@@ -13,25 +13,13 @@ contract DBC {
         _;
     }
 
-    /* 
-     * SOLIUM DISABLE: intentional require without reason. See comments in
-     * ContractForDifference.sol for explanation of gas limit restricting
-     * including reasons in all require/reverts 
-     */
-     
-    /* solium-disable error-reason */
-    modifier pre_cond_no_msg(bool condition) {
-        require(condition);
-        _;
-    }
-
     modifier post_cond(bool condition) {
         _;
         assert(condition);
     }
 
-    modifier invariant(bool condition) {
-        require(condition);
+    modifier invariant(bool condition, string reason) {
+        require(condition, reason);
         _;
         assert(condition);
     }
