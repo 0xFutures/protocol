@@ -80,7 +80,7 @@ library ContractForDifferenceLibrary {
      * @dev Calculate the change in contract value based on the price change.
      * @param _currentPrice Current market price
      */
-    function changeInWei(
+    function changeInDai(
         uint _strikePrice,
         uint _currentPrice,
         uint _notionalAmount
@@ -190,14 +190,14 @@ library ContractForDifferenceLibrary {
      * However for Solidity we need to adjust parts by FACTOR_UINT to ensure
      * no fractions.
      *
-     * @param _notionalAmountWei Contract notional amount
+     * @param _notionalAmountDai Contract notional amount
      * @param _depositBalance Balance of deposits for one party
      *
      * @return cut off price
      */
 
     function cutOffPrice(
-        uint _notionalAmountWei,
+        uint _notionalAmountDai,
         uint _depositBalance,
         uint _strikePrice,
         bool _calcForBuyerSide
@@ -215,7 +215,7 @@ library ContractForDifferenceLibrary {
 
         // 2nd part: [depositBalance * S / N]
         uint difference = (
-            _depositBalance * (_strikePrice * FACTOR_UINT) / _notionalAmountWei
+            _depositBalance * (_strikePrice * FACTOR_UINT) / _notionalAmountDai
         ) / FACTOR_UINT;
 
         // check for case where difference is greater (when buyer has deposits > notional)

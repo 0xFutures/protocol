@@ -9,6 +9,8 @@ import FeedsJSON from '../abi/Feeds.json'
 import ForwardFactoryJSON from '../abi/ForwardFactory.json'
 import RegistryJSON from '../abi/Registry.json'
 
+import MockDAITokenJSON from '../build/contracts/DAIToken.json'
+
 /**
  * Create a handle to the deployed ContractForDifferenceFactory.
  */
@@ -89,6 +91,9 @@ const cfdFactoryInstance = (web3Provider, config) =>
 const cfdRegistryInstance = (web3Provider, config) =>
   contractInstance(CFDRegistryJSON, web3Provider, config)
 
+const mockDAITokenInstance = (web3Provider, config) =>
+  contractInstance(MockDAITokenJSON, web3Provider, config)
+
 /**
  * Create a handle to an instance of a contract already deployed on the
  * blockchain.
@@ -149,6 +154,7 @@ module.exports = {
   feedsInstance,
   feedsInstanceDeployed,
   forwardFactoryInstance,
+  mockDAITokenInstance,
   registryInstance,
   registryInstanceDeployed
 }

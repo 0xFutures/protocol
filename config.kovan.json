@@ -6,6 +6,7 @@
   "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
+  "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
   "registryAddr": "0xa40eedc4d5d2eb9f3b505a85a8eaf697a2622a17",
   "feedContractAddr": "0x88dd2a9706d9a59b10bfae66dea8474ec73d2075",
   "cfdRegistryContractAddr": "0xfa3dc61072fec7bc595f2813b906a045f4fa63b7",

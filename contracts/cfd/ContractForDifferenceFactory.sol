@@ -22,6 +22,8 @@ contract ContractForDifferenceFactory is DBC, Ownable {
     string constant REASON_MUST_BE_LATEST = "Can only upgrade on a factory that is the latest";
     string constant REASON_MUST_REGISTERED_CFD = "Caller must be a registered CFD";
     string constant REASON_UPGRADEABLE_FLAG_NOT_SET = "upgradeable is not set in the CFD";
+    string constant REASON_DAI_TRANSFER_FAILED = "Failure transfering ownership of DAI tokens";
+    string constant REASON_DAI_ALLOWANCE_TOO_LOW = "DAI allowance is less than the _value";
 
     Registry public registry;
     address public cfdModel;
@@ -68,6 +70,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
      * @param _strikePrice Contact strike price
      * @param _notionalAmountWei Contract notional amount
      * @param _isBuyer If the caller is to be the buyer, else they will be the seller
+     * @param _value Amount of DAI to deposit
      *
      * @return address of new contract
      */
@@ -75,17 +78,22 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         bytes32 _marketId,
         uint _strikePrice,
         uint _notionalAmountWei,
-        bool _isBuyer
+        bool _isBuyer,
+        uint _value
     )
         external
-        payable
+        pre_cond(
+            registry.getDAI().allowance(msg.sender, this) >= _value, 
+            REASON_DAI_ALLOWANCE_TOO_LOW
+        )
         returns (ContractForDifference cfd)
     {
         address creator = msg.sender;
+
         cfd = ContractForDifference(
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
-        cfd.create.value(msg.value)(
+        cfd.create(
             registry,
             cfdRegistry,
             feeds,
@@ -93,8 +101,14 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             _marketId,
             _strikePrice,
             _notionalAmountWei,
-            _isBuyer
+            _isBuyer,
+            _value
         );
+        require(
+            registry.getDAI().transferFrom(creator, cfd, _value),
+            REASON_DAI_TRANSFER_FAILED
+        );
+
         registry.addCFD(cfd);
         emit LogCFDFactoryNew(_marketId, creator, cfd);
         ContractForDifferenceRegistry(cfdRegistry).registerNew(cfd, creator);
@@ -108,7 +122,6 @@ contract ContractForDifferenceFactory is DBC, Ownable {
      */
     function createByUpgrade()
         external
-        payable
         returns (ContractForDifference newCfd)
     {
         // can only upgrade this if factory is the latest version
@@ -118,7 +131,10 @@ contract ContractForDifferenceFactory is DBC, Ownable {
 
         // can only upgrade if cfd registered and not with this latest version
         address registryEntry = registry.allCFDs(cfdAddr);
-        require(registryEntry != 0x0 && registryEntry != address(this), REASON_MUST_REGISTERED_CFD);
+        require(
+            registryEntry != 0x0 && registryEntry != address(this), 
+            REASON_MUST_REGISTERED_CFD
+        );
 
         ContractForDifference existingCfd = ContractForDifference(cfdAddr);
         require(existingCfd.upgradeable(), REASON_UPGRADEABLE_FLAG_NOT_SET);
@@ -131,7 +147,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             existingCfd.buyer()
         );
 
-        newCfd.createByUpgrade.value(msg.value)(
+        newCfd.createByUpgrade(
             cfdAddr,
             address(registry),
             cfdRegistry,

@@ -13,15 +13,11 @@ import "./ContractForDifferenceLibrary.sol";
 /*
  * SOLIUM DISABLE: 
  *
- *   security/no-send - using send instead of transfer as we'd like to log an 
- *      event on failure. See each send() below.
- *
  *   security/no-block-members - we need to use 'now' in order to set a time 
  *       limit.
  */
 
  /* solium-disable security/no-block-members */
- /* solium-disable security/no-send */
 
 /**
  * @title Contract for difference
@@ -39,7 +35,7 @@ contract ContractForDifference is DBC {
     event LogCFDCreated(
         address creator,
         bytes32 market,
-        uint notionalAmountWei,
+        uint notionalAmountDai,
         uint deposit
     );
     event LogCFDInitiated(
@@ -48,7 +44,7 @@ contract ContractForDifference is DBC {
         address buyer,
         address seller,
         bytes32 market,
-        uint notionalAmountWei,
+        uint notionalAmountDai,
         uint strikePrice,
         uint buyerDepositBalance,
         uint sellerDepositBalance
@@ -65,9 +61,6 @@ contract ContractForDifference is DBC {
     event LogCFDSaleCancelled(address party);
     event LogCFDSaleUpdated(address party, uint newPrice);
     event LogCFDSold(address to, address by, uint newNotional, uint sellerAmount, uint buyerDeposit, bytes32 market);
-
-    event LogCFDSendCollateralFailure(address receiver, uint amount);
-    event LogCFDWithrewUnsent(address withdrawer);
 
     event LogCFDPartyBalanceUpdate(address party, uint amount, bool isWithdraw, uint newBalance, bytes32 market);
     event LogCFDTransferFunds(address receiver, uint amount);
@@ -90,6 +83,7 @@ contract ContractForDifference is DBC {
 
     string constant REASON_NOTIONAL_TOO_LOW = "Notional below minimum";
     string constant REASON_FEES_NOT_ENOUGH = "Not enough sent to cover fees";
+    string constant REASON_DAI_TRANSFER_FAILED = "Failure transfering ownership of DAI tokens";
     string constant REASON_COLLATERAL_RANGE_FAILED = "collateralInRange false";
     string constant REASON_MUST_NOT_BE_INITIATED = "Must not be initiated";
     string constant REASON_MUST_NOT_BE_CLOSED = "Must not be closed";
@@ -109,7 +103,7 @@ contract ContractForDifference is DBC {
     string constant REASON_TRANSFER_TO_EXISTING_PARTY = "Can't transfer to existing party";
 
     uint public constant FORCE_TERMINATE_PENALTY_PERCENT = 5;
-    uint public constant MINIMUM_NOTIONAL_AMOUNT_WEI = 10 finney;
+    uint public constant MINIMUM_NOTIONAL_AMOUNT_DAI = 1 * 1e18; // 1 DAI/1 USD
 
 
     /*
@@ -120,7 +114,7 @@ contract ContractForDifference is DBC {
     address public seller;                          // short
     bytes32 public market;
 
-    uint public notionalAmountWei;
+    uint public notionalAmountDai;
     uint public buyerInitialNotional;
     uint public sellerInitialNotional;
 
@@ -132,8 +126,6 @@ contract ContractForDifference is DBC {
     // balances of amounts actually deposited/withdrawn from the contract
     uint public buyerDepositBalance;
     uint public sellerDepositBalance;
-
-    mapping (address => uint) public withdrawable;
 
     uint public buyerSaleStrikePrice;
     uint public buyerSaleTimeLimit;
@@ -216,7 +208,7 @@ contract ContractForDifference is DBC {
      *
      * Fee of 0.3% of the notional is taken.
      *
-     * Therefore the intial deposit is msg.value minus these fees.
+     * Therefore the intial deposit is _value minus these fees.
      *
      * @param _registryAddr Registry contract address
      * @param _cfdRegistryAddr CFD Registry contract address
@@ -225,9 +217,10 @@ contract ContractForDifference is DBC {
      * @param _marketId Contract is for prices on this market
      * @param _strikePrice Agreed initial price for the contract (compatible
                 with Feeds stored price - see Feeds.decimals() adjustment)
-     * @param _notionalAmountWei Contract amount
+     * @param _notionalAmountDai Contract amount
      * @param _isBuyer Flag indicating if the contract creator wants to take the
      *            buyer (true) or the seller side (false).
+     * @param _value DAI amount
      */
     function create(
         address _registryAddr,
@@ -236,19 +229,19 @@ contract ContractForDifference is DBC {
         address _partyAddr, // msg.sender calling the Factory
         bytes32 _marketId,
         uint _strikePrice,
-        uint _notionalAmountWei,
-        bool _isBuyer
+        uint _notionalAmountDai,
+        bool _isBuyer,
+        uint _value
     )
         public
-        payable
-        pre_cond(_notionalAmountWei >= MINIMUM_NOTIONAL_AMOUNT_WEI, REASON_NOTIONAL_TOO_LOW)
+        pre_cond(_notionalAmountDai >= MINIMUM_NOTIONAL_AMOUNT_DAI, REASON_NOTIONAL_TOO_LOW)
     {
-        uint fees = ContractForDifferenceLibrary.creatorFee(_notionalAmountWei);
-        if (msg.value <= fees)
+        uint fees = ContractForDifferenceLibrary.creatorFee(_notionalAmountDai);
+        if (_value <= fees)
             revert(REASON_FEES_NOT_ENOUGH);
 
-        uint collateralSent = msg.value - fees;
-        if (!ContractForDifferenceLibrary.collateralInRange(_notionalAmountWei, collateralSent))
+        uint collateralSent = _value - fees;
+        if (!ContractForDifferenceLibrary.collateralInRange(_notionalAmountDai, collateralSent))
             revert(REASON_COLLATERAL_RANGE_FAILED);
 
         if (_isBuyer) {
@@ -260,9 +253,9 @@ contract ContractForDifference is DBC {
         }
 
         market = _marketId;
-        notionalAmountWei = _notionalAmountWei;
-        buyerInitialNotional = _notionalAmountWei;
-        sellerInitialNotional = _notionalAmountWei;
+        notionalAmountDai = _notionalAmountDai;
+        buyerInitialNotional = _notionalAmountDai;
+        sellerInitialNotional = _notionalAmountDai;
 
         strikePrice = _strikePrice;
         buyerInitialStrikePrice = _strikePrice;
@@ -275,8 +268,8 @@ contract ContractForDifference is DBC {
         emit LogCFDCreated(
             _partyAddr,
             market,
-            notionalAmountWei,
-            msg.value
+            notionalAmountDai,
+            _value
         );
     }
 
@@ -285,6 +278,9 @@ contract ContractForDifference is DBC {
      *      of the upgrade process (see CFD.upgrade()).
      *
      * @param _cfdAddr Address of the existing / old CFD
+     * @param _registryAddr Address of Registry contract
+     * @param _cfdRegistryAddr Address of CFDRegistry contract
+     * @param _feedsAddr Address to send fees to
      */
     function createByUpgrade(
         address _cfdAddr,
@@ -293,12 +289,11 @@ contract ContractForDifference is DBC {
         address _feedsAddr
     )
         public
-        payable
     {
         ContractForDifference oldCfd = ContractForDifference(_cfdAddr);
 
         market = oldCfd.market();
-        notionalAmountWei = oldCfd.notionalAmountWei();
+        notionalAmountDai = oldCfd.notionalAmountDai();
         strikePrice = oldCfd.strikePrice();
         buyer = oldCfd.buyer();
         seller = oldCfd.seller();
@@ -335,7 +330,7 @@ contract ContractForDifference is DBC {
             seller,
             market,
             strikePrice,
-            notionalAmountWei,
+            notionalAmountDai,
             buyerSelling,
             sellerSelling,
             status()
@@ -374,22 +369,27 @@ contract ContractForDifference is DBC {
      *
      * Fee of 0.5% of the notional is taken.
      *
-     * Therefore the intial deposit is msg.value minus these fees.
+     * Therefore the intial deposit is _value minus these fees.
      */
-    function deposit()
+    function deposit(uint _value)
         external
-        payable
         pre_cond(initiated == false, REASON_MUST_NOT_BE_INITIATED)
         pre_cond(closed == false, REASON_MUST_NOT_BE_CLOSED) // cancelNew has not been called
         pre_cond(isContractParty(msg.sender) == false, REASON_MUST_NOT_BE_PARTY) // reject contract creator depositing
     {
-        uint joinerFees = ContractForDifferenceLibrary.joinerFee(notionalAmountWei);
-        if (msg.value <= joinerFees)
+        uint joinerFees = ContractForDifferenceLibrary.joinerFee(notionalAmountDai);
+        if (_value <= joinerFees)
             revert(REASON_FEES_NOT_ENOUGH);
 
-        uint collateralSent = msg.value - joinerFees;
-        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountWei, collateralSent))
+        daiTransferToFees(
+            joinerFees + ContractForDifferenceLibrary.creatorFee(notionalAmountDai)
+        );
+
+        uint collateralSent = _value - joinerFees;
+        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountDai, collateralSent))
             revert(REASON_COLLATERAL_RANGE_FAILED);
+
+        daiClaim(collateralSent);
 
         if (buyer == 0x0) {
             buyer = msg.sender;
@@ -399,18 +399,15 @@ contract ContractForDifference is DBC {
             sellerDepositBalance = collateralSent;
         }
 
-        uint feeAmount = joinerFees + ContractForDifferenceLibrary.creatorFee(notionalAmountWei);
-        registry.getFees().transfer(feeAmount);
-
         initiated = true;
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(msg.sender);
         emit LogCFDInitiated(
             msg.sender,
-            msg.value,
+            _value,
             buyer,
             seller,
             market,
-            notionalAmountWei,
+            notionalAmountDai,
             strikePrice,
             buyerDepositBalance,
             sellerDepositBalance
@@ -427,13 +424,9 @@ contract ContractForDifference is DBC {
         pre_cond(initiated == false, REASON_MUST_NOT_BE_INITIATED)
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
     {
-        uint amountSent = address(this).balance;
-        if (!msg.sender.send(amountSent)) {
-            withdrawable[msg.sender] = amountSent;
-            emit LogCFDSendCollateralFailure(msg.sender, amountSent);
-        } else {
-            emit LogCFDTransferFunds(msg.sender, amountSent);
-        }
+        uint amountSent = registry.getDAI().balanceOf(this);
+        daiTransfer(msg.sender, amountSent);
+        emit LogCFDTransferFunds(msg.sender, amountSent);
         closed = true;
         emit LogCFDCanceledNew(msg.sender, amountSent, market);
     }
@@ -441,11 +434,11 @@ contract ContractForDifference is DBC {
     /**
      * @dev Party adds more funds to the contract thereby increasing their
      *      deposit balance.
+     * @param _value DAI amount
      */
-    function topup()
+    function topup(uint _value)
         external
-        payable
-        pre_cond(msg.value >= 1, REASON_AMOUNT_NOT_ENOUGH)
+        pre_cond(_value >= 1, REASON_AMOUNT_NOT_ENOUGH)
         pre_cond(initiated == true, REASON_MUST_BE_INITIATED)
         pre_cond(closed == false, REASON_MUST_NOT_BE_CLOSED)
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
@@ -455,11 +448,13 @@ contract ContractForDifference is DBC {
         uint newDepositBalance = (isBuyer ? 
             buyerDepositBalance : 
             sellerDepositBalance
-        ).add(msg.value);
+        ).add(_value);
 
         // check topup doesn't make collateral exceed the maximum
-        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountWei, newDepositBalance))
+        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountDai, newDepositBalance))
             revert(REASON_COLLATERAL_RANGE_FAILED);
+
+        daiClaim(_value);
 
         if (isBuyer) {
             buyerDepositBalance = newDepositBalance;
@@ -467,7 +462,7 @@ contract ContractForDifference is DBC {
             sellerDepositBalance = newDepositBalance;
         }
 
-        emit LogCFDPartyBalanceUpdate(msg.sender, msg.value, false, newDepositBalance, market);
+        emit LogCFDPartyBalanceUpdate(msg.sender, _value, false, newDepositBalance, market);
     }
 
     /**
@@ -502,21 +497,17 @@ contract ContractForDifference is DBC {
         uint collateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             marketPrice,
-            notionalAmountWei,
+            notionalAmountDai,
             newDepositBal,
             isBuyer
         );
 
-        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountWei, collateral)) {
+        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountDai, collateral)) {
             revert(REASON_COLLATERAL_RANGE_FAILED);
         }
 
-        if (!msg.sender.send(_withdrawAmount)) {
-            withdrawable[msg.sender] = _withdrawAmount;
-            emit LogCFDSendCollateralFailure(msg.sender, _withdrawAmount);
-        } else {
-            emit LogCFDTransferFunds(msg.sender, _withdrawAmount);
-        }
+        daiTransfer(msg.sender, _withdrawAmount);
+        emit LogCFDTransferFunds(msg.sender, _withdrawAmount);
 
         if (isBuyer) {
             buyerDepositBalance = newDepositBal;
@@ -551,8 +542,8 @@ contract ContractForDifference is DBC {
         pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
     {
         if (msg.sender == buyer) buyer = _newAddress;
-        if (msg.sender == seller) seller = _newAddress;
-        if (msg.sender == upgradeCalledBy) upgradeCalledBy = 0x0;
+        else if (msg.sender == seller) seller = _newAddress;
+        else if (msg.sender == upgradeCalledBy) upgradeCalledBy = 0x0;
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(_newAddress);
         emit LogCFDTransferPosition(msg.sender, _newAddress);
     }
@@ -567,7 +558,6 @@ contract ContractForDifference is DBC {
      */
     function sellPrepare(uint _desiredStrikePrice, uint _timeLimit)
         external
-        payable
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
         pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
         // reject already marked selling by the caller
@@ -620,7 +610,6 @@ contract ContractForDifference is DBC {
         uint _newStrikePrice
     )
         external
-        payable
         pre_cond(initiated == false, REASON_MUST_NOT_BE_INITIATED)
         pre_cond(closed == false, REASON_MUST_NOT_BE_CLOSED)
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
@@ -650,21 +639,20 @@ contract ContractForDifference is DBC {
      * Fee of 0.5% of the notional is taken.
      *
      * @param _buyBuyerSide Buying the buyer side or the seller side?
+     * @param _value DAI amount
      */
-    function buy(bool _buyBuyerSide)
+    function buy(bool _buyBuyerSide, uint _value)
         external
-        payable
         assertBuyPreCond(_buyBuyerSide)
     {
-        uint fees = ContractForDifferenceLibrary.joinerFee(notionalAmountWei);
-        if (msg.value <= fees)
+        uint fees = ContractForDifferenceLibrary.joinerFee(notionalAmountDai);
+        if (_value <= fees)
             revert(REASON_FEES_NOT_ENOUGH);
-
-        registry.getFees().transfer(fees);
+        daiTransferToFees(fees);
 
         // check sent collateral falls in the allowable range
-        uint collateralSent = msg.value.sub(fees);
-        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountWei, collateralSent))
+        uint collateralSent = _value.sub(fees);
+        if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountDai, collateralSent))
             revert(REASON_COLLATERAL_RANGE_FAILED);
 
         uint marketPrice = latestPrice();
@@ -682,7 +670,7 @@ contract ContractForDifference is DBC {
             revert(REASON_MARKET_PRICE_RANGE_FAILED);
         }
 
-        // transfer to selling party and to fees address
+        // transfer to selling party
         address sellingParty = _buyBuyerSide ? buyer : seller;
         uint sellingPartyCollateral = buyTransferFunds(
             _buyBuyerSide,
@@ -690,12 +678,16 @@ contract ContractForDifference is DBC {
             sellingParty
         );
 
+        // move ownership of sent DAI to the CFD
+        daiClaim(collateralSent);
+
         // set new party and balances
-        uint remainingPartyDeposits = address(this).balance.sub(collateralSent);
+        uint remainingPartyDeposits = registry.getDAI().
+            balanceOf(this).sub(collateralSent);
 
         // new notional amount value
         uint newNotional = ContractForDifferenceLibrary.calculateNewNotional(
-            notionalAmountWei,
+            notionalAmountDai,
             strikePrice,
             newStrikePrice
         );
@@ -715,7 +707,7 @@ contract ContractForDifference is DBC {
         }
 
         strikePrice = newStrikePrice;
-        notionalAmountWei = newNotional;
+        notionalAmountDai = newNotional;
 
         clearSale(_buyBuyerSide);
 
@@ -725,7 +717,7 @@ contract ContractForDifference is DBC {
         }
 
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(msg.sender);
-        emit LogCFDSold(msg.sender, sellingParty, newNotional, sellingPartyCollateral, msg.value, market);
+        emit LogCFDSold(msg.sender, sellingParty, newNotional, sellingPartyCollateral, _value, market);
     }
 
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
@@ -755,18 +747,14 @@ contract ContractForDifference is DBC {
         sellingPartyCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             newStrikePrice,
-            notionalAmountWei,
+            notionalAmountDai,
             buyBuyerSide ? buyerDepositBalance : sellerDepositBalance,
             buyBuyerSide
         );
 
         // send money to selling party
-        if (!sellingParty.send(sellingPartyCollateral)) {
-            withdrawable[sellingParty] = sellingPartyCollateral;
-            emit LogCFDSendCollateralFailure(sellingParty, sellingPartyCollateral);
-        } else {
-            emit LogCFDTransferFunds(sellingParty, sellingPartyCollateral);
-        }
+        daiTransfer(sellingParty, sellingPartyCollateral);
+        emit LogCFDTransferFunds(sellingParty, sellingPartyCollateral);
     }
 
     /**
@@ -799,7 +787,7 @@ contract ContractForDifference is DBC {
 
         // fetch one of the cutoffs to determine which is the winner
         uint buyerCutOff = ContractForDifferenceLibrary.cutOffPrice(
-            notionalAmountWei,
+            notionalAmountDai,
             buyerDepositBalance,
             strikePrice,
             true
@@ -810,13 +798,9 @@ contract ContractForDifference is DBC {
         address winner = winnerIsBuyer ? buyer : seller;
 
         // winner takes all
-        uint remaining = address(this).balance;
-        if (!winner.send(remaining)) {
-            withdrawable[winner] = remaining;
-            emit LogCFDSendCollateralFailure(winner, remaining);
-        } else {
-            emit LogCFDTransferFunds(winner, remaining);
-        }
+        uint remaining = registry.getDAI().balanceOf(this);
+        daiTransfer(winner, remaining);
+        emit LogCFDTransferFunds(winner, remaining);
 
         closed = true;
 
@@ -843,14 +827,14 @@ contract ContractForDifference is DBC {
         uint buyerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             marketPrice,
-            notionalAmountWei,
+            notionalAmountDai,
             buyerDepositBalance,
             true
         );
         uint sellerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             marketPrice,
-            notionalAmountWei,
+            notionalAmountDai,
             sellerDepositBalance,
             false
         );
@@ -861,11 +845,14 @@ contract ContractForDifference is DBC {
         // if not expected log the event and transfer the remainder to fees - it
         //     will be sorted out manually
         //
-        uint balanceRemainder = address(this).balance.sub(buyerCollateral).sub(sellerCollateral);
+        uint balanceRemainder = registry.getDAI().
+            balanceOf(this).
+            sub(buyerCollateral).
+            sub(sellerCollateral);
         if (balanceRemainder != 0) {
             emit LogCFDRemainingBalanceUnexpected(balanceRemainder);
         }
-        registry.getFees().transfer(balanceRemainder);
+        daiTransferToFees(balanceRemainder);
 
         // penalise the force terminator 5% and give it to the counterparty
         uint penalty = ContractForDifferenceLibrary.percentOf(
@@ -881,25 +868,10 @@ contract ContractForDifference is DBC {
         }
 
         // Send collateral amounts back each party.
-        //
-        // If a send fails then log the failure and make the amount available
-        // for withdrawal.
-        //
-        // NOTE: send here gets only 2100 gas so these calls are not at risk of
-        // reentrancy
-        if (!buyer.send(buyerCollateral)) {
-            withdrawable[buyer] = buyerCollateral;
-            emit LogCFDSendCollateralFailure(buyer, buyerCollateral);
-        } else {
-            emit LogCFDTransferFunds(buyer, buyerCollateral);
-        }
-
-        if (!seller.send(sellerCollateral)) {
-            withdrawable[seller] = sellerCollateral;
-            emit LogCFDSendCollateralFailure(seller, sellerCollateral);
-        } else {
-            emit LogCFDTransferFunds(seller, sellerCollateral);
-        }
+        daiTransfer(buyer, buyerCollateral);
+        emit LogCFDTransferFunds(buyer, buyerCollateral);
+        daiTransfer(seller, sellerCollateral);
+        emit LogCFDTransferFunds(seller, sellerCollateral);
 
         terminated = true;
         closed = true;
@@ -936,7 +908,8 @@ contract ContractForDifference is DBC {
         upgradeable = true;
         address cfdFactoryLatest = registry.getCFDFactoryLatest();
         address newCfd = ContractForDifferenceFactory(cfdFactoryLatest).
-            createByUpgrade.value(address(this).balance)();
+            createByUpgrade();
+        daiTransfer(newCfd, registry.getDAI().balanceOf(this));
         upgradeable = false;
         closed = true;
 
@@ -960,21 +933,6 @@ contract ContractForDifference is DBC {
             return Status.SALE;
         else
             return Status.INITIATED;
-    }
-
-    /**
-     * @dev Withdraw funds that failed to send in a previous a transaction.
-     *
-     * See event LogCFDSendCollateralFailure.
-     */
-    function withdrawUnsent()
-        external
-        pre_cond(withdrawable[msg.sender] > 0, REASON_WITHDRAW_NOT_ENOUGH)
-    {
-        uint amount = withdrawable[msg.sender];
-        withdrawable[msg.sender] = 0;
-        msg.sender.transfer(amount);
-        emit LogCFDWithrewUnsent(msg.sender);
     }
 
     /**
@@ -1012,13 +970,13 @@ contract ContractForDifference is DBC {
         returns (bool inRange)
     {
         uint buyerCutOff = ContractForDifferenceLibrary.cutOffPrice(
-            notionalAmountWei,
+            notionalAmountDai,
             _buyerDepositBalance,
             _strikePrice,
             true
         );
         uint sellerCutOff = ContractForDifferenceLibrary.cutOffPrice(
-            notionalAmountWei,
+            notionalAmountDai,
             _sellerDepositBalance,
             _strikePrice,
             false
@@ -1103,13 +1061,13 @@ contract ContractForDifference is DBC {
      * However for Solidity we need to adjust parts by FACTOR_UINT to ensure
      * no fractions.
      *
-     * @param _notionalAmountWei Contract notional amount
+     * @param _notionalAmountDai Contract notional amount
      * @param _depositBalance Balance of deposits for one party
      *
      * @return cut off price
      */
     function cutOffPrice(
-        uint _notionalAmountWei,
+        uint _notionalAmountDai,
         uint _depositBalance,
         uint _strikePrice,
         bool _calcForBuyerSide
@@ -1119,7 +1077,7 @@ contract ContractForDifference is DBC {
         returns (uint price)
     {
         price = ContractForDifferenceLibrary.cutOffPrice(
-            _notionalAmountWei,
+            _notionalAmountDai,
             _depositBalance,
             _strikePrice,
             _calcForBuyerSide
@@ -1144,7 +1102,7 @@ contract ContractForDifference is DBC {
      * @dev Calculate the change in contract value based on the price change.
      * @param _currentPrice Current market price
      */
-    function changeInWei(
+    function changeInDai(
         uint _strikePrice,
         uint _currentPrice,
         uint _notionalAmount
@@ -1153,7 +1111,7 @@ contract ContractForDifference is DBC {
         pure
         returns (uint change)
     {
-        change = ContractForDifferenceLibrary.changeInWei(
+        change = ContractForDifferenceLibrary.changeInDai(
             _strikePrice,
             _currentPrice,
             _notionalAmount
@@ -1215,4 +1173,32 @@ contract ContractForDifference is DBC {
             sellerSelling = false;
         }
     }
+
+    /**
+     * Transfer DAI to an address.
+     */
+    function daiTransfer(address _to, uint _value) private {
+        require(
+            registry.getDAI().transfer(_to, _value),
+            REASON_DAI_TRANSFER_FAILED
+        );
+    }
+
+    /**
+     * Transfer DAI to the fees address.
+     */
+    function daiTransferToFees(uint _value) private {
+        daiTransfer(registry.getFees(), _value);
+    }
+
+    /**
+     * Claim DAI - ie. move approved DAI to this CFD contract.
+     */
+    function daiClaim(uint _value) private {
+        require(
+            registry.getDAI().transferFrom(msg.sender, this, _value),
+            REASON_DAI_TRANSFER_FAILED
+        );
+    }
+
 }

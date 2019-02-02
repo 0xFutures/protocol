@@ -2,6 +2,7 @@ pragma solidity ^0.4.23;
 pragma experimental "v0.5.0";
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "./DBC.sol";
 
 contract Registry is DBC, Ownable {
@@ -24,6 +25,14 @@ contract Registry is DBC, Ownable {
 
     function setFees(address _addr) public onlyOwner {
         set("Fees", _addr);
+    }
+
+    function getDAI() public view returns (ERC20) {
+        return ERC20(get("DAI"));
+    }
+
+    function setDAI(address _addr) public onlyOwner {
+        set("DAI", _addr);
     }
 
     function set(string _name, address _addr) private onlyOwner {

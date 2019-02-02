@@ -6,6 +6,7 @@ import {
   cfdRegistryInstance,
   feedsInstance,
   forwardFactoryInstance,
+  mockDAITokenInstance,
   registryInstance,
   registryInstanceDeployed
 } from './contracts'
@@ -44,6 +45,10 @@ const deployRegistry = async (
 
   logFn('Calling registry.setFees ...')
   await registry.setFees(config.feesAccountAddr)
+  logFn('done\n')
+
+  logFn('Calling registry.setDAI ...')
+  await registry.setDAI(config.daiTokenAddr)
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
@@ -199,6 +204,33 @@ const deployCFD = async (
   }
 }
 
+/**
+ * Deploy a mock DAI token for test and develop.
+ * @param web3 Connected Web3 instance
+ * @param config Config instance (see config.<env>.json)
+ * @param logFn Log progress with this function
+ * @return token contract address
+ */
+const deployMockDAIToken = async (
+  web3,
+  config,
+  logFn
+) => {
+  web3.eth.defaultAccount = config.ownerAccountAddr
+
+  const DAIToken = mockDAITokenInstance(
+    web3.currentProvider,
+    config
+  )
+
+  logFn('Deploying mock DAIToken ...')
+  const dai = await DAIToken.new()
+  logFn(`DAIToken: ${dai.address}`)
+  logFn('done\n')
+
+  return dai.address
+}
+
 const deployAll = async (
   web3,
   initialConfig,
@@ -208,6 +240,11 @@ const deployAll = async (
   const log = (logMsg) => { if (logProgress === true) console.log(logMsg) }
 
   let config = initialConfig
+
+  if (['develop', 'test'].indexOf(config.network) !== -1) {
+    config.daiTokenAddr = await deployMockDAIToken(web3, config, log)
+  }
+
   let registry
   if (firstTime === true) {
     const { registry: registryInstance, updatedConfig } = await deployRegistry(web3, config, log)

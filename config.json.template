@@ -4,6 +4,7 @@
   "ownerAccountAddr": "<contracts admin account>",
   "daemonAccountAddr": "<daemons account>",
   "feesAccountAddr": "<fees collecting account>",
+  "daiTokenAddr": "<DAI token address>",
   "registryAddr": "<address>",
   "feedContractAddr": "<address>",
   "cfdFactoryContractAddr": "<address>",
