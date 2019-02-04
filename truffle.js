@@ -16,7 +16,8 @@ const infura = require('./infura.example.json')
 
 module.exports = {
   solc: {
-    optimizer: { // enable the optimizer - ContractForDifference too big
+    optimizer: {
+      // enable the optimizer - ContractForDifference too big
       enabled: true,
       runs: 200
     }
@@ -48,7 +49,7 @@ module.exports = {
       provider: function () {
         return new HDWalletProvider(
           infura.mnemonics.kovan,
-          `https://kovan.infura.io/${infura.apikey}`,
+          `https://kovan.infura.io/v3/${infura.apikey}`,
           0,
           5
         )
@@ -62,7 +63,7 @@ module.exports = {
       provider: function () {
         return new HDWalletProvider(
           infura.mnemonics.kovan,
-          `https://ropsten.infura.io/${infura.apikey}`
+          `https://ropsten.infura.io/v3/${infura.apikey}`
         )
       },
       network_id: 42,

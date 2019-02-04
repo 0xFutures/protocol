@@ -2,6 +2,7 @@
 *.swp
 build/
 config.json
+config.*.infura.json
 infura.json
 lib/
 node_modules/

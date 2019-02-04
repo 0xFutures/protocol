@@ -11,7 +11,7 @@ import {
   registryInstance,
   registryInstanceDeployed
 } from './contracts'
-import { isEthereumAddress } from './utils'
+import {isEthereumAddress} from './utils'
 
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
@@ -27,7 +27,7 @@ const linkBytecode = (bytecode, libraryName, libraryAddress) => {
  * @return updatedConfig Config instance with updated registryAddr
  */
 const deployRegistry = async (web3, config, logFn) => {
-  web3.eth.defaultAccount = config.ownerAccountAddr
+  web3.eth.defaultAccount = config.ownerAccountAddr.toLowerCase() // sometimes case is an issue: eg. truffle-hdwallet-provider
 
   const Registry = registryInstance(web3.currentProvider, config)
 
@@ -94,7 +94,7 @@ const deployFeeds = async (web3, config, logFn) => {
  * @return updatedConfig Config instance with addresses of newly deployed contracts added
  */
 const deployCFD = async (web3, config, logFn) => {
-  const { registryAddr } = config
+  const {registryAddr} = config
 
   web3.eth.defaultAccount = config.ownerAccountAddr
 
@@ -125,7 +125,7 @@ const deployCFD = async (web3, config, logFn) => {
     'ContractForDifferenceLibrary',
     cfdLib.address
   )
-  const cfd = await CFD.new({ gas: 7000000 })
+  const cfd = await CFD.new({gas: 7000000})
   logFn(`ContractForDifference: ${cfd.address}`)
 
   logFn('Deploying ContractForDifferenceRegistry ...')
@@ -140,23 +140,18 @@ const deployCFD = async (web3, config, logFn) => {
     cfd.address,
     ff.address,
     feeds.address,
-    { gas: 3000000 }
+    {gas: 3000000}
   )
   logFn(`ContractForDifferenceFactory: ${cfdFactory.address}`)
-
-  logFn('Calling cfdRegistry.setFactory ...')
-  await cfdRegistry.setFactory(cfdFactory.address)
-  logFn('done')
 
   const Registry = registryInstance(web3.currentProvider, config)
   const registry = await Registry.at(registryAddr)
 
   logFn('Setting up CFD Factory and Registry ...')
-  await Promise.all([
-    cfdFactory.setCFDRegistry(cfdRegistry.address),
-    cfdRegistry.setFactory(cfdFactory.address),
-    registry.setCFDFactoryLatest(cfdFactory.address)
-  ])
+  // run in sequence (in parallel has a nonce issue with hdwaller provider)
+  await cfdFactory.setCFDRegistry(cfdRegistry.address)
+  await cfdRegistry.setFactory(cfdFactory.address)
+  await registry.setCFDFactoryLatest(cfdFactory.address)
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
@@ -194,7 +189,7 @@ const deployMockDAIToken = async (web3, config, logFn) => {
     daiTokenAddr: daiToken.address
   })
 
-  return { daiToken, updatedConfig }
+  return {daiToken, updatedConfig}
 }
 
 const deployAll = async (
@@ -227,7 +222,7 @@ const deployAll = async (
     }
 
     // create registry
-    const { registry: registryInstance, updatedConfig } = await deployRegistry(
+    const {registry: registryInstance, updatedConfig} = await deployRegistry(
       web3,
       config,
       log
@@ -255,7 +250,7 @@ const deployAll = async (
   }
   daiToken = await daiTokenInstanceDeployed(config, web3)
 
-  const { updatedConfig: configAfterFeeds, feeds } = await deployFeeds(
+  const {updatedConfig: configAfterFeeds, feeds} = await deployFeeds(
     web3,
     config,
     log
@@ -279,4 +274,4 @@ const deployAll = async (
   }
 }
 
-export { deployAll }
+export {deployAll}

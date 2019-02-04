@@ -1,0 +1,15 @@
+{
+  "network": "kovan",
+  "rpcAddr": "https://kovan.infura.io/v3/<apikey>",
+  "hdWalletMnemonic": "<mnemonic>",
+  "gasDefault": 2000000,
+  "gasPrice": 2000000000,
+  "ownerAccountAddr": "<address>",
+  "daemonAccountAddr": "<address>",
+  "feesAccountAddr": "<address>",
+  "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
+  "registryAddr": "<address>",
+  "feedContractAddr": "<address>",
+  "cfdRegistryContractAddr": "<address>",
+  "cfdFactoryContractAddr": "<address>"
+}
