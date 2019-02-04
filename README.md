@@ -16,17 +16,29 @@ npm run publish-abi
 npm test
 ```
 
-## Deploy Contracts
+## Deploy Contracts (local node)
 
-The deployment command will recompile contracts, update the ABI and run the tests and
-then deploy contracts to the blockchain.
+This deployment command will recompile contracts, update ABI, run tests and deploy contracts to the blockchain using a local synchronised Ethereum node.
 
 ```
-// kovan
+// eg. kovan
 > npm run deploy-kovan
 ```
 
 NOTE: the very first time the contracts are deployed to a new network the deployer should run 'npm run deploy-&lt;network&gt;-first-time' instead of 'npm run deploy-&lt;network&gt;' as this will install the permanent Registry contract that all future deployments share. It contains a mapping of all CFDs ever created as well as the address of the most recent CFDFactory contract.
+
+## Deploy Contracts (Infura)
+
+Runs the same steps as the 'local node' deploy above but will deploy using a remote infura node.
+
+See config.kovan.infura.json.template for an example configuration. Put your Infura apikey and HD wallet mnemonic phrase in the config file.
+
+```
+// eg. kovan with infura config
+> npm run deploy-kovan-infura
+```
+
+See the note about 'first-time' deployment above. This applies to Infura deployment also.
 
 ## Publish NPM
 

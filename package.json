@@ -35,6 +35,8 @@
     "deploy-develop-first-time": "npm run prepare && babel-node bin/deployContracts config.develop.json --first-time",
     "deploy-kovan": "npm run prepare && babel-node bin/deployContracts config.kovan.json",
     "deploy-kovan-first-time": "npm run prepare && babel-node bin/deployContracts config.kovan.json --first-time",
+    "deploy-kovan-infura": "npm run prepare && babel-node bin/deployContracts config.kovan.infura.json",
+    "deploy-kovan-infura-first-time": "npm run prepare && babel-node bin/deployContracts config.kovan.infura.json --first-time",
     "deploy-live": "npm run prepare && babel-node bin/deployContracts config.live.json",
     "deploy-live-first-time": "npm run prepare && babel-node bin/deployContracts config.live.json --first-time",
     "develop-console": "truffle console --network develop",
