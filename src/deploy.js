@@ -4,15 +4,14 @@ import {
   cfdLibraryInstance,
   cfdFactoryInstance,
   cfdRegistryInstance,
+  daiTokenInstanceDeployed,
   feedsInstance,
   forwardFactoryInstance,
   mockDAITokenInstance,
   registryInstance,
   registryInstanceDeployed
 } from './contracts'
-import {
-  isEthereumAddress
-} from './utils'
+import { isEthereumAddress } from './utils'
 
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
@@ -27,17 +26,10 @@ const linkBytecode = (bytecode, libraryName, libraryAddress) => {
  * @return registry Registry truffle-contract instance
  * @return updatedConfig Config instance with updated registryAddr
  */
-const deployRegistry = async (
-  web3,
-  config,
-  logFn
-) => {
+const deployRegistry = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
 
-  const Registry = registryInstance(
-    web3.currentProvider,
-    config
-  )
+  const Registry = registryInstance(web3.currentProvider, config)
 
   logFn('Deploying Registry ...')
   const registry = await Registry.new()
@@ -69,17 +61,10 @@ const deployRegistry = async (
  * @return feeds Feeds truffle-contract instance
  * @return updatedConfig Config instance with updated feedContractAddr
  */
-const deployFeeds = async (
-  web3,
-  config,
-  logFn
-) => {
+const deployFeeds = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
 
-  const Feeds = feedsInstance(
-    web3.currentProvider,
-    config
-  )
+  const Feeds = feedsInstance(web3.currentProvider, config)
   logFn('Deploying Feeds ...')
   const feeds = await Feeds.new()
   logFn(`Feeds: ${feeds.address}`)
@@ -108,11 +93,7 @@ const deployFeeds = async (
  * @return cfdRegistry ContractForDifferenceRegistry truffle-contract instance
  * @return updatedConfig Config instance with addresses of newly deployed contracts added
  */
-const deployCFD = async (
-  web3,
-  config,
-  logFn
-) => {
+const deployCFD = async (web3, config, logFn) => {
   const { registryAddr } = config
 
   web3.eth.defaultAccount = config.ownerAccountAddr
@@ -120,26 +101,11 @@ const deployCFD = async (
   web3.version.getNetworkAsync = Promise.promisify(web3.version.getNetwork)
   const networkId = await web3.version.getNetworkAsync()
 
-  const ForwardFactory = forwardFactoryInstance(
-    web3.currentProvider,
-    config
-  )
-  const CFD = cfdInstance(
-    web3.currentProvider,
-    config
-  )
-  const CFDLibrary = cfdLibraryInstance(
-    web3.currentProvider,
-    config
-  )
-  const CFDFactory = cfdFactoryInstance(
-    web3.currentProvider,
-    config
-  )
-  const CFDRegistry = cfdRegistryInstance(
-    web3.currentProvider,
-    config
-  )
+  const ForwardFactory = forwardFactoryInstance(web3.currentProvider, config)
+  const CFD = cfdInstance(web3.currentProvider, config)
+  const CFDLibrary = cfdLibraryInstance(web3.currentProvider, config)
+  const CFDFactory = cfdFactoryInstance(web3.currentProvider, config)
+  const CFDRegistry = cfdRegistryInstance(web3.currentProvider, config)
   const Feeds = feedsInstance(web3.currentProvider, config)
 
   logFn('Deploying ForwardFactory ...')
@@ -154,7 +120,11 @@ const deployCFD = async (
   logFn(`ContractForDifferenceLibrary: ${cfdLib.address}`)
 
   logFn('Deploying ContractForDifference ...')
-  CFD.bytecode = linkBytecode(CFD.bytecode, 'ContractForDifferenceLibrary', cfdLib.address)
+  CFD.bytecode = linkBytecode(
+    CFD.bytecode,
+    'ContractForDifferenceLibrary',
+    cfdLib.address
+  )
   const cfd = await CFD.new({ gas: 7000000 })
   logFn(`ContractForDifference: ${cfd.address}`)
 
@@ -169,7 +139,8 @@ const deployCFD = async (
     registryAddr,
     cfd.address,
     ff.address,
-    feeds.address, { gas: 3000000 }
+    feeds.address,
+    { gas: 3000000 }
   )
   logFn(`ContractForDifferenceFactory: ${cfdFactory.address}`)
 
@@ -177,10 +148,7 @@ const deployCFD = async (
   await cfdRegistry.setFactory(cfdFactory.address)
   logFn('done')
 
-  const Registry = registryInstance(
-    web3.currentProvider,
-    config
-  )
+  const Registry = registryInstance(web3.currentProvider, config)
   const registry = await Registry.at(registryAddr)
 
   logFn('Setting up CFD Factory and Registry ...')
@@ -209,26 +177,24 @@ const deployCFD = async (
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
- * @return token contract address
+ * @return daiToken DAIToken truffle-contract instance
+ * @return updatedConfig Config instance with addresses of newly deployed contract added
  */
-const deployMockDAIToken = async (
-  web3,
-  config,
-  logFn
-) => {
+const deployMockDAIToken = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
 
-  const DAIToken = mockDAITokenInstance(
-    web3.currentProvider,
-    config
-  )
+  const DAIToken = mockDAITokenInstance(web3.currentProvider, config)
 
   logFn('Deploying mock DAIToken ...')
-  const dai = await DAIToken.new()
-  logFn(`DAIToken: ${dai.address}`)
+  const daiToken = await DAIToken.new()
+  logFn(`DAIToken: ${daiToken.address}`)
   logFn('done\n')
 
-  return dai.address
+  const updatedConfig = Object.assign({}, config, {
+    daiTokenAddr: daiToken.address
+  })
+
+  return { daiToken, updatedConfig }
 }
 
 const deployAll = async (
@@ -237,37 +203,77 @@ const deployAll = async (
   firstTime = false,
   logProgress = false
 ) => {
-  const log = (logMsg) => { if (logProgress === true) console.log(logMsg) }
+  const log = logMsg => {
+    if (logProgress === true) console.log(logMsg)
+  }
 
   let config = initialConfig
 
-  if (['develop', 'test'].indexOf(config.network) !== -1) {
-    config.daiTokenAddr = await deployMockDAIToken(web3, config, log)
-  }
+  const isDevEnv = ['develop', 'test'].indexOf(config.network) !== -1
 
   let registry
+  let daiToken
   if (firstTime === true) {
-    const { registry: registryInstance, updatedConfig } = await deployRegistry(web3, config, log)
+    if (isDevEnv === true) {
+      // create a DAI token for testing
+      if (['develop', 'test'].indexOf(config.network) !== -1) {
+        const {
+          daiToken: daiTokenInstance,
+          updatedConfig
+        } = await deployMockDAIToken(web3, config, log)
+        config = updatedConfig
+        daiToken = daiTokenInstance
+      }
+    }
+
+    // create registry
+    const { registry: registryInstance, updatedConfig } = await deployRegistry(
+      web3,
+      config,
+      log
+    )
     config = updatedConfig
     registry = registryInstance
   } else {
+    //
+    // Not first deploy - so just get handle to existing Registry contract
+    //
     if (!isEthereumAddress(config.registryAddr)) {
-      throw new Error(`Deploy firstTime = false however registryAddr is NOT set in config ...`)
+      throw new Error(
+        `Deploy firstTime = false however registryAddr is NOT set in config ...`
+      )
     }
     registry = await registryInstanceDeployed(config, web3)
   }
 
-  const deployFeedsResult = await deployFeeds(web3, config, log)
-  config = deployFeedsResult.updatedConfig
+  // DAIToken handle
+  if (!isEthereumAddress(config.daiTokenAddr)) {
+    throw new Error(
+      `DAI token address not set - it should be set in the config file ` +
+        `OR if this is a dev env a mock version should have been deployed`
+    )
+  }
+  daiToken = await daiTokenInstanceDeployed(config, web3)
 
-  const deployCFDResult = await deployCFD(web3, config, log)
-  config = deployCFDResult.updatedConfig
+  const { updatedConfig: configAfterFeeds, feeds } = await deployFeeds(
+    web3,
+    config,
+    log
+  )
+  config = configAfterFeeds
+
+  const {
+    updatedConfig: configAfterCFD,
+    cfdFactory,
+    cfdRegistry
+  } = await deployCFD(web3, config, log)
+  config = configAfterCFD
 
   return {
-    cfd: deployCFDResult.cfd,
-    cfdFactory: deployCFDResult.cfdFactory,
-    cfdRegistry: deployCFDResult.cfdRegistry,
-    feeds: deployFeedsResult.feeds,
+    cfdFactory,
+    cfdRegistry,
+    daiToken,
+    feeds,
     registry,
     updatedConfig: config
   }

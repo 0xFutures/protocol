@@ -3,7 +3,6 @@ import { assert } from 'chai'
 import {
   nowSecs,
   toContractBigNumber,
-  txGasCost,
   EMPTY_ACCOUNT,
   STATUS
 } from '../../src/utils'
@@ -25,6 +24,9 @@ const REJECT_MESSAGE = 'VM Exception while processing transaction: revert'
 const MINIMUM_COLLATERAL_PERCENT = web3.toBigNumber(20)
 const MAXIMUM_COLLATERAL_PERCENT = web3.toBigNumber(500)
 
+const ONE_DAI = web3.toBigNumber('1e18')
+const ONE_BN = web3.toBigNumber(1)
+
 describe('ContractForDifference', function () {
   const ContractForDifference = cfdInstance(web3.currentProvider, config)
 
@@ -35,34 +37,51 @@ describe('ContractForDifference', function () {
   const COUNTERPARTY_ACCOUNT = accounts[4]
   const FEES_ACCOUNT = accounts[8]
 
-  const oneBN = web3.toBigNumber(1)
   const strikePriceRaw = web3.toBigNumber('800.0')
-  const notionalAmount = web3.toWei(oneBN.times(10), 'finney')
+  const notionalAmount = ONE_DAI
   let strikePriceAdjusted
 
   let registry
   let feeds
   let cfdRegistry
+  let daiToken
   let decimals
   let marketId
 
   let minimumCollateral
   let maximumCollateral
 
+  const getBalance = addr => daiToken.balanceOf.call(addr)
+  const deposit = async (cfd, from, amount) => {
+    await daiToken.approve(cfd.address, amount, { from })
+    return cfd.deposit(amount, { from })
+  }
+  const buy = async (cfd, from, buyBuyerSide, amount) => {
+    await daiToken.approve(cfd.address, amount, { from })
+    return cfd.buy(buyBuyerSide, amount, { from })
+  }
+
   const creatorFee = () => creatorFeeCalc(notionalAmount)
   const joinerFee = (notional = notionalAmount) => joinerFeeCalc(notional)
 
+  /**
+   * Create a new CFD directly.
+   * Implements the same steps that the CFDFactory contract does.
+   */
   const newCFD = async ({
     strikePrice = strikePriceAdjusted,
     notionalAmount,
     isBuyer,
-    weiValue = notionalAmount,
+    daiValue = notionalAmount,
     creator = CREATOR_ACCOUNT
   }) => {
     const cfd = await ContractForDifference.new({
       gas: 6700000,
       from: creator
     })
+
+    const transferAmount = creatorFee().plus(daiValue)
+    await daiToken.transfer(cfd.address, transferAmount)
 
     await cfd.create(
       registry.address,
@@ -75,7 +94,6 @@ describe('ContractForDifference', function () {
       isBuyer,
       {
         gas: 1000000,
-        value: creatorFee().plus(weiValue),
         from: creator
       }
     )
@@ -87,16 +105,13 @@ describe('ContractForDifference', function () {
   }
 
   before(async () => {
-    let cfd
-
-      // eslint-disable-next-line no-extra-semi
-      ; ({ cfd, cfdRegistry, feeds, registry, decimals, marketId } = await deployAllForTest(
+    // eslint-disable-next-line no-extra-semi
+    ; ({ cfdRegistry, feeds, registry, daiToken, decimals, marketId } = await deployAllForTest(
       {
         web3,
         initialPrice: strikePriceRaw
       }
     ))
-
     strikePriceAdjusted = toContractBigNumber(strikePriceRaw, decimals)
 
     // set factory to default account so we can manually call registerNew
@@ -109,11 +124,14 @@ describe('ContractForDifference', function () {
     maximumCollateral = notionalAmount.times(
       MAXIMUM_COLLATERAL_PERCENT.dividedBy(100)
     )
+    // give tokens to CFD parties
+    const daiSendingTestAccounts = [CREATOR_ACCOUNT, COUNTERPARTY_ACCOUNT, accounts[5], accounts[9]]
+    await Promise.all(daiSendingTestAccounts.map(acc => daiToken.transfer(acc, ONE_DAI.times(100))))
   })
 
   describe('initiation', async () => {
     it('creates a new CFD with contract terms', async () => {
-      const feesBalBefore = web3.eth.getBalance(FEES_ACCOUNT)
+      const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assert.equal(await cfd.market.call(), marketId, 'market incorrect')
@@ -135,17 +153,17 @@ describe('ContractForDifference', function () {
         'buyer strike price not 0'
       )
       assertEqualBN(
-        await cfd.notionalAmountWei.call(),
+        await cfd.notionalAmountDai.call(),
         notionalAmount,
-        'notionalAmountWei incorrect'
+        'notionalAmountDai incorrect'
       )
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         notionalAmount.plus(creatorFee()),
         'cfd balance incorrect'
       )
       assertEqualBN(
-        web3.eth.getBalance(FEES_ACCOUNT),
+        await getBalance(FEES_ACCOUNT),
         feesBalBefore,
         'fees bal should not have changed'
       )
@@ -158,31 +176,28 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral
+        daiValue: collateral
       })
       assert.equal(await cfd.buyer.call(), CREATOR_ACCOUNT, 'buyer incorrect')
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         collateral.plus(creatorFee()),
         'cfd balance incorrect'
       )
     })
 
     it('initiates the contract on counterparty deposit()', async () => {
-      const feesBalBefore = web3.eth.getBalance(FEES_ACCOUNT)
+      const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assert.equal(await cfd.buyer.call(), CREATOR_ACCOUNT, 'buyer incorrect')
       assert.equal(await cfd.seller.call(), EMPTY_ACCOUNT, 'seller incorrect')
 
-      const txReceipt = await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      const txReceipt = await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
 
       // check party logged by CFDRegistry
       assertLoggedParty(
-        txReceipt.receipt.logs[0],
+        txReceipt.receipt.logs[2],
         cfd.address,
         COUNTERPARTY_ACCOUNT
       )
@@ -199,19 +214,19 @@ describe('ContractForDifference', function () {
 
       const expectedBalance = notionalAmount.times(2)
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         expectedBalance,
         'cfd balance incorrect'
       )
 
       assertEqualBN(
-        web3.eth.getBalance(FEES_ACCOUNT),
+        await getBalance(FEES_ACCOUNT),
         feesBalBefore.plus(notionalAmount.times(0.008)),
         'fees bal should have the 3% creator plus 5% depositor fee'
       )
 
       assert.equal(
-        txReceipt.receipt.logs[1].topics[0],
+        txReceipt.receipt.logs[3].topics[0],
         web3.sha3(
           'LogCFDInitiated(address,uint256,address,address,bytes32,uint256,uint256,uint256,uint256)'
         ),
@@ -221,11 +236,7 @@ describe('ContractForDifference', function () {
 
     it('allows deposit with collateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: minimumCollateral.plus(joinerFee())
-      })
-      // check cfd details
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, minimumCollateral.plus(joinerFee()))
       await assertStatus(cfd, STATUS.INITIATED)
     })
 
@@ -243,7 +254,7 @@ describe('ContractForDifference', function () {
     it('rejects create with collateral less then MINIMUM_COLLATERAL_PERCENT of the notional', async () => {
       const collateral = minimumCollateral.minus(1)
       try {
-        await newCFD({ notionalAmount, isBuyer: true, weiValue: collateral })
+        await newCFD({ notionalAmount, isBuyer: true, daiValue: collateral })
         assert.fail('expected reject create with low collateral')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -253,7 +264,7 @@ describe('ContractForDifference', function () {
     it('rejects create with collateral more then MAXIMUM_COLLATERAL_PERCENT of the notional', async () => {
       const collateral = maximumCollateral.plus(1)
       try {
-        await newCFD({ notionalAmount, isBuyer: true, weiValue: collateral })
+        await newCFD({ notionalAmount, isBuyer: true, daiValue: collateral })
         assert.fail('expected reject create with high collateral')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -261,10 +272,10 @@ describe('ContractForDifference', function () {
     })
 
     it('rejects create with notional amount less then minimum', async () => {
-      const notionalBelowMinimum = web3.toWei(web3.toBigNumber(10), 'finney').minus(1)
+      const notionalBelowMinimum = ONE_DAI.minus(1)
       const collateral = notionalBelowMinimum
       try {
-        await newCFD({ notionalAmount: notionalBelowMinimum, isBuyer: true, weiValue: collateral })
+        await newCFD({ notionalAmount: notionalBelowMinimum, isBuyer: true, daiValue: collateral })
         assert.fail('expected reject create with low notional')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} Notional below minimum`, err.message)
@@ -275,10 +286,7 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       try {
         const collateral = minimumCollateral.minus(1)
-        await cfd.deposit({
-          from: COUNTERPARTY_ACCOUNT,
-          value: collateral.plus(joinerFee())
-        })
+        await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.plus(joinerFee()))
         assert.fail('expected reject deposit with low collateral')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -289,10 +297,7 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       try {
         const collateral = maximumCollateral.plus(1)
-        await cfd.deposit({
-          from: COUNTERPARTY_ACCOUNT,
-          value: collateral.plus(joinerFee())
-        })
+        await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.plus(joinerFee()))
         assert.fail('expected reject deposit with high collateral')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -308,12 +313,9 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral1X
+        daiValue: collateral1X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral1X.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()))
 
       // move the market price up before terminating
       const priceRise = 0.1 // 10%
@@ -328,9 +330,9 @@ describe('ContractForDifference', function () {
 
       assert.isFalse(await cfd.terminated.call())
 
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const cpBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
-      const feesBalBefore = web3.eth.getBalance(FEES_ACCOUNT)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
+      const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
       const ftTx = await cfd.forceTerminate({
         from: CREATOR_ACCOUNT
@@ -343,24 +345,26 @@ describe('ContractForDifference', function () {
       const terminatorBaseCollateral = collateral1X.times(1 + priceRise)
       const terminationFee = terminatorBaseCollateral.times(penaltyPercent)
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
+        await getBalance(CREATOR_ACCOUNT),
         creatorBalBefore
-          .plus(terminatorBaseCollateral.minus(terminationFee))
-          .minus(txGasCost(ftTx.tx, web3))
+          .plus(terminatorBaseCollateral.minus(terminationFee)),
+        'creator balance incorrect'
       )
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
-        cpBalBefore.plus(collateral1X.times(1 - priceRise).plus(terminationFee))
+        await getBalance(COUNTERPARTY_ACCOUNT),
+        cpBalBefore.plus(collateral1X.times(1 - priceRise).plus(terminationFee)),
+        'counterparty balance incorrect'
       )
-      assertEqualBN(web3.eth.getBalance(FEES_ACCOUNT), feesBalBefore)
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(FEES_ACCOUNT),
+        feesBalBefore,
+        'fees balance should be unchanged'
+      )
+      assertEqualBN(
+        await getBalance(cfd.address),
         0,
         'cfd balance should be 0'
       )
-
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
 
     it('disolves contract and penalises terminator - 5x leverage price down', async () => {
@@ -370,12 +374,9 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral5X
+        daiValue: collateral5X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral5X.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()))
 
       // move the market price up before terminating
       const priceFall = 0.1 // 10%
@@ -390,10 +391,10 @@ describe('ContractForDifference', function () {
 
       assert.isFalse(await cfd.terminated.call())
 
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const cpBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
-      const ftTx = await cfd.forceTerminate({
+      await cfd.forceTerminate({
         from: CREATOR_ACCOUNT
       })
 
@@ -405,25 +406,23 @@ describe('ContractForDifference', function () {
       const terminatorBaseCollateral = collateral5X.times(1 - difference)
       const terminationFee = terminatorBaseCollateral.times(penaltyPercent)
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
+        await getBalance(CREATOR_ACCOUNT),
         creatorBalBefore
-          .plus(terminatorBaseCollateral.minus(terminationFee))
-          .minus(txGasCost(ftTx.tx, web3))
+          .plus(terminatorBaseCollateral.minus(terminationFee)),
+        'creator balance incorrect'
       )
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
+        await getBalance(COUNTERPARTY_ACCOUNT),
         cpBalBefore.plus(
           collateral5X.times(1 + difference).plus(terminationFee)
-        )
+        ),
+        'counterparty balance incorrect'
       )
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         0,
         'cfd balance should be 0'
       )
-
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
 
     it('disolves contract and penalises terminator - after seller side has been sold', async () => {
@@ -437,20 +436,14 @@ describe('ContractForDifference', function () {
         creator: buyer,
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral1X
+        daiValue: collateral1X
       })
-      await cfd.deposit({
-        from: seller,
-        value: collateral1X.plus(joinerFee())
-      })
+      await deposit(cfd, seller, collateral1X.plus(joinerFee()))
       await cfd.sellPrepare(strikePriceAdjusted, 0, { from: seller })
-      await cfd.buy(false, {
-        from: buyingParty,
-        value: collateral1X.plus(joinerFee())
-      })
+      await buy(cfd, buyingParty, false, collateral1X.plus(joinerFee()))
 
-      const buyerBalBefore = web3.eth.getBalance(buyer)
-      const buyingPartyBalBefore = web3.eth.getBalance(buyingParty)
+      const buyerBalBefore = await getBalance(buyer)
+      const buyingPartyBalBefore = await getBalance(buyingParty)
 
       // buyer teminates
       const ftTx = await cfd.forceTerminate({
@@ -465,27 +458,23 @@ describe('ContractForDifference', function () {
       //   simultaneously but pass when run alone. I can't see why yet:
 
       // assertEqualBN(
-      //   web3.eth.getBalance(buyer),
+      //   await getBalance(buyer),
       //   buyerBalBefore
-      //     .plus(collateral1X.times(oneBN.minus(penaltyPercent)))
-      //     .minus(txGasCost(ftTx.tx, web3)),
+      //     .plus(collateral1X.times(ONE_BN.minus(penaltyPercent))),
       //   'buyer balance'
       // )
       // assertEqualBN(
-      //   web3.eth.getBalance(buyingParty),
+      //   await getBalance(buyingParty),
       //   buyingPartyBalBefore.plus(
-      //     collateral1X.times(oneBN.plus(penaltyPercent))
+      //     collateral1X.times(ONE_BN.plus(penaltyPercent))
       //   ),
       //   'buying party balance'
       // )
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         0,
         'cfd balance should be 0'
       )
-
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
   })
 
@@ -494,10 +483,7 @@ describe('ContractForDifference', function () {
 
     it('transfers seller side ownership', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
       assert.equal(
         await cfd.seller.call(),
         COUNTERPARTY_ACCOUNT,
@@ -519,10 +505,7 @@ describe('ContractForDifference', function () {
 
     it('transfers buyer side ownership', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
       assert.equal(
         await cfd.seller.call(),
         COUNTERPARTY_ACCOUNT,
@@ -558,10 +541,7 @@ describe('ContractForDifference', function () {
 
     it("can't transfer to one of the 2 contract parties", async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
 
       const assertFailure = async (to, from) => {
         try {
@@ -586,10 +566,7 @@ describe('ContractForDifference', function () {
     // some reason about the liquidate threshold being reached
     it('rejects the update if called and the threshold has not been reached', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
 
       const newStrikePrice = strikePriceAdjusted.times(1.1) // not enough to hit liquidate threshold
       await feeds.push(marketId, newStrikePrice, nowSecs(), {
@@ -609,10 +586,7 @@ describe('ContractForDifference', function () {
 
     it('disolves the contract - 1x leverage both sides, price rise', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: notionalAmount.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()))
 
       // 5% threshold passed for seller
       const newStrikePrice = strikePriceAdjusted.times(1.951)
@@ -620,9 +594,9 @@ describe('ContractForDifference', function () {
         from: DAEMON_ACCOUNT
       })
 
-      const cfdBalance = web3.eth.getBalance(cfd.address)
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const cpBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
+      const cfdBalance = await getBalance(cfd.address)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
       await cfd.liquidate({
         from: DAEMON_ACCOUNT,
@@ -635,20 +609,16 @@ describe('ContractForDifference', function () {
 
       // full cfd balance transferred
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
+        await getBalance(CREATOR_ACCOUNT),
         creatorBalBefore.plus(cfdBalance),
         'buyer should have full balance transferred'
       )
       // unchanged
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
+        await getBalance(COUNTERPARTY_ACCOUNT),
         cpBalBefore,
         'seller balance should be unchanged'
       )
-
-      // withdrawables 0
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
 
     it('disolves the contract - 5x leverage both sides, price rise', async () => {
@@ -657,14 +627,11 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral5X
+        daiValue: collateral5X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral5X.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()))
 
-      // 5% threshold passed for seller at 5X - get cutoff price then add 1 wei
+      // 5% threshold passed for seller at 5X - get cutoff price then add 1
       const sellerCutOffPrice = cutOffPrice({
         strikePrice: strikePriceAdjusted,
         notionalAmount,
@@ -676,9 +643,9 @@ describe('ContractForDifference', function () {
         from: DAEMON_ACCOUNT
       })
 
-      const cfdBalance = web3.eth.getBalance(cfd.address)
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const cpBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
+      const cfdBalance = await getBalance(cfd.address)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
       await cfd.liquidate({
         from: DAEMON_ACCOUNT,
@@ -691,20 +658,16 @@ describe('ContractForDifference', function () {
 
       // full cfd balance transferred
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
+        await getBalance(CREATOR_ACCOUNT),
         creatorBalBefore.plus(cfdBalance),
         'buyer should have full balance transferred'
       )
       // unchanged
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
+        await getBalance(COUNTERPARTY_ACCOUNT),
         cpBalBefore,
         'seller balance should be unchanged'
       )
-
-      // withdrawables 0
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
 
     it('disolves the contract - 5x leverage both sides, price falls', async () => {
@@ -713,12 +676,9 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral5X
+        daiValue: collateral5X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral5X.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()))
 
       // under 5% threshold
       const newStrikePrice = strikePriceAdjusted.times(0.04)
@@ -726,9 +686,9 @@ describe('ContractForDifference', function () {
         from: DAEMON_ACCOUNT
       })
 
-      const cfdBalance = web3.eth.getBalance(cfd.address)
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const cpBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
+      const cfdBalance = await getBalance(cfd.address)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
       await cfd.liquidate({
         from: DAEMON_ACCOUNT,
@@ -741,18 +701,15 @@ describe('ContractForDifference', function () {
 
       // unchanged
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
+        await getBalance(CREATOR_ACCOUNT),
         creatorBalBefore,
         'buyer balance should be unchanged'
       )
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
+        await getBalance(COUNTERPARTY_ACCOUNT),
         cpBalBefore.plus(cfdBalance),
         'seller should have full balance transferred'
       )
-      // withdrawables 0
-      assertEqualBN(await cfd.withdrawable.call(CREATOR_ACCOUNT), 0)
-      assertEqualBN(await cfd.withdrawable.call(COUNTERPARTY_ACCOUNT), 0)
     })
   })
 
@@ -783,9 +740,9 @@ describe('ContractForDifference', function () {
       )
     })
 
-    it('changeInWei() calculates value change based on new price', async () => {
+    it('changeInDai() calculates value change based on new price', async () => {
       const price = toContractBigNumber('100', decimals)
-      const amount = web3.toWei(oneBN, 'ether')
+      const amount = ONE_DAI
       const cfd = await newCFD({
         notionalAmount: amount,
         isBuyer: true,
@@ -794,7 +751,7 @@ describe('ContractForDifference', function () {
 
       const assertChange = async (newPrice, expected) =>
         assertEqualBN(
-          await cfd.changeInWei.call(price, newPrice, amount),
+          await cfd.changeInDai.call(price, newPrice, amount),
           expected
         )
 
@@ -813,7 +770,7 @@ describe('ContractForDifference', function () {
 
   describe('cutOffPrice()', async () => {
     it('calculates dynamic percentage correctly for each side', async () => {
-      const notional = web3.toWei(web3.toBigNumber(1), 'ether')
+      const notional = ONE_DAI.times(10)
       const strikePrice = toContractBigNumber('1000', decimals)
 
       const cfd = await newCFD({
@@ -883,7 +840,7 @@ describe('ContractForDifference', function () {
       const collateral = await cfd.calculateCollateralAmount.call(
         strikePrice,
         marketPrice,
-        await cfd.notionalAmountWei.call(),
+        await cfd.notionalAmountDai.call(),
         deposits,
         isBuyer
       )
@@ -913,13 +870,13 @@ describe('ContractForDifference', function () {
       await assertCollateral({
         marketPrice: newPrice,
         deposits: notionalAmount, // 1x
-        expected: notionalAmount.times(oneBN.plus(priceMovement)),
+        expected: notionalAmount.times(ONE_BN.plus(priceMovement)),
         isBuyer: true
       })
       await assertCollateral({
         marketPrice: newPrice,
         deposits: notionalAmount, // 1x
-        expected: notionalAmount.times(oneBN.minus(priceMovement)),
+        expected: notionalAmount.times(ONE_BN.minus(priceMovement)),
         isBuyer: false
       })
     })
@@ -930,13 +887,13 @@ describe('ContractForDifference', function () {
       await assertCollateral({
         marketPrice: newPrice,
         deposits: notionalAmount, // 1x
-        expected: notionalAmount.times(oneBN.plus(priceMovement)),
+        expected: notionalAmount.times(ONE_BN.plus(priceMovement)),
         isBuyer: true
       })
       await assertCollateral({
         marketPrice: newPrice,
         deposits: notionalAmount, // 1x
-        expected: notionalAmount.times(oneBN.minus(priceMovement)),
+        expected: notionalAmount.times(ONE_BN.minus(priceMovement)),
         isBuyer: false
       })
     })
@@ -949,14 +906,14 @@ describe('ContractForDifference', function () {
       await assertCollateral({
         marketPrice: newPrice,
         deposits: depositsAt5X,
-        expected: depositsAt5X.times(oneBN.plus(priceMovement.times(leverage))),
+        expected: depositsAt5X.times(ONE_BN.plus(priceMovement.times(leverage))),
         isBuyer: true
       })
       await assertCollateral({
         marketPrice: newPrice,
         deposits: depositsAt5X,
         expected: depositsAt5X.times(
-          oneBN.minus(priceMovement.times(leverage))
+          ONE_BN.minus(priceMovement.times(leverage))
         ),
         isBuyer: false
       })
@@ -970,14 +927,14 @@ describe('ContractForDifference', function () {
       await assertCollateral({
         marketPrice: newPrice,
         deposits: depositsAt5X,
-        expected: depositsAt5X.times(oneBN.plus(priceMovement.times(leverage))),
+        expected: depositsAt5X.times(ONE_BN.plus(priceMovement.times(leverage))),
         isBuyer: true
       })
       await assertCollateral({
         marketPrice: newPrice,
         deposits: depositsAt5X,
         expected: depositsAt5X.times(
-          oneBN.minus(priceMovement.times(leverage))
+          ONE_BN.minus(priceMovement.times(leverage))
         ),
         isBuyer: false
       })
@@ -994,10 +951,10 @@ describe('ContractForDifference', function () {
       const newPrice = adjustPrice({ by: priceMovement })
 
       const expectedBuyerCollateral = depositsBuyer.times(
-        oneBN.plus(priceMovement.times(leverageBuyer))
+        ONE_BN.plus(priceMovement.times(leverageBuyer))
       )
       const expectedSellerCollateral = depositsSeller.times(
-        oneBN.minus(priceMovement.times(leverageSeller))
+        ONE_BN.minus(priceMovement.times(leverageSeller))
       )
 
       await assertCollateral({
@@ -1082,11 +1039,7 @@ describe('ContractForDifference', function () {
       async () => {
         // initiate contract
         const cfd = await newCFD({ notionalAmount, isBuyer: true })
-        await cfd.deposit({
-          from: seller,
-          value: notionalAmount.plus(joinerFee())
-        })
-
+        await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
         // put seller side on sale
         await cfd.sellPrepare(strikePriceAdjusted, 0, { from: seller })
 
@@ -1118,8 +1071,7 @@ describe('ContractForDifference', function () {
     it('a buyer buys the "on sale" position with enough collateral - 2X', async () => {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       // put seller side on sale
       await cfd.sellPrepare(strikePriceAdjusted, 0, { from: seller })
       await assertStatus(cfd, STATUS.SALE)
@@ -1130,30 +1082,27 @@ describe('ContractForDifference', function () {
       assert.isTrue(await cfd.isSellerSelling.call(), 'isSellerSelling true')
 
       // save balances
-      const buyerBalBefore = web3.eth.getBalance(buyer)
-      const sellerBalBefore = web3.eth.getBalance(seller)
-      const buyingPartyBalBefore = web3.eth.getBalance(buyingParty)
-      const feesBalBefore = web3.eth.getBalance(FEES_ACCOUNT)
+      const buyerBalBefore = await getBalance(buyer)
+      const sellerBalBefore = await getBalance(seller)
+      const buyingPartyBalBefore = await getBalance(buyingParty)
+      const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
       // buyingParty buys the seller side
       const collateral = notionalAmount.dividedBy(2) // 2X leverage
       const buyBuyerSide = false // buying seller side
       const joinFee = joinerFee()
-      const buyTx = await cfd.buy(buyBuyerSide, {
-        from: buyingParty,
-        value: collateral.plus(joinFee)
-      })
+      const buyTx = await buy(cfd, buyingParty, buyBuyerSide, collateral.plus(joinerFee()))
 
       // check new party logged by CFDRegistry
-      assertLoggedParty(buyTx.receipt.logs[1], cfd.address, buyingParty)
+      assertLoggedParty(buyTx.receipt.logs[4], cfd.address, buyingParty)
 
       // check the contract has been updated
       assert.equal(await cfd.seller.call(), buyingParty)
       assert.equal(await cfd.buyer.call(), buyer) // unchanged
 
       // all notionals unchanged as the strike price hasn't changed:
-      assertEqualBN(await cfd.notionalAmountWei.call(), notionalAmount)
-      assertEqualBN(await cfd.notionalAmountWei.call(), notionalAmount)
+      assertEqualBN(await cfd.notionalAmountDai.call(), notionalAmount)
+      assertEqualBN(await cfd.notionalAmountDai.call(), notionalAmount)
       assertEqualBN(await cfd.buyerInitialNotional.call(), notionalAmount)
 
       // all strike prices unchanged as the strike price hasn't changed:
@@ -1193,32 +1142,30 @@ describe('ContractForDifference', function () {
       )
 
       // check balances of all 3 parties
-      assertEqualBN(web3.eth.getBalance(buyer), buyerBalBefore, 'buyer balance') // unchanged
+      assertEqualBN(await getBalance(buyer), buyerBalBefore, 'buyer balance') // unchanged
       assertEqualBN(
-        web3.eth.getBalance(seller),
+        await getBalance(seller),
         sellerBalBefore.plus(notionalAmount),
         'seller balance'
       )
       assertEqualBN(
-        web3.eth.getBalance(buyingParty),
+        await getBalance(buyingParty),
         buyingPartyBalBefore
           .minus(collateral)
-          .minus(joinerFeeCalc(notionalAmount))
-          .minus(txGasCost(buyTx.tx, web3)),
+          .minus(joinerFeeCalc(notionalAmount)),
         'buyingParty balance'
       )
 
-      // check balance of cfd includes both deposits plus a single read fee
+      // check balance of cfd includes both deposits
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         notionalAmount.plus(collateral),
         'new cfd balance'
       )
 
-      // check fees has received 0.5% fee + 2 finney which is the join fee
-      //    minus the one read fee spent
+      // check fees has received the 0.5% joiner fee
       assertEqualBN(
-        web3.eth.getBalance(FEES_ACCOUNT),
+        await getBalance(FEES_ACCOUNT),
         feesBalBefore.plus(joinFee),
         'fees balance'
       )
@@ -1233,8 +1180,7 @@ describe('ContractForDifference', function () {
     it('new notional correct when buyer sells at 20% higher strike price', async () => {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       // put seller side on sale
       const saleStrikePrice = strikePriceAdjusted.times(1.2)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: buyer })
@@ -1246,14 +1192,11 @@ describe('ContractForDifference', function () {
       // buyingParty buys the seller side
       const buyBuyerSide = true
       const joinFee = joinerFee()
-      await cfd.buy(buyBuyerSide, {
-        from: buyingParty,
-        value: notionalAmount.plus(joinFee)
-      })
+      await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee))
 
       const expectedNewNotional = notionalAmount.times(1.2)
       assertEqualBN(
-        await cfd.notionalAmountWei.call(),
+        await cfd.notionalAmountDai.call(),
         expectedNewNotional,
         'new notional'
       )
@@ -1278,8 +1221,7 @@ describe('ContractForDifference', function () {
     it('new notional correct when seller sells at 20% lower strike price', async () => {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       // put seller side on sale
       const saleStrikePrice = strikePriceAdjusted.times(0.8)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: seller })
@@ -1291,14 +1233,11 @@ describe('ContractForDifference', function () {
       // buyingParty buys the seller side
       const buyBuyerSide = false // buying seller side
       const joinFee = joinerFee()
-      await cfd.buy(buyBuyerSide, {
-        from: buyingParty,
-        value: notionalAmount.plus(joinFee)
-      })
+      await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee))
 
       const expectedNewNotional = notionalAmount.times(0.8)
       assertEqualBN(
-        await cfd.notionalAmountWei.call(),
+        await cfd.notionalAmountDai.call(),
         expectedNewNotional,
         'new notional'
       )
@@ -1332,8 +1271,7 @@ describe('ContractForDifference', function () {
 
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true }) // defaults to 1X
-      await cfd.deposit({ from: seller, value: collateral2X.plus(joinerFee()) })
-
+      await deposit(cfd, seller, collateral2X.plus(joinerFee()))
       // buyer side put on sale
       const buyerDesiredPrice = strikePriceAdjusted.times(1.1)
       await cfd.sellPrepare(buyerDesiredPrice, 0, { from: buyer })
@@ -1349,11 +1287,11 @@ describe('ContractForDifference', function () {
       const buyingParty2 = accounts[9]
 
       // save balances
-      const buyerBalBefore = web3.eth.getBalance(buyer)
-      const sellerBalBefore = web3.eth.getBalance(seller)
-      const buyingParty1BalBefore = web3.eth.getBalance(buyingParty1)
-      const buyingParty2BalBefore = web3.eth.getBalance(buyingParty2)
-      const feesBalBefore = web3.eth.getBalance(FEES_ACCOUNT)
+      const buyerBalBefore = await getBalance(buyer)
+      const sellerBalBefore = await getBalance(seller)
+      const buyingParty1BalBefore = await getBalance(buyingParty1)
+      const buyingParty2BalBefore = await getBalance(buyingParty2)
+      const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
       //
       // Buyer side buy
@@ -1366,14 +1304,11 @@ describe('ContractForDifference', function () {
         calcBuyerSide: true
       })
 
-      const buy1Tx = await cfd.buy(buyBuyerSide, {
-        from: buyingParty1,
-        value: collateral2X.plus(joinFee)
-      })
+      const buy1Tx = await buy(cfd, buyingParty1, buyBuyerSide, collateral2X.plus(joinFee))
 
       // check the state
       assert.equal(await cfd.buyer.call(), buyingParty1)
-      assertLoggedParty(buy1Tx.receipt.logs[1], cfd.address, buyingParty1)
+      assertLoggedParty(buy1Tx.receipt.logs[4], cfd.address, buyingParty1)
       assertEqualBN(await cfd.strikePrice.call(), buyerDesiredPrice)
       assertEqualBN(await cfd.buyerInitialStrikePrice.call(), buyerDesiredPrice)
       assertEqualBN(
@@ -1383,11 +1318,11 @@ describe('ContractForDifference', function () {
       )
       assertEqualBN(
         await cfd.sellerDepositBalance.call(),
-        web3.eth.getBalance(cfd.address).minus(collateral2X),
+        (await getBalance(cfd.address)).minus(collateral2X),
         'seller deposits balance after buyer buy'
       )
       assertEqualBN(
-        web3.eth.getBalance(buyer),
+        await getBalance(buyer),
         buyerBalBefore.plus(buyerSideCollateralAtSale),
         'buyer balance has collateral from sale'
       )
@@ -1415,14 +1350,11 @@ describe('ContractForDifference', function () {
 
       const collateral4XBuy2 = newNotional.dividedBy(4)
       const joinFeeBuy2 = joinerFee(newNotional)
-      const buy2Tx = await cfd.buy(!buyBuyerSide, {
-        from: buyingParty2,
-        value: collateral4XBuy2.plus(joinFeeBuy2)
-      })
+      const buy2Tx = await buy(cfd, buyingParty2, !buyBuyerSide, collateral4XBuy2.plus(joinFeeBuy2))
 
       // check the state
       assert.equal(await cfd.seller.call(), buyingParty2)
-      assertLoggedParty(buy2Tx.receipt.logs[1], cfd.address, buyingParty2)
+      assertLoggedParty(buy2Tx.receipt.logs[4], cfd.address, buyingParty2)
       assertEqualBN(await cfd.strikePrice.call(), sellerDesiredPrice)
       assertEqualBN(
         await cfd.sellerInitialStrikePrice.call(),
@@ -1437,7 +1369,7 @@ describe('ContractForDifference', function () {
 
       // check balances of all parties
       assertEqualBN(
-        web3.eth.getBalance(seller),
+        await getBalance(seller),
         sellerBalBefore.plus(
           sellerSideCollateralAtSale.dividedToIntegerBy(1).plus(1) // truncated and rounded up 1
         ),
@@ -1445,32 +1377,30 @@ describe('ContractForDifference', function () {
       )
 
       assertEqualBN(
-        web3.eth.getBalance(buyingParty1),
+        await getBalance(buyingParty1),
         buyingParty1BalBefore
           .minus(collateral2X)
-          .minus(joinerFee())
-          .minus(txGasCost(buy1Tx.tx, web3)),
+          .minus(joinerFee()),
         'buyingParty1 balance'
       )
       assertEqualBN(
-        web3.eth.getBalance(buyingParty2),
+        await getBalance(buyingParty2),
         buyingParty2BalBefore
           .minus(collateral4XBuy2)
-          .minus(joinFeeBuy2)
-          .minus(txGasCost(buy2Tx.tx, web3)),
+          .minus(joinFeeBuy2),
         'buyingParty2 balance'
       )
 
       // check balance of cfd includes both new deposits plus a single read fee
       assertEqualBN(
-        web3.eth.getBalance(cfd.address),
+        await getBalance(cfd.address),
         collateral4XBuy2.plus(await cfd.buyerDepositBalance.call()),
         'new cfd balance'
       )
 
-      // check fees has received 0.5% fee + 2 finney for each side
+      // check fees has received 0.5% join fee plus the buy fee
       assertEqualBN(
-        web3.eth.getBalance(FEES_ACCOUNT),
+        await getBalance(FEES_ACCOUNT),
         feesBalBefore.plus(joinFee).plus(joinFeeBuy2),
         'fees balance'
       )
@@ -1488,21 +1418,17 @@ describe('ContractForDifference', function () {
     it('buyer buy rejected with collateral less then 20% of the notional', async () => {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       // mark seller side on sale
       await cfd.sellPrepare(strikePriceAdjusted, 0, { from: seller })
       await assertStatus(cfd, STATUS.SALE)
 
-      // 1 wei under the minimum
+      // 1 under the minimum
       const collateral = notionalAmount.dividedBy(5).minus(1)
 
       const buyBuyerSide = true
       try {
-        await cfd.buy(!buyBuyerSide, {
-          from: buyingParty,
-          value: collateral.plus(joinerFee())
-        })
+        await buy(cfd, buyingParty, !buyBuyerSide, collateral.plus(joinerFee()))
         assert.fail('expected reject buy')
       } catch (err) {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -1511,8 +1437,7 @@ describe('ContractForDifference', function () {
 
     it('buyer can cancel a sale', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: buyer })
 
@@ -1529,8 +1454,7 @@ describe('ContractForDifference', function () {
 
     it('seller can cancel a sale', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: seller })
 
@@ -1547,8 +1471,7 @@ describe('ContractForDifference', function () {
 
     it('buyer can update sale price', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: buyer })
 
@@ -1560,8 +1483,7 @@ describe('ContractForDifference', function () {
 
     it('seller can update sale price', async () => {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
-      await cfd.deposit({ from: seller, value: notionalAmount.plus(joinerFee()) })
-
+      await deposit(cfd, seller, notionalAmount.plus(joinerFee()))
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
       await cfd.sellPrepare(saleStrikePrice, 0, { from: seller })
 
@@ -1588,24 +1510,22 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral2X
+        daiValue: collateral2X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral2X.plus(joinerFee())
-      })
-
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral2X.plus(joinerFee()))
       assertEqualBN(await cfd.buyerDepositBalance.call(), collateral2X)
       assertEqualBN(await cfd.sellerDepositBalance.call(), collateral2X)
 
       const topupAmount = notionalAmount.dividedBy(4)
       const expectedAmount = collateral2X.plus(topupAmount)
 
-      await cfd.topup({ from: CREATOR_ACCOUNT, value: topupAmount })
+      await daiToken.approve(cfd.address, topupAmount, { from: CREATOR_ACCOUNT })
+      await cfd.topup(topupAmount, { from: CREATOR_ACCOUNT })
       assertEqualBN(await cfd.buyerDepositBalance.call(), expectedAmount)
       assertEqualBN(await cfd.sellerDepositBalance.call(), collateral2X)
 
-      await cfd.topup({ from: COUNTERPARTY_ACCOUNT, value: topupAmount })
+      await daiToken.approve(cfd.address, topupAmount, { from: COUNTERPARTY_ACCOUNT })
+      await cfd.topup(topupAmount, { from: COUNTERPARTY_ACCOUNT, topupAmount })
       assertEqualBN(await cfd.buyerDepositBalance.call(), expectedAmount)
       assertEqualBN(await cfd.sellerDepositBalance.call(), expectedAmount)
     })
@@ -1615,21 +1535,17 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral1X
+        daiValue: collateral1X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral1X.plus(joinerFee())
-      })
-
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()))
       assertEqualBN(await cfd.buyerDepositBalance.call(), collateral1X)
       assertEqualBN(await cfd.sellerDepositBalance.call(), collateral1X)
 
       const withdrawAmount = notionalAmount.dividedBy(4)
       const expectedAmount = collateral1X.minus(withdrawAmount)
 
-      const creatorBalBefore = web3.eth.getBalance(CREATOR_ACCOUNT)
-      const counterpartyBalBefore = web3.eth.getBalance(COUNTERPARTY_ACCOUNT)
+      const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+      const counterpartyBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
       const tx1 = await cfd.withdraw(withdrawAmount, {
         from: CREATOR_ACCOUNT
@@ -1637,8 +1553,8 @@ describe('ContractForDifference', function () {
       assertEqualBN(await cfd.buyerDepositBalance.call(), expectedAmount)
       assertEqualBN(await cfd.sellerDepositBalance.call(), collateral1X)
       assertEqualBN(
-        web3.eth.getBalance(CREATOR_ACCOUNT),
-        creatorBalBefore.plus(withdrawAmount).minus(txGasCost(tx1.tx, web3)),
+        await getBalance(CREATOR_ACCOUNT),
+        creatorBalBefore.plus(withdrawAmount),
         'creator account balance incorrect'
       )
 
@@ -1648,10 +1564,9 @@ describe('ContractForDifference', function () {
       assertEqualBN(await cfd.buyerDepositBalance.call(), expectedAmount)
       assertEqualBN(await cfd.sellerDepositBalance.call(), expectedAmount)
       assertEqualBN(
-        web3.eth.getBalance(COUNTERPARTY_ACCOUNT),
+        await getBalance(COUNTERPARTY_ACCOUNT),
         counterpartyBalBefore
-          .plus(withdrawAmount)
-          .minus(txGasCost(tx2.tx, web3)),
+          .plus(withdrawAmount),
         'counterparty account balance incorrect'
       )
     })
@@ -1662,12 +1577,9 @@ describe('ContractForDifference', function () {
       const cfd = await newCFD({
         notionalAmount,
         isBuyer: true,
-        weiValue: collateral1X
+        daiValue: collateral1X
       })
-      await cfd.deposit({
-        from: COUNTERPARTY_ACCOUNT,
-        value: collateral1X.plus(joinerFee())
-      })
+      await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()))
       assertEqualBN(
         await cfd.buyerDepositBalance.call(),
         collateral1X,
@@ -1681,7 +1593,7 @@ describe('ContractForDifference', function () {
 
       const withdrawAmountExceedsMin = collateral1X
         .minus(minimumCollateral)
-        .plus(1) // 1 wei under the miniumum balance
+        .plus(1) // 1 under the miniumum balance
 
       try {
         await cfd.withdraw(withdrawAmountExceedsMin, {
@@ -1701,24 +1613,5 @@ describe('ContractForDifference', function () {
         assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
       }
     })
-  })
-
-  // TODO: UPDATE this one to have a failure in updateSubscriber so that a
-  //        withdrawal is then available... make the subscriber a contract that
-  //        throws in the fallback
-  it.skip('withdrawUnsent() returns funds to caller after contract closed', async () => {
-    const cfd = await newCFD({ notionalAmount, isBuyer: true })
-    await cfd.deposit({
-      from: COUNTERPARTY_ACCOUNT,
-      value: notionalAmount.plus(joinerFee())
-    })
-    await feeds.push(marketId, strikePriceAdjusted.times(1.1), nowSecs(), {
-      from: DAEMON_ACCOUNT
-    })
-
-    // check withdrawable amounts
-
-    // do the withdraw for the failing account
-    await cfd.withdrawUnsent({ from: COUNTERPARTY_ACCOUNT })
   })
 })

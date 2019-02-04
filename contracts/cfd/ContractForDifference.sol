@@ -220,7 +220,6 @@ contract ContractForDifference is DBC {
      * @param _notionalAmountDai Contract amount
      * @param _isBuyer Flag indicating if the contract creator wants to take the
      *            buyer (true) or the seller side (false).
-     * @param _value DAI amount
      */
     function create(
         address _registryAddr,
@@ -230,17 +229,18 @@ contract ContractForDifference is DBC {
         bytes32 _marketId,
         uint _strikePrice,
         uint _notionalAmountDai,
-        bool _isBuyer,
-        uint _value
+        bool _isBuyer
     )
         public
         pre_cond(_notionalAmountDai >= MINIMUM_NOTIONAL_AMOUNT_DAI, REASON_NOTIONAL_TOO_LOW)
     {
+        registry = Registry(_registryAddr);
+        uint daiBalance = registry.getDAI().balanceOf(this);
         uint fees = ContractForDifferenceLibrary.creatorFee(_notionalAmountDai);
-        if (_value <= fees)
+        if (daiBalance <= fees)
             revert(REASON_FEES_NOT_ENOUGH);
 
-        uint collateralSent = _value - fees;
+        uint collateralSent = daiBalance - fees;
         if (!ContractForDifferenceLibrary.collateralInRange(_notionalAmountDai, collateralSent))
             revert(REASON_COLLATERAL_RANGE_FAILED);
 
@@ -263,13 +263,12 @@ contract ContractForDifference is DBC {
 
         cfdRegistryAddr = _cfdRegistryAddr;
         feedsAddr = _feedsAddr;
-        registry = Registry(_registryAddr);
 
         emit LogCFDCreated(
             _partyAddr,
             market,
             notionalAmountDai,
-            _value
+            daiBalance
         );
     }
 
@@ -381,15 +380,14 @@ contract ContractForDifference is DBC {
         if (_value <= joinerFees)
             revert(REASON_FEES_NOT_ENOUGH);
 
-        daiTransferToFees(
-            joinerFees + ContractForDifferenceLibrary.creatorFee(notionalAmountDai)
-        );
-
         uint collateralSent = _value - joinerFees;
         if (!ContractForDifferenceLibrary.collateralInRange(notionalAmountDai, collateralSent))
             revert(REASON_COLLATERAL_RANGE_FAILED);
 
-        daiClaim(collateralSent);
+        daiClaim(_value);
+        daiTransferToFees(
+            joinerFees + ContractForDifferenceLibrary.creatorFee(notionalAmountDai)
+        );
 
         if (buyer == 0x0) {
             buyer = msg.sender;
@@ -521,11 +519,11 @@ contract ContractForDifference is DBC {
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
     modifier assertWithdrawPreCond(uint _withdrawAmount) 
     {
-        require(_withdrawAmount >= 1);
-        require(initiated == true);
-        require(closed == false);
-        require(isContractParty(msg.sender));
-        require(isSelling(msg.sender) == false);
+        require(_withdrawAmount >= 1, REASON_WITHDRAW_NOT_ENOUGH);
+        require(initiated == true, REASON_MUST_BE_INITIATED);
+        require(closed == false, REASON_MUST_NOT_BE_CLOSED);
+        require(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES);
+        require(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER);
         _;
     }
 
@@ -648,7 +646,6 @@ contract ContractForDifference is DBC {
         uint fees = ContractForDifferenceLibrary.joinerFee(notionalAmountDai);
         if (_value <= fees)
             revert(REASON_FEES_NOT_ENOUGH);
-        daiTransferToFees(fees);
 
         // check sent collateral falls in the allowable range
         uint collateralSent = _value.sub(fees);
@@ -670,6 +667,10 @@ contract ContractForDifference is DBC {
             revert(REASON_MARKET_PRICE_RANGE_FAILED);
         }
 
+        // move ownership of sent DAI to the CFD
+        daiClaim(_value);
+        daiTransferToFees(fees);
+
         // transfer to selling party
         address sellingParty = _buyBuyerSide ? buyer : seller;
         uint sellingPartyCollateral = buyTransferFunds(
@@ -677,9 +678,6 @@ contract ContractForDifference is DBC {
             newStrikePrice,
             sellingParty
         );
-
-        // move ownership of sent DAI to the CFD
-        daiClaim(collateralSent);
 
         // set new party and balances
         uint remainingPartyDeposits = registry.getDAI().
@@ -723,9 +721,9 @@ contract ContractForDifference is DBC {
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
     modifier assertBuyPreCond(bool _buyBuyerSide) 
     {
-        require(isActive());
-        require(isSelling(_buyBuyerSide ? buyer : seller));
-        require(isContractParty(msg.sender) == false);
+        require(isActive(), REASON_MUST_BE_ACTIVE);
+        require(isSelling(_buyBuyerSide ? buyer : seller), REASON_MUST_BE_ON_SALE);
+        require(isContractParty(msg.sender) == false, REASON_MUST_NOT_BE_PARTY);
         _;
     }
 

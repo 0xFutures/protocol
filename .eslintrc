@@ -20,12 +20,7 @@
   },
   "rules": {
     "no-console": "off",
-    "no-unused-vars": [
-      "warn"
-    ],
-    "object-curly-spacing": [
-      "warn",
-      "always"
-    ]
+    "no-unused-vars": ["warn"],
+    "object-curly-spacing": ["warn", "never"]
   }
 }

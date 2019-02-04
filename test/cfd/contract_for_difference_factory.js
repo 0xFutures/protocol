@@ -15,8 +15,14 @@ const { config, web3 } = require('../helpers/setup')
 
 describe('ContractForDifferenceFactory', function () {
   const ContractForDifference = cfdInstance(web3.currentProvider, config)
-  const ContractForDifferenceFactory = cfdFactoryInstance(web3.currentProvider, config)
-  const ContractForDifferenceRegistry = cfdRegistryInstance(web3.currentProvider, config)
+  const ContractForDifferenceFactory = cfdFactoryInstance(
+    web3.currentProvider,
+    config
+  )
+  const ContractForDifferenceRegistry = cfdRegistryInstance(
+    web3.currentProvider,
+    config
+  )
   const ForwardFactory = forwardFactoryInstance(web3.currentProvider, config)
 
   const OWNER_ACCOUNT = config.ownerAccountAddr
@@ -25,6 +31,7 @@ describe('ContractForDifferenceFactory', function () {
   const MARKET_ID = web3.sha3(MARKET_STR)
 
   let cfdFactory
+  let daiToken
   let registry
   let strikePrice
 
@@ -33,7 +40,10 @@ describe('ContractForDifferenceFactory', function () {
 
     let feeds
       // eslint-disable-next-line no-extra-semi
-      ; ({ feeds, registry } = await deployAllForTest({ web3, initialPrice: strikePrice }))
+    ;({ feeds, registry, daiToken } = await deployAllForTest({
+      web3,
+      initialPrice: strikePrice
+    }))
 
     // create the CFD Factory
     const cfdRegistry = await ContractForDifferenceRegistry.new()
@@ -55,17 +65,21 @@ describe('ContractForDifferenceFactory', function () {
   })
 
   it('creates a new CFD given valid terms and value', async () => {
-    const notionalAmount = web3.toWei(web3.toBigNumber(10), 'finney')
+    const notionalAmount = web3.toBigNumber('1e18') // 1 DAI
     const initialValue = notionalAmount.plus(creatorFee(notionalAmount))
+    await daiToken.approve(cfdFactory.address, initialValue, {
+      from: OWNER_ACCOUNT
+    })
+
     const txReceipt = await cfdFactory.createContract(
       MARKET_ID,
       strikePrice,
       notionalAmount,
       true,
+      initialValue,
       {
         gas: 2500000,
-        from: OWNER_ACCOUNT,
-        value: initialValue
+        from: OWNER_ACCOUNT
       }
     )
 
@@ -81,12 +95,12 @@ describe('ContractForDifferenceFactory', function () {
       'strike price incorrect'
     )
     assertEqualBN(
-      await cfd.notionalAmountWei.call(),
+      await cfd.notionalAmountDai.call(),
       notionalAmount,
-      'notionalAmountWei incorrect'
+      'notionalAmountDai incorrect'
     )
     assertEqualBN(
-      web3.eth.getBalance(cfd.address),
+      await daiToken.balanceOf.call(cfd.address),
       notionalAmount.plus(creatorFee(notionalAmount)),
       'cfd balance incorrect'
     )

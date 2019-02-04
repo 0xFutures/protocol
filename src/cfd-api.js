@@ -5,6 +5,7 @@ import {
   cfdInstance,
   cfdFactoryInstanceDeployed,
   cfdRegistryInstanceDeployed,
+  daiTokenInstanceDeployed,
   feedsInstanceDeployed
 } from './contracts'
 import {
@@ -16,8 +17,8 @@ import {
 
 import {creatorFee, joinerFee} from './calc'
 
-// strip off any decimal component of a wei value as wei is the smallest unit of ETH
-const safeWeiValue = weiValue => weiValue.toFixed(0)
+// strip off any decimal component of a value as values must be whole numbers
+const safeValue = value => value.toFixed(0)
 
 export default class CFDAPI {
   /**
@@ -49,7 +50,7 @@ export default class CFDAPI {
    *
    * @param marketIdStr Contract for this market (eg. "Poloniex_ETH_USD")
    * @param strikePrice Contract strike price
-   * @param notionalAmountWei Contract amount
+   * @param notionalAmountDai Contract amount
    * @param leverage The leverage (between 0.01 and 5.00)
    * @param isBuyer Creator wants to be contract buyer or seller
    * @param creator Creator of this contract who will sign the transaction
@@ -60,13 +61,13 @@ export default class CFDAPI {
   async newCFD (
     marketIdStr,
     strikePrice,
-    notionalAmountWei,
+    notionalAmountDai,
     leverage,
     isBuyer,
     creator
   ) {
     assertBigNumberOrString(strikePrice)
-    assertBigNumberOrString(notionalAmountWei)
+    assertBigNumberOrString(notionalAmountDai)
     assertBigNumberOrString(leverage)
 
     const decimals = await this.feeds.decimals.call()
@@ -78,16 +79,18 @@ export default class CFDAPI {
       return Promise.reject(new Error(`invalid leverage`))
     }
 
-    const notionalBN = new BigNumber(notionalAmountWei)
+    const notionalBN = new BigNumber(notionalAmountDai)
     const deposit = notionalBN.dividedBy(leverageValue)
-    const valueWei = deposit.plus(creatorFee(notionalBN))
+    const value = safeValue(deposit.plus(creatorFee(notionalBN)))
 
+    await this.daiToken.approve(this.cfdFactory.address, value, {from: creator})
     const createTx = await this.cfdFactory.createContract(
       marketId,
       strikePriceBN,
-      notionalAmountWei,
+      notionalAmountDai,
       isBuyer,
-      {from: creator, value: safeWeiValue(valueWei), gas: 500000}
+      value,
+      {from: creator, gas: 500000}
     )
 
     if (txFailed(createTx.receipt.status)) {
@@ -98,7 +101,7 @@ export default class CFDAPI {
       )
     }
 
-    const cfdAddress = createTx.receipt.logs[1].address
+    const cfdAddress = createTx.receipt.logs[2].address
     return this.cfd.at(cfdAddress)
   }
 
@@ -114,9 +117,10 @@ export default class CFDAPI {
   async deposit (cfdAddress, depositAccount, amount) {
     const cfd = this.cfd.at(cfdAddress)
     const fee = await this.joinFee(cfd)
-    return cfd.deposit({
+    const value = safeValue(amount.plus(fee))
+    await this.daiToken.approve(cfd.address, value, {from: depositAccount})
+    return cfd.deposit(value, {
       from: depositAccount,
-      value: safeWeiValue(amount.plus(fee)),
       gas: 1000000
     })
   }
@@ -130,7 +134,7 @@ export default class CFDAPI {
     const cfd = this.cfd.at(cfdAddress)
     const self = this
     return Promise.all([
-      cfd.getCfdAttributes.call(), // [buyer,seller,market,strikePrice,notionalAmountWei,buyerSelling,sellerSelling,status]
+      cfd.getCfdAttributes.call(), // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
       cfd.getCfdAttributes2.call(), // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
       cfd.getCfdAttributes3.call(), // [termninated,upgradeCalledBy]
       self.feeds.decimals.call()
@@ -153,7 +157,7 @@ export default class CFDAPI {
           seller: values[0][1],
           sellerIsSelling: values[0][6],
           market: values2[0],
-          notionalAmountWei: values[0][4],
+          notionalAmountDai: values[0][4],
           buyerInitialNotional: values[1][0],
           sellerInitialNotional: values[1][1],
           strikePrice: strikePrice,
@@ -268,7 +272,7 @@ export default class CFDAPI {
    * Buy a contract for sale
    * @param cfdAddress, Address of the deployed CFD
    * @param account, The address of the account who is topuping
-   * @param valueToBuy, The amount (in Wei) the user has to pay
+   * @param valueToBuy, The amount the user has to pay (DAI)
    * @param isBuyerSide, Boolean if the user is buyer or seller
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
@@ -276,10 +280,10 @@ export default class CFDAPI {
   async buyCFD (cfdAddress, account, valueToBuy, isBuyerSide) {
     const cfd = this.cfd.at(cfdAddress)
     const valueToBuyBN = new BigNumber(valueToBuy)
-    const valuePlusBuy = valueToBuyBN.plus(await this.joinFee(cfd))
-    return cfd.buy(isBuyerSide, {
+    const value = safeValue(valueToBuyBN.plus(await this.joinFee(cfd)))
+    await this.daiToken.approve(cfd.address, value, {from: account})
+    return cfd.buy(isBuyerSide, value, {
       from: account,
-      value: safeWeiValue(valuePlusBuy),
       gas: 200000
     })
   }
@@ -303,7 +307,7 @@ export default class CFDAPI {
    * Topup a CFD by the amount sent by the user
    * @param cfdAddress, Address of the deployed CFD
    * @param account, The address of the account who is topuping
-   * @param valueToAdd, The amount (in Wei) the user wants to add
+   * @param valueToAdd, The amount the user wants to add (DAI)
    */
   async topup (cfdAddress, account, valueToAdd) {
     const cfd = this.cfd.at(cfdAddress)
@@ -314,9 +318,10 @@ export default class CFDAPI {
       )
     }
 
-    return cfd.topup({
-      from: account,
-      value: safeWeiValue(valueToAdd)
+    const value = safeValue(valueToAdd)
+    await this.daiToken.approve(cfd.address, value, {from: account})
+    return cfd.topup(value, {
+      from: account
     })
   }
 
@@ -324,7 +329,7 @@ export default class CFDAPI {
    * Withdraw the amount from a CFD
    * @param cfdAddress, Address of the deployed CFD
    * @param account, The address of the account who is withdrawing
-   * @param valueToWithdraw, The amount (in Wei) the user wants to withdraw
+   * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
    */
   async withdraw (cfdAddress, account, valueToWithdraw) {
     const cfd = this.cfd.at(cfdAddress)
@@ -593,9 +598,9 @@ export default class CFDAPI {
   contractsForSale ({fromBlock = 0}, onSuccessCallback, onErrorCallback) {
     const self = this
     const hasSideOnSale = async cfd =>
-      ((await cfd.closed.call()) === false &&
+      (await cfd.closed.call()) === false &&
       ((await cfd.isSellerSelling.call()) === true ||
-        (await cfd.isBuyerSelling.call()) === true))
+        (await cfd.isBuyerSelling.call()) === true)
     const getAttributes = async cfd => cfd.getCfdAttributes.call()
     const getAttributes2 = async cfd => cfd.getCfdAttributes2.call()
     const getMarketStr = async market => self.marketIdBytesToStr(market)
@@ -643,7 +648,7 @@ export default class CFDAPI {
       })
       return result
     }
-    
+
     const filterCfds = async cfdRecs => {
       let result = cfdRecs
       const hasSideOnSaleArr = await Promise.all(
@@ -771,7 +776,7 @@ export default class CFDAPI {
   }
 
   async joinFee (cfd) {
-    const notionalAmount = await cfd.notionalAmountWei.call()
+    const notionalAmount = await cfd.notionalAmountDai.call()
     return joinerFee(notionalAmount)
   }
 
@@ -810,6 +815,7 @@ export default class CFDAPI {
     )
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
+    this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
     this.feeds = await feedsInstanceDeployed(this.config, this.web3)
     return this
   }

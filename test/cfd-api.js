@@ -1,13 +1,12 @@
-import { assert } from 'chai'
+import {assert} from 'chai'
 import sha3 from 'web3/lib/utils/sha3'
 
 import CFDAPI from '../src/cfd-api'
-import { joinerFee } from '../src/calc'
-import { EMPTY_ACCOUNT, STATUS } from '../src/utils'
+import {EMPTY_ACCOUNT, STATUS} from '../src/utils'
 
-import { assertEqualBN, assertStatus } from './helpers/assert'
-import { deployAllForTest } from './helpers/deploy'
-import { config as configBase, web3 } from './helpers/setup'
+import {assertEqualBN, assertStatus} from './helpers/assert'
+import {deployAllForTest} from './helpers/deploy'
+import {config as configBase, web3} from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
 const marketId = sha3(marketStr)
@@ -25,10 +24,11 @@ describe('cfd-api.js', function () {
   let feeds
   let cfdFactory
   let cfdRegistry
+  let daiToken
 
   let buyer, seller
   let party, counterparty, thirdParty
-  let notionalAmountWei
+  let notionalAmountDai
 
   let cfdPartyIsBuyer
   let cfdPartyIsSeller
@@ -43,24 +43,18 @@ describe('cfd-api.js', function () {
     const cfd = await api.newCFD(
       marketStr,
       price,
-      notionalAmountWei,
+      notionalAmountDai,
       leverage,
       partyIsBuyer,
       party
     )
-    const fee = await api.joinFee(cfd)
-    await cfd.deposit({
-      from: counterparty,
-      value: notionalAmountWei.plus(fee),
-      gas: 1000000
-    })
+    await api.deposit(cfd.address, counterparty, notionalAmountDai)
     return cfd
   }
 
   before(done => {
     web3.eth.getAccounts(async (err, accounts) => {
       if (err) {
-        console.log(err)
         process.exit(-1)
       }
 
@@ -71,19 +65,19 @@ describe('cfd-api.js', function () {
       thirdParty = accounts[ACCOUNT_THIRDPARTY]
 
       // eslint-disable-next-line no-extra-semi
-      ; ({ cfdFactory, cfdRegistry, feeds } = await deployAllForTest(
-        {
-          web3,
-          initialPrice: price
-        }
-      ))
+      ;({cfdFactory, cfdRegistry, feeds, daiToken} = await deployAllForTest({
+        web3,
+        initialPrice: price,
+        seedAccounts: [buyer, seller, party, counterparty, thirdParty]
+      }))
 
       const config = Object.assign({}, configBase)
       config.feedContractAddr = feeds.address
       config.cfdFactoryContractAddr = cfdFactory.address
       config.cfdRegistryContractAddr = cfdRegistry.address
+      config.daiTokenAddr = daiToken.address
 
-      notionalAmountWei = web3.toWei(web3.toBigNumber(10), 'finney')
+      notionalAmountDai = web3.toBigNumber('1e18') // 1 DAI
 
       //
       // Create an instance of the cfd-api
@@ -118,7 +112,7 @@ describe('cfd-api.js', function () {
     const cfd = await api.newCFD(
       marketStr,
       price,
-      notionalAmountWei,
+      notionalAmountDai,
       leverage,
       true,
       buyer
@@ -126,8 +120,8 @@ describe('cfd-api.js', function () {
     assert.equal(await cfd.buyer.call(), buyer)
     assert.equal(await cfd.seller.call(), EMPTY_ACCOUNT)
     assertEqualBN(
-      await cfd.notionalAmountWei.call(),
-      notionalAmountWei,
+      await cfd.notionalAmountDai.call(),
+      notionalAmountDai,
       'notional'
     )
     assert.equal(await cfd.market.call(), `0x${marketId}`)
@@ -137,7 +131,7 @@ describe('cfd-api.js', function () {
     const cfd = await api.newCFD(
       marketStr,
       price,
-      notionalAmountWei,
+      notionalAmountDai,
       leverage,
       true,
       buyer
@@ -146,8 +140,8 @@ describe('cfd-api.js', function () {
     await api.changeStrikePriceCFD(cfd.address, buyer, newPrice)
 
     assertEqualBN(
-      web3.fromWei(await cfd.strikePrice.call()),
-      web3.toBigNumber(42058320000000),
+      await cfd.strikePrice.call(),
+      web3.toBigNumber(42058320000000).times('1e18'),
       'strike price'
     )
   })
@@ -156,30 +150,24 @@ describe('cfd-api.js', function () {
     const cfd = await api.newCFD(
       marketStr,
       price,
-      notionalAmountWei,
+      notionalAmountDai,
       leverage,
       true,
       buyer
     )
 
-    const txRsp = await api.deposit(
-      cfd.address,
-      counterparty,
-      notionalAmountWei
-    )
+    await api.deposit(cfd.address, counterparty, notionalAmountDai)
 
-    const tx = await web3.eth.getTransactionAsync(txRsp.tx)
     assertEqualBN(
-      tx.value,
-      notionalAmountWei.plus(joinerFee(notionalAmountWei)),
-      'value is collateral plus fees'
+      await daiToken.balanceOf.call(cfd.address),
+      notionalAmountDai.times(2),
+      'value is combined collateral'
     )
-
     assert.equal(await cfd.buyer.call(), buyer, 'buyer')
     assert.equal(await cfd.seller.call(), counterparty, 'seller')
     assertEqualBN(
-      await cfd.notionalAmountWei.call(),
-      notionalAmountWei,
+      await cfd.notionalAmountDai.call(),
+      notionalAmountDai,
       'notional'
     )
     assert.equal(await cfd.market.call(), `0x${marketId}`)
@@ -189,7 +177,7 @@ describe('cfd-api.js', function () {
     const cfd = await api.newCFD(
       marketStr,
       price,
-      notionalAmountWei,
+      notionalAmountDai,
       leverage,
       true,
       buyer
@@ -198,8 +186,8 @@ describe('cfd-api.js', function () {
     assert.equal(cfdDetails.buyer, buyer)
     assert.equal(cfdDetails.seller, EMPTY_ACCOUNT)
     assertEqualBN(
-      await cfd.notionalAmountWei.call(),
-      notionalAmountWei,
+      await cfd.notionalAmountDai.call(),
+      notionalAmountDai,
       'notional'
     )
     assert.equal(cfdDetails.market, marketStr) // translates to string
@@ -219,7 +207,7 @@ describe('cfd-api.js', function () {
     assert.isTrue(await cfd.buyerSelling.call())
     await assertStatus(cfd, STATUS.SALE)
 
-    await api.buyCFD(cfd.address, thirdParty, notionalAmountWei, true)
+    await api.buyCFD(cfd.address, thirdParty, notionalAmountDai, true)
     assert.equal(await cfd.buyer.call(), thirdParty)
     await assertStatus(cfd, STATUS.INITIATED)
   })
@@ -243,7 +231,7 @@ describe('cfd-api.js', function () {
     })
 
     it('includes transferred contracts if requested', done => {
-      callAndAssert(party, { includeTransferred: true }, cfds => {
+      callAndAssert(party, {includeTransferred: true}, cfds => {
         assert.equal(cfds.length, 3)
         assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
         assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
@@ -253,7 +241,7 @@ describe('cfd-api.js', function () {
     })
 
     it('includes liquidated/closed contracts if requested', done => {
-      callAndAssert(party, { includeLiquidated: true }, cfds => {
+      callAndAssert(party, {includeLiquidated: true}, cfds => {
         assert.equal(cfds.length, 3)
         assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
         assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
@@ -266,10 +254,10 @@ describe('cfd-api.js', function () {
   describe('contractsWaitingCounterparty', function () {
     it('returns contracts awaiting a deposit', done => {
       api
-        .newCFD(marketStr, price, notionalAmountWei, leverage, true, buyer)
+        .newCFD(marketStr, price, notionalAmountDai, leverage, true, buyer)
         .then(newCFD =>
           api.contractsWaitingCounterparty(
-            { fromBlock: web3.eth.blockNumber },
+            {fromBlock: web3.eth.blockNumber},
             cfds => {
               assert.equal(cfds.length, 1)
               assert.equal(cfds[0].cfd.address, newCFD.address)
@@ -290,7 +278,6 @@ describe('cfd-api.js', function () {
       const cfd = await newCFDInitiated(party, counterparty, true)
       await cfd.sellPrepare(price, 0, {
         from: counterparty,
-        value: web3.toWei(4, 'finney'),
         gas: 2100200
       })
       return new Promise((resolve, reject) => {

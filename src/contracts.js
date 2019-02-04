@@ -5,63 +5,49 @@ import CFDJSON from '../abi/ContractForDifference.json'
 import CFDLibraryJSON from '../abi/ContractForDifferenceLibrary.json'
 import CFDFactoryJSON from '../abi/ContractForDifferenceFactory.json'
 import CFDRegistryJSON from '../abi/ContractForDifferenceRegistry.json'
+import ERC20JSON from '../abi/ERC20.json'
 import FeedsJSON from '../abi/Feeds.json'
 import ForwardFactoryJSON from '../abi/ForwardFactory.json'
 import RegistryJSON from '../abi/Registry.json'
 
 import MockDAITokenJSON from '../build/contracts/DAIToken.json'
 
-/**
- * Create a handle to the deployed ContractForDifferenceFactory.
+/*
+ * Create handles to deployed contracts.
  */
+
 const cfdFactoryInstanceDeployed = async (config, web3) =>
-  deployedContractInstance(
-    'ContractForDifferenceFactory',
-    config.cfdFactoryContractAddr,
-    CFDFactoryJSON,
-    config.ownerAccountAddr,
-    config.gasPrice,
-    config.gasLimit,
-    web3
-  )
+  deployedInstance(config, web3, 'cfdFactoryContractAddr', CFDFactoryJSON)
 
-/**
- * Create a handle to the deployed ContractForDifferenceRegistry.
- */
 const cfdRegistryInstanceDeployed = async (config, web3) =>
-  deployedContractInstance(
-    'ContractForDifferenceRegistry',
-    config.cfdRegistryContractAddr,
-    CFDRegistryJSON,
-    config.ownerAccountAddr,
-    config.gasPrice,
-    config.gasLimit,
-    web3
-  )
+  deployedInstance(config, web3, 'cfdRegistryContractAddr', CFDRegistryJSON)
 
-/**
- * Create a handle to the deployed Feeds contract.
- */
 const feedsInstanceDeployed = async (config, web3) =>
-  deployedContractInstance(
-    'Feeds',
-    config.feedContractAddr,
+  deployedInstance(
+    config,
+    web3,
+    'feedContractAddr',
     FeedsJSON,
-    config.daemonAccountAddr,
-    config.gasPrice,
-    config.gasLimit,
-    web3
+    config.daemonAccountAddr
   )
 
-/**
- * Create a handle to the deployed Feeds contract.
- */
 const registryInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, 'registryAddr', RegistryJSON)
+
+const daiTokenInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, 'daiTokenAddr', ERC20JSON)
+
+const deployedInstance = (
+  config,
+  web3,
+  addrKey,
+  abiJSON,
+  defaultFrom = config.ownerAccountAddr
+) =>
   deployedContractInstance(
-    'Registry',
-    config.registryAddr,
-    RegistryJSON,
-    config.daemonAccountAddr,
+    config[addrKey],
+    abiJSON,
+    defaultFrom,
     config.gasPrice,
     config.gasLimit,
     web3
@@ -100,7 +86,6 @@ const mockDAITokenInstance = (web3Provider, config) =>
  * Uses truffle-contract to generate the instance and given ABI and address.
  */
 const deployedContractInstance = async (
-  name,
   addr,
   contractJSON,
   defaultFrom,
@@ -112,10 +97,10 @@ const deployedContractInstance = async (
     web3.eth.getCodeAsync = Promise.promisify(web3.eth.getCode)
   }
 
-  if (await web3.eth.getCodeAsync(addr) === '0x0') {
+  if ((await web3.eth.getCodeAsync(addr)) === '0x0') {
     throw new Error(
-      `${name} contract NOT deployed at ${addr}.` +
-      ` Check the address and network settings.`
+      `${contractJSON.contractName} contract NOT deployed at ${addr}.` +
+        ` Check the address and network settings.`
     )
   }
 
@@ -151,6 +136,7 @@ module.exports = {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstance,
   cfdRegistryInstanceDeployed,
+  daiTokenInstanceDeployed,
   feedsInstance,
   feedsInstanceDeployed,
   forwardFactoryInstance,

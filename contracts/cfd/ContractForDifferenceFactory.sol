@@ -68,7 +68,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
      *
      * @param _marketId Contract for this market (see Feeds.sol markets)
      * @param _strikePrice Contact strike price
-     * @param _notionalAmountWei Contract notional amount
+     * @param _notionalAmountDai Contract notional amount
      * @param _isBuyer If the caller is to be the buyer, else they will be the seller
      * @param _value Amount of DAI to deposit
      *
@@ -77,7 +77,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
     function createContract(
         bytes32 _marketId,
         uint _strikePrice,
-        uint _notionalAmountWei,
+        uint _notionalAmountDai,
         bool _isBuyer,
         uint _value
     )
@@ -93,6 +93,10 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         cfd = ContractForDifference(
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
+        require(
+            registry.getDAI().transferFrom(creator, cfd, _value),
+            REASON_DAI_TRANSFER_FAILED
+        );
         cfd.create(
             registry,
             cfdRegistry,
@@ -100,13 +104,8 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             creator,
             _marketId,
             _strikePrice,
-            _notionalAmountWei,
-            _isBuyer,
-            _value
-        );
-        require(
-            registry.getDAI().transferFrom(creator, cfd, _value),
-            REASON_DAI_TRANSFER_FAILED
+            _notionalAmountDai,
+            _isBuyer
         );
 
         registry.addCFD(cfd);

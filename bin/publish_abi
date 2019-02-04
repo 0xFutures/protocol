@@ -14,5 +14,6 @@ copyABI 'ContractForDifference'
 copyABI 'ContractForDifferenceFactory'
 copyABI 'ContractForDifferenceLibrary'
 copyABI 'ContractForDifferenceRegistry'
+copyABI 'ERC20'
 
 cd -
