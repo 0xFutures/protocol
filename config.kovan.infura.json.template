@@ -7,7 +7,7 @@
   "ownerAccountAddr": "<address>",
   "daemonAccountAddr": "<address>",
   "feesAccountAddr": "<address>",
-  "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
+  "daiTokenAddr": "0xc4375b7de8af5a38a93548eb8453a498222c4ff2",
   "registryAddr": "<address>",
   "feedContractAddr": "<address>",
   "cfdRegistryContractAddr": "<address>",
