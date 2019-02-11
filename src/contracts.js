@@ -10,7 +10,7 @@ import FeedsJSON from '../abi/Feeds.json'
 import ForwardFactoryJSON from '../abi/ForwardFactory.json'
 import RegistryJSON from '../abi/Registry.json'
 
-import MockDAITokenJSON from '../build/contracts/DAIToken.json'
+import MockDAITokenJSON from '../abi/DAIToken.json'
 
 /*
  * Create handles to deployed contracts.
