@@ -7,7 +7,6 @@ import {
   daiTokenInstanceDeployed,
   feedsInstance,
   forwardFactoryInstance,
-  mockDAITokenInstance,
   registryInstance,
   registryInstanceDeployed
 } from './contracts'
@@ -167,31 +166,6 @@ const deployCFD = async (web3, config, logFn) => {
   }
 }
 
-/**
- * Deploy a mock DAI token for test and develop.
- * @param web3 Connected Web3 instance
- * @param config Config instance (see config.<env>.json)
- * @param logFn Log progress with this function
- * @return daiToken DAIToken truffle-contract instance
- * @return updatedConfig Config instance with addresses of newly deployed contract added
- */
-const deployMockDAIToken = async (web3, config, logFn) => {
-  web3.eth.defaultAccount = config.ownerAccountAddr
-
-  const DAIToken = mockDAITokenInstance(web3.currentProvider, config)
-
-  logFn('Deploying mock DAIToken ...')
-  const daiToken = await DAIToken.new()
-  logFn(`DAIToken: ${daiToken.address}`)
-  logFn('done\n')
-
-  const updatedConfig = Object.assign({}, config, {
-    daiTokenAddr: daiToken.address
-  })
-
-  return {daiToken, updatedConfig}
-}
-
 const deployAll = async (
   web3,
   initialConfig,
@@ -203,24 +177,8 @@ const deployAll = async (
   }
 
   let config = initialConfig
-
-  const isDevEnv = ['develop', 'test'].indexOf(config.network) !== -1
-
   let registry
-  let daiToken
   if (firstTime === true) {
-    if (isDevEnv === true) {
-      // create a DAI token for testing
-      if (['develop', 'test'].indexOf(config.network) !== -1) {
-        const {
-          daiToken: daiTokenInstance,
-          updatedConfig
-        } = await deployMockDAIToken(web3, config, log)
-        config = updatedConfig
-        daiToken = daiTokenInstance
-      }
-    }
-
     // create registry
     const {registry: registryInstance, updatedConfig} = await deployRegistry(
       web3,
@@ -248,7 +206,7 @@ const deployAll = async (
         `OR if this is a dev env a mock version should have been deployed`
     )
   }
-  daiToken = await daiTokenInstanceDeployed(config, web3)
+  const daiToken = await daiTokenInstanceDeployed(config, web3)
 
   const {updatedConfig: configAfterFeeds, feeds} = await deployFeeds(
     web3,

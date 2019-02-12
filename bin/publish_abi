@@ -15,6 +15,5 @@ copyABI 'ContractForDifferenceFactory'
 copyABI 'ContractForDifferenceLibrary'
 copyABI 'ContractForDifferenceRegistry'
 copyABI 'ERC20'
-cp build/contracts/DAIToken.json abi/.
 
 cd -

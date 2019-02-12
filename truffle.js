@@ -8,6 +8,9 @@ const configTest = require('./config.test.json')
 const configLive = require('./config.live.json')
 const configKovan = require('./config.kovan.json')
 
+// const configKovanInfura = require('./config.kovan.infura.json')
+const configKovanInfura = require('./config.kovan.infura.json.template')
+
 const defaultGasLimit = 4000000 // overridden in migration scripts where needed
 
 // change infura here to pull in a different setup, hd wallets, etc.
@@ -55,9 +58,9 @@ module.exports = {
         )
       },
       network_id: 42,
-      from: configKovan.ownerAccountAddr,
+      from: configKovanInfura.ownerAccountAddr,
       gas: defaultGasLimit,
-      gasPrice: configKovan.gasPrice
+      gasPrice: configKovanInfura.gasPrice
     },
     ropsteninfura: {
       provider: function () {

@@ -31,8 +31,8 @@
   "scripts": {
     "build": "$npm_package_config_build_cmd",
     "build-watch": "$npm_package_config_build_cmd --watch",
-    "deploy-develop": "npm run prepare && babel-node bin/deployContracts config.develop.json",
-    "deploy-develop-first-time": "npm run prepare && babel-node bin/deployContracts config.develop.json --first-time",
+    "deploy-develop": "npm run prepare && babel-node bin/deployMockDAIToken config.develop.json && babel-node bin/deployContracts config.develop.json",
+    "deploy-develop-first-time": "npm run prepare && babel-node bin/deployMockDAIToken config.develop.json && babel-node bin/deployContracts config.develop.json --first-time",
     "deploy-kovan": "npm run prepare && babel-node bin/deployContracts config.kovan.json",
     "deploy-kovan-first-time": "npm run prepare && babel-node bin/deployContracts config.kovan.json --first-time",
     "deploy-kovan-infura": "npm run prepare && babel-node bin/deployContracts config.kovan.infura.json",
