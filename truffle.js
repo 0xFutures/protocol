@@ -9,7 +9,7 @@ const configLive = require('./config.live.json')
 const configKovan = require('./config.kovan.json')
 
 // const configKovanInfura = require('./config.kovan.infura.json')
-const configKovanInfura = require('./config.kovan.infura.json.template')
+const configKovanInfura = require('./config.kovan.infura.template.json')
 
 const defaultGasLimit = 4000000 // overridden in migration scripts where needed
 
