@@ -7,8 +7,8 @@
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
-  "registryAddr": "0xa40eedc4d5d2eb9f3b505a85a8eaf697a2622a17",
-  "feedContractAddr": "0x88dd2a9706d9a59b10bfae66dea8474ec73d2075",
-  "cfdRegistryContractAddr": "0xfa3dc61072fec7bc595f2813b906a045f4fa63b7",
-  "cfdFactoryContractAddr": "0x54133ba2b2bc047800e8b50a6df84ebd586d66c9"
+  "registryAddr": "0x6adda96526557b70538839747cde8e82d654995e",
+  "feedContractAddr": "0x4dbf36f91cd27a790bdf06407e193a84187c74b4",
+  "cfdRegistryContractAddr": "0xd8f6bb71f6a66c2791585f0c53cd88c4acc423b6",
+  "cfdFactoryContractAddr": "0x2d5481136d86ac4895394a0371d09d508f0a57fd"
 }
