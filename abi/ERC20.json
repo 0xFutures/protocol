@@ -183,9 +183,9 @@
   "sourcePath": "openzeppelin-solidity\\contracts\\token\\ERC20\\ERC20.sol",
   "compiler": {
     "name": "solc",
-    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
+    "version": "0.4.25+commit.59dbf8f1.Emscripten.clang"
   },
   "networks": {},
-  "schemaVersion": "2.0.0",
-  "updatedAt": "2019-02-16T16:32:56.522Z"
+  "schemaVersion": "2.0.2",
+  "updatedAt": "2019-02-16T16:52:04.993Z"
 }
