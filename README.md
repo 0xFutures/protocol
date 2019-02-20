@@ -1,4 +1,6 @@
-# protocol
+[![npm version](https://badge.fury.io/js/%400xfutures%2Fprotocol.svg)](https://badge.fury.io/js/%400xfutures%2Fprotocol)
+
+# 0xFutures protocol
 
 [0xFutures](https://0xfutures.com) protocol implementation
 
