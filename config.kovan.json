@@ -3,6 +3,7 @@
   "rpcAddr": "http://localhost:8545",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
+  "deploymentBlockNumber": 10375000,
   "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
