@@ -23,7 +23,7 @@ import {creatorFee, joinerFee} from '../calc'
 // strip off any decimal component of a value as values must be whole numbers
 const safeValue = value => value.toFixed(0)
 
-export default class CFDAPIInfura {
+export default class CFDAPI {
   /**
    * Create a new instance of this class setting up contract handles and
    * valaditing the config addresses point to actual deployed contracts.
@@ -41,7 +41,7 @@ export default class CFDAPIInfura {
         new Error('web3 is not connected - check the endpoint')
       )
     }*/
-    const api = new CFDAPIInfura(config, web3, privateKey)
+    const api = new CFDAPI(config, web3, privateKey)
     await api.initialise()
     return api
   }
@@ -210,7 +210,7 @@ export default class CFDAPIInfura {
   }
 
   /**
-   * NOTE: use CFDAPIInfura.newInstance to create a new instance rather then this
+   * NOTE: use CFDAPI.newInstance to create a new instance rather then this
    *       constructor.
    *
    * Construct an API instance setting config and web3. initialise() must be

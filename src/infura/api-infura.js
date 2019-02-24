@@ -17,7 +17,7 @@ const addMarketGasLimit = 200000
 // Number of milliseconds between each check for pushing a new value
 const delayBetweenPush = 5000
 
-export default class APIInfura {
+export default class API {
 
   /**
    * Create a new instance of this class setting up contract handles and
@@ -36,7 +36,7 @@ export default class APIInfura {
         new Error('web3 is not connected - check the endpoint')
       )
     }*/
-    const api = new APIInfura(config, web3, privateKey)
+    const api = new API(config, web3, privateKey)
     await api.initialise()
     return api
   }
@@ -151,10 +151,10 @@ export default class APIInfura {
   }
 
   /**
-   * NOTE: use APIInfura.newInstance to create a new instance rather then this
+   * NOTE: use API.newInstance to create a new instance rather then this
    *       constructor.
    *
-   * Construct an APIInfura instance setting config and web3. initialise() must be
+   * Construct an API instance setting config and web3. initialise() must be
    * called after this to setup the contract handler. newInstance() does both
    * these steps so is the preferred way to get an instance of this class.
    *
@@ -181,7 +181,7 @@ export default class APIInfura {
    * actual deployed contracts. Seperate to the constructor as it needs to make
    * asynchronous calls.
    *
-   * @return APIInfura instance
+   * @return API instance
    */
   async initialise () {
     var self = this;
