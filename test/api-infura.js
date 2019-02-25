@@ -1,22 +1,22 @@
 import {assert} from 'chai'
 import BigNumber from 'bignumber.js'
-import sha3 from 'web3/lib/utils/sha3'
-import {toBigNumber} from 'web3/lib/utils/utils'
 
-import API from '../src/api'
-import {toContractBigNumber, fromContractBigNumber} from '../src/utils'
+import * as Utils from 'web3-utils'
+
+import API from '../src/infura/api-infura'
+import {toContractBigNumber, fromContractBigNumber} from '../src/infura/utils'
 
 import {assertEqualBN} from './helpers/assert'
 import {deployAllForTest} from './helpers/deploy'
 import {config as configBase, web3} from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
-const marketId = '0x' + sha3(marketStr)
+const marketId = '0x' + Utils.sha3(marketStr)
 const price = '967.00239'
 const read = new BigNumber(price)
 const ts = Date.now()
 
-describe('api.js', function () {
+describe('api-infura.js', function () {
   let readBN
   let decimals
   let feeds
@@ -24,7 +24,16 @@ describe('api.js', function () {
   let api
 
   before(done => {
-    web3.eth.getAccounts(async (err, accounts) => {
+
+    web3.eth.getAccounts().then((err, accounts) => {
+      console.log(accounts)
+    })
+
+    /*web3.eth.getAccounts().then(async (err, accounts) => {
+
+      console.log(err)
+      console.log(accounts)
+
       if (err) {
         console.log(err)
         process.exit(-1)
@@ -41,11 +50,13 @@ describe('api.js', function () {
       const config = Object.assign({}, configBase)
       config.feedContractAddr = feeds.address
 
+      console.log(config)
+
       api = await API.newInstance(config, web3)
       readBN = toContractBigNumber(read, decimals)
 
       done()
-    })
+    })*/
   })
 
   it('push() converts input values before sending to contract', async () => {
@@ -80,7 +91,7 @@ describe('api.js', function () {
   it('read() converts response values back to useable formats', async () => {
     // mock the contract read() call to resolve with some read data
     api.feeds.read = {
-      call: () => Promise.resolve([readBN, toBigNumber(ts)])
+      call: () => Promise.resolve([readBN, web3.utils.toBigNumber(ts)])
     }
 
     const {read: rspRead, ts: rspTs} = await api.read(marketStr)

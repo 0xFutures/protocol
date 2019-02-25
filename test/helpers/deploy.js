@@ -1,4 +1,4 @@
-import sha3 from 'web3/lib/utils/sha3'
+import * as Utils from 'web3-utils'
 
 import configTest from '../../config.test.json'
 import {contractInstance} from '../../src/contracts'
@@ -8,7 +8,7 @@ import MockDAITokenJSON from '../../build/contracts/DAIToken.json'
 
 // default market for testing
 const MARKET_STR = 'Poloniex_ETH_USD'
-const MARKET_ID = '0x' + sha3(MARKET_STR)
+const MARKET_ID = '0x' + Utils.sha3(MARKET_STR)
 
 const mockDAITokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)

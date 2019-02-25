@@ -1,5 +1,5 @@
 import {assert} from 'chai'
-import {web3} from '../helpers/setup'
+import {web3} from './setup'
 
 const assertEqualBN = (actual, expected, msg = 'numbers not equal') => {
   assert.isTrue(
