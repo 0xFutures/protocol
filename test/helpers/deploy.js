@@ -1,14 +1,15 @@
 import * as Utils from 'web3-utils'
+import BigNumber from 'bignumber.js'
 
 import configTest from '../../config.test.json'
-import {contractInstance} from '../../src/contracts'
+import {contractInstance} from '../../src/infura/contracts'
 import {deployAll} from '../../src/deploy'
-import {nowSecs, toContractBigNumber} from '../../src/utils'
+import {nowSecs, toContractBigNumber} from '../../src/infura/utils'
 import MockDAITokenJSON from '../../build/contracts/DAIToken.json'
 
 // default market for testing
 const MARKET_STR = 'Poloniex_ETH_USD'
-const MARKET_ID = '0x' + Utils.sha3(MARKET_STR)
+const MARKET_ID = Utils.sha3(MARKET_STR)
 
 const mockDAITokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)
@@ -24,8 +25,12 @@ const deployMockDAIToken = async (web3, config) => {
   const DAIToken = mockDAITokenInstance(web3.currentProvider, config)
 
   // console.log('Deploying mock DAIToken ...')
-  const daiToken = await DAIToken.new()
-  // console.log(`DAIToken: ${daiToken.address}`)
+  // const daiToken = await DAIToken.new()
+  const daiToken = await DAIToken.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  // console.log(`DAIToken: ${daiToken.options.address}`)
   // console.log('done\n')
 
   return daiToken
@@ -46,25 +51,25 @@ const deployAllForTest = async ({
     ? await deployMockDAIToken(web3, config)
     : mockDAITokenInstance(web3.currentProvider, config).at(config.daiTokenAddr)
   const configUpdated = Object.assign({}, config, {
-    daiTokenAddr: daiToken.address
+    daiTokenAddr: daiToken.options.address
   })
 
   const deployment = await deployAll(web3, configUpdated, firstTime)
 
   const {feeds} = deployment
-  await feeds.addMarket(MARKET_STR)
+  await feeds.methods.addMarket(MARKET_STR).send()
 
-  const decimals = await feeds.decimals.call()
+  const decimals = await feeds.methods.decimals().call()
   const initialPriceBN = toContractBigNumber(initialPrice, decimals)
-  await feeds.push(MARKET_ID, initialPriceBN, nowSecs(), {
+  await feeds.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).call({
     from: configUpdated.daemonAccountAddr
   })
 
   if (firstTime === true && seedAccounts.length > 0) {
-    const tenDAI = web3.toBigNumber('1e18').times(10)
+    const tenDAI = new BigNumber('1e18').times(10)
     await Promise.all(
       seedAccounts.map(acc =>
-        daiToken.transfer(acc, tenDAI, {
+        daiToken.methods.transfer(acc, tenDAI.toFixed()).send({
           from: configUpdated.ownerAccountAddr
         })
       )

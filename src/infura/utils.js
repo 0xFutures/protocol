@@ -97,22 +97,24 @@ const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data
           gasLimit: web3.utils.toHex(pushGasLimit),
           gasPrice: web3.utils.toHex(gasPrice),
           to: contractAddr,
-          data: data
+          data: data,
+          from: account
         }
         // Sign the transaction
-        const tx = new Tx(txObject)
-        const privateKey = Buffer.from(privateKeyStr, 'hex')
-        tx.sign(privateKey)
-        const serializedTx = tx.serialize()
-        const raw = '0x' + serializedTx.toString('hex')
-        // Send the transaction
-        web3.eth.sendSignedTransaction(raw).once('receipt', function(receipt) {
-          // Transaction has been mined
-          console.log("[API-Infura] Transaction mined!");
-          resolve(receipt);
-        }).on('error', function(error) {
-          // Error
-          reject(error);
+        web3.eth.accounts.signTransaction(txObject, privateKeyStr, (err, resp) => {
+          if (err || resp == undefined || resp.rawTransaction == undefined)
+            reject(err);
+          else {
+            // Send the transaction
+            web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function(receipt) {
+              // Transaction has been mined
+              console.log("[API-Infura] Transaction mined!");
+              resolve(receipt);
+            }).on('error', function(error) {
+              // Error
+              reject(error);
+            });
+          }
         });
       }
     });

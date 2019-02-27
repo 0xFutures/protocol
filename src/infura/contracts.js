@@ -101,6 +101,15 @@ const deployedContractInstance = async (
     )
   }
 
+  /*const Contract = contract(contractJSON)
+  Contract.setProvider(web3.currentProvider)
+  Contract.defaults({
+    from: defaultFrom,
+    gasPrice: defaultGasPrice,
+    gas: defaultGasLimit
+  })
+  return Contract.at(addr)*/
+
   return new web3.eth.Contract(contractJSON, addr, {
     from: defaultFrom,
     gasPrice: defaultGasPrice,
@@ -112,13 +121,24 @@ const deployedContractInstance = async (
  * Create a handle to a contract given the JSON and a web3 provider instance.
  */
 const contractInstance = (contractJSON, web3Provider, config) => {
-  var contractData = {};
+  /*const Contract = contract(contractJSON)
+  Contract.setProvider(web3Provider)
   if (config.ownerAccountAddr && config.gasDefault) {
-    contractData.from = config.ownerAccountAddr;
-    contractData.gas = config.gasDefault;
+    Contract.defaults({
+      from: config.ownerAccountAddr,
+      gas: config.gasDefault
+    })
   }
+  return Contract*/
   const web3 = new Web3(web3Provider);
-  return new web3.eth.Contract(contractJSON.abi, contractData)
+  var contractInstance = new web3.eth.Contract(contractJSON.abi)
+  if (config.ownerAccountAddr)
+    contractInstance.options.from = config.ownerAccountAddr;
+  if (config.gasDefault)
+    contractInstance.options.gas = config.gasDefault;
+  if (contractJSON.bytecode)
+    contractInstance.options.data = contractJSON.bytecode;
+  return contractInstance;
 }
 
 module.exports = {

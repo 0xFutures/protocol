@@ -8,9 +8,10 @@ import {
   feedsInstance,
   forwardFactoryInstance,
   registryInstance,
-  registryInstanceDeployed
-} from './contracts'
-import {isEthereumAddress} from './utils'
+  registryInstanceDeployed,
+  feedsInstanceDeployed
+} from './infura/contracts'
+import {isEthereumAddress} from './infura/utils'
 
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
@@ -26,24 +27,27 @@ const linkBytecode = (bytecode, libraryName, libraryAddress) => {
  * @return updatedConfig Config instance with updated registryAddr
  */
 const deployRegistry = async (web3, config, logFn) => {
-  web3.eth.defaultAccount = config.ownerAccountAddr.toLowerCase() // sometimes case is an issue: eg. truffle-hdwallet-provider
+  web3.eth.defaultAccount = config.ownerAccountAddr // sometimes case is an issue: eg. truffle-hdwallet-provider
 
   const Registry = registryInstance(web3.currentProvider, config)
 
   logFn('Deploying Registry ...')
-  const registry = await Registry.new()
-  logFn(`Registry: ${registry.address}`)
+  const registry = await Registry.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  logFn(`Registry: ${registry.options.address}`)
 
   logFn('Calling registry.setFees ...')
-  await registry.setFees(config.feesAccountAddr)
+  await registry.methods.setFees(config.feesAccountAddr).send()
   logFn('done\n')
 
   logFn('Calling registry.setDAI ...')
-  await registry.setDAI(config.daiTokenAddr)
+  await registry.methods.setDAI(config.daiTokenAddr).send()
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
-    registryAddr: registry.address
+    registryAddr: registry.options.address
   })
 
   return {
@@ -65,15 +69,18 @@ const deployFeeds = async (web3, config, logFn) => {
 
   const Feeds = feedsInstance(web3.currentProvider, config)
   logFn('Deploying Feeds ...')
-  const feeds = await Feeds.new()
-  logFn(`Feeds: ${feeds.address}`)
+  const feeds = await Feeds.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  logFn(`Feeds: ${feeds.options.address}`)
 
   logFn('Calling feeds.setDaemonAccount ...')
-  await feeds.setDaemonAccount(config.daemonAccountAddr)
+  await feeds.methods.setDaemonAccount(config.daemonAccountAddr).send()
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
-    feedContractAddr: feeds.address
+    feedContractAddr: feeds.options.address
   })
 
   return {
@@ -97,8 +104,10 @@ const deployCFD = async (web3, config, logFn) => {
 
   web3.eth.defaultAccount = config.ownerAccountAddr
 
-  web3.version.getNetworkAsync = Promise.promisify(web3.version.getNetwork)
-  const networkId = await web3.version.getNetworkAsync()
+  // web3.version.getNetworkAsync = Promise.promisify(web3.version.getNetwork)
+  // const networkId = await web3.version.getNetworkAsync()
+
+  const networkId = await web3.eth.net.getId();
 
   const ForwardFactory = forwardFactoryInstance(web3.currentProvider, config)
   const CFD = cfdInstance(web3.currentProvider, config)
@@ -108,54 +117,64 @@ const deployCFD = async (web3, config, logFn) => {
   const Feeds = feedsInstance(web3.currentProvider, config)
 
   logFn('Deploying ForwardFactory ...')
-  const ff = await ForwardFactory.new()
-  logFn(`ForwardFactory: ${ff.address}`)
+  const ff = await ForwardFactory.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  logFn(`ForwardFactory: ${ff.options.address}`)
 
-  CFD.setNetwork(networkId)
-  CFDLibrary.setNetwork(networkId)
+  /*CFD.setNetwork(networkId)
+  CFDLibrary.setNetwork(networkId)*/
 
   logFn('Deploying ContractForDifferenceLibrary ...')
-  const cfdLib = await CFDLibrary.new()
-  logFn(`ContractForDifferenceLibrary: ${cfdLib.address}`)
+  const cfdLib = await CFDLibrary.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  logFn(`ContractForDifferenceLibrary: ${cfdLib.options.address}`)
 
   logFn('Deploying ContractForDifference ...')
-  CFD.bytecode = linkBytecode(
-    CFD.bytecode,
+  CFD.options.data = linkBytecode(
+    CFD.options.data,
     'ContractForDifferenceLibrary',
-    cfdLib.address
+    cfdLib.options.address
   )
-  const cfd = await CFD.new({gas: 7000000})
-  logFn(`ContractForDifference: ${cfd.address}`)
+  const cfd = await CFD.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: 7000000
+  })
+  logFn(`ContractForDifference: ${cfd.options.address}`)
 
   logFn('Deploying ContractForDifferenceRegistry ...')
-  const cfdRegistry = await CFDRegistry.new()
-  logFn(`ContractForDifferenceRegistry: ${cfdRegistry.address}`)
+  const cfdRegistry = await CFDRegistry.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  logFn(`ContractForDifferenceRegistry: ${cfdRegistry.options.address}`)
 
-  const feeds = await Feeds.at(config.feedContractAddr)
+  const feeds = await feedsInstanceDeployed(config, web3)
 
   logFn('Deploying ContractForDifferenceFactory ...')
-  const cfdFactory = await CFDFactory.new(
-    registryAddr,
-    cfd.address,
-    ff.address,
-    feeds.address,
-    {gas: 3000000}
-  )
-  logFn(`ContractForDifferenceFactory: ${cfdFactory.address}`)
+  const cfdFactory = await CFDFactory.deploy({
+    arguments: [registryAddr, cfd.options.address, ff.options.address, feeds.options.address]
+  }).send({
+    from: config.ownerAccountAddr,
+    gas: 3000000
+  })
+  logFn(`ContractForDifferenceFactory: ${cfdFactory.options.address}`)
 
-  const Registry = registryInstance(web3.currentProvider, config)
-  const registry = await Registry.at(registryAddr)
+  const registry = await registryInstanceDeployed(config, web3)
 
   logFn('Setting up CFD Factory and Registry ...')
   // run in sequence (in parallel has a nonce issue with hdwaller provider)
-  await cfdFactory.setCFDRegistry(cfdRegistry.address)
-  await cfdRegistry.setFactory(cfdFactory.address)
-  await registry.setCFDFactoryLatest(cfdFactory.address)
+  await cfdFactory.methods.setCFDRegistry(cfdRegistry.options.address).send()
+  await cfdRegistry.methods.setFactory(cfdFactory.options.address).send()
+  await registry.methods.setCFDFactoryLatest(cfdFactory.options.address).send()
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
-    cfdFactoryContractAddr: cfdFactory.address,
-    cfdRegistryContractAddr: cfdRegistry.address
+    cfdFactoryContractAddr: cfdFactory.options.address,
+    cfdRegistryContractAddr: cfdRegistry.options.address
   })
 
   return {

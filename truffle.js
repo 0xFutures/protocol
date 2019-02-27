@@ -25,6 +25,11 @@ module.exports = {
       runs: 200
     }
   },
+  compilers: {
+    solc: {
+      version: "0.4.24"
+    }
+  },
   networks: {
     develop: {
       host: 'localhost',

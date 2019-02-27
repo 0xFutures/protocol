@@ -12,8 +12,8 @@ import {
   signAndSendTransaction
 } from './utils'
 
-const pushGasLimit = 100000
-const addMarketGasLimit = 200000
+const pushGasLimit = 700000
+const addMarketGasLimit = 700000
 // Number of milliseconds between each check for pushing a new value
 const delayBetweenPush = 5000
 
@@ -49,22 +49,29 @@ export default class API {
    * @param ts UNIX millisecond timestamp of the read.
    * @param doneCallback Callback when the transaction has been mined
    */
-  push (marketIdStr, read, ts, doneCallback) {
-    this.pushQueue.unshift({marketIdStr: marketIdStr, read: read, ts: ts, doneCallback: doneCallback});
+  push (marketIdStr, read, ts) {
+    var self = this;
+    return new Promise(function(resolve, reject) {
+      self.pushQueue.unshift({marketIdStr: marketIdStr, read: read, ts: ts, doneCallback: function(receipt) {
+        // Success
+        resolve(receipt);
+      }, errorCallback: function(err) {
+        // Error
+        reject(err);
+      }});
+    });
   }
 
   /**
    * Read latest value from the contract.
    *
    * @param marketIdStr Read value for this market (eg. "Poloniex_ETH_USD")
-   * @return {read: <BigNumber read value>, ts: <epoch milliseconds timestamp>}
+   * @return {value: <read value>, timestamp: <epoch milliseconds timestamp>}
    */
   async read (marketIdStr) {
-    const decimals = await this.feeds.decimals.call()
     const marketId = this.marketIdStrToBytes(marketIdStr)
-    const [readBigNumber, tsMillis] = await this.feeds.read.call(marketId)
-    const read = fromContractBigNumber(readBigNumber, decimals)
-    return {read, ts: tsMillis.toNumber()}
+    const res = await this.feeds.methods.read(marketId).call();
+    return {value: res.value, timestamp: res.timestamp};
   }
 
   /**
@@ -73,10 +80,18 @@ export default class API {
    * @return Promise resolving to the transaction receipt
    */
   async addMarket (marketIdStr) {
-    return this.feeds.addMarket(marketIdStr, {
-      from: this.config.ownerAccountAddr,
-      gas: addMarketGasLimit
-    })
+    return new Promise(function(resolve, reject) {
+      this.feeds.methods.addMarket(marketIdStr).send({
+        from: this.config.ownerAccountAddr,
+        gas: addMarketGasLimit
+      }).once('receipt', function(receipt) {
+        // Transaction has been mined
+        resolve(receipt);
+      }).on('error', function(error) {
+        // Error
+        reject(error);
+      });
+    });
   }
 
   /**
@@ -131,14 +146,44 @@ export default class API {
       this.currentTx = {requesting: true};
       this.signAndPush(next).then((receipt) => {
         // Done callback
-        next.doneCallback(receipt);
+        if (next.doneCallback != undefined)
+          next.doneCallback(receipt);
         // When transaction has been mined, send the next one if needed
         self.currentTx = undefined;
         self.pushNextQueueValue();
-      }, (err) => {
+      }).catch((err) => {
+        // Error callback
+        if (next.errorCallback != undefined)
+          next.errorCallback(err);
         this.currentTx = undefined;
       });
     }
+  }
+
+  /**
+   * Get all markets in the feeds contract with a mapping to isActive.
+   * @param onSuccessCallback Callback that will receive a list like:
+   *        [
+   *          {bytesId: "0xabc...", strId: "Poloniex_BTC_ETH", active: true},
+   *          {bytesId: "0x123...", strId: "Binance_USD_ETH", active: false},
+   *          ...
+   *        ]
+   * @param onErrorCallback Callback that will receive any errors
+   */
+  getMarkets (onSuccessCallback, onErrorCallback) {
+    const fromBlock = this.config.deploymentBlockNumber || 0;
+    getAllEventsWithName("LogFeedsMarketAdded", this.feeds, fromBlock, 'latest').then((markets) => {
+      Promise.all(
+        markets.map(market => {
+          const {bytesId, strId} = market.returnValues
+          return this.feeds.methods.isMarketActive(bytesId).call().then(active => {
+            return {bytesId, strId, active}
+          })
+        })
+      ).then(onSuccessCallback);
+    }, (err) => {
+      onErrorCallback(err);
+    });
   }
 
   /**
