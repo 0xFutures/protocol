@@ -3,7 +3,7 @@ import BigNumber from 'bignumber.js'
 
 import configTest from '../../config.test.json'
 import {contractInstance} from '../../src/infura/contracts'
-import {deployAll} from '../../src/deploy'
+import {deployAll} from '../../src/infura/deploy'
 import {nowSecs, toContractBigNumber} from '../../src/infura/utils'
 import MockDAITokenJSON from '../../build/contracts/DAIToken.json'
 

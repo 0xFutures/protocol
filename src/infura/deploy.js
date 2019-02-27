@@ -10,8 +10,8 @@ import {
   registryInstance,
   registryInstanceDeployed,
   feedsInstanceDeployed
-} from './infura/contracts'
-import {isEthereumAddress} from './infura/utils'
+} from './contracts'
+import {isEthereumAddress} from './utils'
 
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
