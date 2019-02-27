@@ -44,7 +44,7 @@ describe('api-infura.js', function () {
       done()
     }).catch((err) => {
     	console.log(err)
-        process.exit(-1)
+      process.exit(-1)
     })
   })
 

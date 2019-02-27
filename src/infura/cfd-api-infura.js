@@ -31,7 +31,7 @@ export default class CFDAPI {
    * @param config Configuration object with all properties as per
    *               config.json.template
    * @param web3 Initiated and connected web3 instance
-   * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
+   * @param privateKey (optional) The private key used to sign the transactions when using Infura (needed only for the daemon)
    *
    * @return Constructed and initialised instance of this class
    */
@@ -44,6 +44,85 @@ export default class CFDAPI {
     const api = new CFDAPI(config, web3, privateKey)
     await api.initialise()
     return api
+  }
+
+  /**
+   * Create a new CFD.
+   *
+   * See creatorFee() for details of required fees in addition to the initial
+   * collateral.
+   *
+   * @param marketIdStr Contract for this market (eg. "Poloniex_ETH_USD")
+   * @param strikePrice Contract strike price
+   * @param notionalAmountDai Contract amount
+   * @param leverage The leverage (between 0.01 and 5.00)
+   * @param isBuyer Creator wants to be contract buyer or seller
+   * @param creator Creator of this contract who will sign the transaction
+   *
+   * @return Promise resolving to a new cfd truffle-contract instance on
+   *            success or a promise failure if the tx failed
+   */
+  async newCFD (
+    marketIdStr,
+    strikePrice,
+    notionalAmountDai,
+    leverage,
+    isBuyer,
+    creator
+  ) {
+    assertBigNumberOrString(strikePrice)
+    assertBigNumberOrString(notionalAmountDai)
+    assertBigNumberOrString(leverage)
+
+    const decimals = await this.feeds.methods.decimals().call()
+    const strikePriceBN = toContractBigNumber(strikePrice, decimals).toFixed()
+    const marketId = this.marketIdStrToBytes(marketIdStr)
+    const leverageValue = parseFloat(leverage)
+
+    if (isNaN(leverageValue) === true || leverageValue === 0) {
+      return Promise.reject(new Error(`invalid leverage`))
+    }
+
+    const notionalBN = new BigNumber(notionalAmountDai)
+    const deposit = notionalBN.dividedBy(leverageValue)
+    const value = safeValue(deposit.plus(creatorFee(notionalBN)))
+
+    await this.daiToken.methods.approve(this.cfdFactory.options.address, value).send({from: creator})
+    const receipt = await this.cfdFactory.methods.createContract(
+      marketId,
+      strikePriceBN,
+      notionalBN.toFixed(),
+      isBuyer,
+      value
+    ).send({from: creator, gas: 500000})
+
+    if (txFailed(receipt.status)) {
+      return Promise.reject(
+        new Error(
+          `transaction status != 1. tx:[${JSON.stringify(receipt, null, 2)}]`
+        )
+      )
+    }
+
+    const cfdAddress = receipt.events.LogCFDFactoryNew.returnValues.newCFDAddr
+    return getContract(cfdAddress, this.web3)
+  }
+
+  /**
+   * Deposit is called by a party wishing to join a new CFD.
+   *
+   * See joinerFee() for details of required fees in addition to the initial
+   * collateral. These fees are added on to the passed amount.
+   *
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async deposit (cfdAddress, depositAccount, amount) {
+    const cfd = getContract(cfdAddress, this.web3)
+    const fee = await this.joinFee(cfd)
+    const value = safeValue(amount.plus(fee))
+    await this.daiToken.methods.approve(cfd.options.address, value).send({from: depositAccount})
+    return cfd.methods.deposit(value).send({from: depositAccount, gas: 1000000})
   }
 
   /**
@@ -104,6 +183,57 @@ export default class CFDAPI {
     }).catch(error => {
       throw new Error(error);
     });
+  }
+
+  /**
+   * Fulfill a request to update the strike price for a non-initialized CFD
+   * @param cfdAddress Address of a deployed CFD
+   * @param userAccount User's account making the request
+   * @param desiredStrikePrice User wants this strike price value for his CFD
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async changeStrikePriceCFD (cfdAddress, userAccount, desiredStrikePrice) {
+    const cfd = getContract(cfdAddress, this.web3)
+
+    if ((await cfd.methods.isContractParty(userAccount).call()) === false) {
+      return Promise.reject(
+        new Error(`${userAccount} is not a party to CFD ${cfdAddress}`)
+      )
+    }
+
+    const decimals = await this.feeds.methods.decimals().call()
+    const desiredStrikePriceBN = toContractBigNumber(
+      desiredStrikePrice,
+      decimals
+    ).toFixed()
+
+    return cfd.methods.changeStrikePrice(desiredStrikePriceBN).send({from: userAccount})
+  }
+
+  /**
+   * Tansfer the position in a contract to another account.
+   * @param cfdAddress, Address of the deployed CFD
+   * @param fromAccount, Account who is transferring the position
+   * @param toAccount, Account who the position gets transferred too
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async transferPosition (cfdAddress, fromAccount, toAccount) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return cfd.methods.transferPosition(toAccount).send({from: fromAccount, gas: 50000})
+  }
+
+  /**
+   * Force liquidation a contract
+   * @param cfdAddress, Address of the deployed CFD
+   * @param account, The address of the account who is terminating
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async forceTerminate (cfdAddress, account) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return cfd.methods.forceTerminate().send({from: account, gas: 150000})
   }
 
   /**
@@ -207,6 +337,11 @@ export default class CFDAPI {
    */
   marketIdBytesToStr (marketId) {
     return this.feeds.methods.marketNames(marketId).call()
+  }
+
+  async joinFee (cfd) {
+    const notionalAmount = await cfd.methods.notionalAmountDai().call()
+    return joinerFee(new BigNumber(notionalAmount))
   }
 
   /**

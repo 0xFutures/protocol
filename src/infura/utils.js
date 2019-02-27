@@ -69,7 +69,7 @@ const txGasCost = (txHash, web3) => {
  * @return bool  True if the transaction failed
  */
 const txFailed = status =>
-  status !== 1 && status !== '0x1' && status !== '0x01'
+  status !== 1 && status !== '0x1' && status !== '0x01' && status !== true
 
 /**
  * Mapping of values returned by ContractForDifference.status() function.
