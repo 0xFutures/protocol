@@ -100,16 +100,6 @@ const deployedContractInstance = async (
         ` Check the address and network settings.`
     )
   }
-
-  /*const Contract = contract(contractJSON)
-  Contract.setProvider(web3.currentProvider)
-  Contract.defaults({
-    from: defaultFrom,
-    gasPrice: defaultGasPrice,
-    gas: defaultGasLimit
-  })
-  return Contract.at(addr)*/
-
   return new web3.eth.Contract(contractJSON, addr, {
     from: defaultFrom,
     gasPrice: defaultGasPrice,
@@ -121,15 +111,6 @@ const deployedContractInstance = async (
  * Create a handle to a contract given the JSON and a web3 provider instance.
  */
 const contractInstance = (contractJSON, web3Provider, config) => {
-  /*const Contract = contract(contractJSON)
-  Contract.setProvider(web3Provider)
-  if (config.ownerAccountAddr && config.gasDefault) {
-    Contract.defaults({
-      from: config.ownerAccountAddr,
-      gas: config.gasDefault
-    })
-  }
-  return Contract*/
   const web3 = new Web3(web3Provider);
   var contractInstance = new web3.eth.Contract(contractJSON.abi)
   if (config.ownerAccountAddr)

@@ -61,7 +61,7 @@ const deployAllForTest = async ({
 
   const decimals = await feeds.methods.decimals().call()
   const initialPriceBN = toContractBigNumber(initialPrice, decimals)
-  await feeds.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).call({
+  await feeds.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).send({
     from: configUpdated.daemonAccountAddr
   })
 

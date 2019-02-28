@@ -121,6 +121,8 @@ describe('cfd-api-infura.js', function () {
     assert.equal(await cfd.methods.seller().call(), EMPTY_ACCOUNT, 'Wrong seller account')
     assert.equal(await cfd.methods.notionalAmountDai().call(), notionalAmountDai, 'Wrong notional')
     assert.equal(await cfd.methods.market().call(), `${marketId}`, 'Wrong market ID')
+
+    api.cancelNew(cfd.options.address, buyer)
   })
 
   it('change strike price', async () => {
@@ -140,6 +142,8 @@ describe('cfd-api-infura.js', function () {
       new BigNumber(42058320000000).times('1e18').toFixed(),
       'Wrong strike price'
     )
+
+    api.cancelNew(cfd.options.address, buyer)
   })
 
 
@@ -168,6 +172,8 @@ describe('cfd-api-infura.js', function () {
       'Wrong notional'
     )
     assert.equal(await cfd.methods.market().call(), `${marketId}`, 'Wrong market ID')
+
+    api.forceTerminate(cfd.options.address, buyer)
   })
 
   it('getCFD gets contract details', async () => {
@@ -180,62 +186,51 @@ describe('cfd-api-infura.js', function () {
       buyer
     )
 
-    const cfdDetails = await api.getCFD(cfd.options.address)
+    const cfdDetailed = await api.getCFD(cfd.options.address)
 
-    assert.equal(cfdDetails.buyer, buyer, 'Wrong buyer account')
-    assert.equal(cfdDetails.seller, EMPTY_ACCOUNT, 'Wrong seller account')
+    assert.equal(cfdDetailed.details.buyer, buyer, 'Wrong buyer account')
+    assert.equal(cfdDetailed.details.seller, EMPTY_ACCOUNT, 'Wrong seller account')
     assert.equal(
       await cfd.methods.notionalAmountDai().call(),
       notionalAmountDai,
       'notional'
     )
-    assert.equal(cfdDetails.market, marketStr, 'Wrong market string') // translates to string
-    assert.isFalse(cfdDetails.liquidated)
+    assert.equal(cfdDetailed.details.market, marketStr, 'Wrong market string') // translates to string
+    assert.isFalse(cfdDetailed.details.liquidated)
+
+    api.cancelNew(cfd.options.address, buyer)
   })
 
   it('getCFD gets liquidated contract details', async () => {
-    const cfdDetails = await api.getCFD(cfdLiquidated.options.address)
+    const cfdDetailed = await api.getCFD(cfdLiquidated.options.address)
 
-    assert.isTrue(cfdDetails.liquidated)
+    assert.isTrue(cfdDetailed.details.liquidated)
   })
 
-  /*
   it('sale flow with sellCFD and buyCFD faciliates a sale', async () => {
     const cfd = await newCFDInitiated(buyer, seller, true)
 
-    await api.sellCFD(cfd.address, buyer, price)
-    assert.isTrue(await cfd.buyerSelling.call())
+    await api.sellCFD(cfd.options.address, buyer, price)
+    assert.isTrue(await cfd.methods.buyerSelling().call())
     await assertStatus(cfd, STATUS.SALE)
 
-    await api.buyCFD(cfd.address, thirdParty, notionalAmountDai, true)
-    assert.equal(await cfd.buyer.call(), thirdParty)
+    await api.buyCFD(cfd.options.address, thirdParty, notionalAmountDai, true)
+    assert.equal(await cfd.methods.buyer().call(), thirdParty)
     await assertStatus(cfd, STATUS.INITIATED)
   })
 
+
   describe('contractsForParty', function () {
     const callAndAssert = (party, options, assertFn) =>
-      api.contractsForParty(
-        party,
-        options,
-        cfds => assertFn(cfds),
-        error => assert.fail(`unexpected error [${error}]`)
-      )
+      api.contractsForParty(party, options)
+        .then((cfds) => assertFn(cfds))
+        .catch((error) => assert.fail(`unexpected error [${error}]`))
 
     it('returns only current open contracts when default options', done => {
       callAndAssert(party, {}, cfds => {
         assert.equal(cfds.length, 2)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        done()
-      })
-    })
-
-    it('includes transferred contracts if requested', done => {
-      callAndAssert(party, {includeTransferred: true}, cfds => {
-        assert.equal(cfds.length, 3)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        assert.equal(cfds[2].cfd.address, cfdTransferToThirdParty.address)
+        assert.equal(cfds[0].details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase())
+        assert.equal(cfds[1].details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase())
         done()
       })
     })
@@ -243,29 +238,26 @@ describe('cfd-api-infura.js', function () {
     it('includes liquidated/closed contracts if requested', done => {
       callAndAssert(party, {includeLiquidated: true}, cfds => {
         assert.equal(cfds.length, 3)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        assert.equal(cfds[2].cfd.address, cfdLiquidated.address)
+        assert.equal(cfds[0].details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase())
+        assert.equal(cfds[1].details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase())
+        assert.equal(cfds[2].details.address.toLowerCase(), cfdLiquidated.options.address.toLowerCase())
         done()
       })
     })
   })
 
+  
   describe('contractsWaitingCounterparty', function () {
     it('returns contracts awaiting a deposit', done => {
       api
         .newCFD(marketStr, price, notionalAmountDai, leverage, true, buyer)
-        .then(newCFD =>
-          api.contractsWaitingCounterparty(
-            {fromBlock: web3.eth.blockNumber},
-            cfds => {
-              assert.equal(cfds.length, 1)
-              assert.equal(cfds[0].cfd.address, newCFD.address)
-              done()
-            },
-            error => assert.fail(`unexpected error [${error}]`)
-          )
-        )
+        .then(newCFD => {
+          api.contractsWaitingCounterparty({}).then((cfds) => {
+            assert.equal(cfds.length, 1)
+            assert.equal(cfds[0].details.address.toLowerCase(), newCFD.options.address.toLowerCase())
+            done()
+          }).catch((error) => assert.fail(`unexpected error [${error}]`))
+        })
     })
   })
 
@@ -276,22 +268,14 @@ describe('cfd-api-infura.js', function () {
   describe('contractsForSale', function () {
     it('returns contracts for sale', async () => {
       const cfd = await newCFDInitiated(party, counterparty, true)
-      await cfd.sellPrepare(price, 0, {
-        from: counterparty,
-        gas: 2100200
-      })
+      await api.sellCFD(cfd.options.address, counterparty, price)
       return new Promise((resolve, reject) => {
-        api.contractsForSale(
-          {},
-          cfds => {
-            assert.equal(cfds.length, 1)
-            assert.equal(cfds[0].cfd.address, cfd.address)
-            resolve()
-          },
-          error => reject(new Error(`unexpected error [${error}]`))
-        )
+        api.contractsForSale({}).then((cfds) => {
+          assert.equal(cfds.length, 1)
+          assert.equal(cfds[0].details.address.toLowerCase(), cfd.options.address.toLowerCase())
+          resolve()
+        }).catch((error) => reject(new Error(`unexpected error [${error}]`)))
       })
     })
   })
-  */
 })

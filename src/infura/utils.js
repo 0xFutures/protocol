@@ -124,14 +124,17 @@ const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data
 
 /* List of all the events with its hash
  * Used to reverse match
+ * (While waiting for web3 to be fixed...)
  */
 const EVENTS = {
   '0xec0192f611133301ab5dd94a415ca4ed865668ca2f52cceee52eaa561044bafa': 'LogFeedsMarketAdded',
   '0x1de4d777747a0fae0f827374bf2373391fee95df6f6fc3e24af9c7ca46ecd372': 'LogFeedsMarketRemoved',
   '0x62a9ea16f13bd1758296411634390e5cfe2b3879cb368388a74714a03698cbd9': 'LogFeedsPush',
-
   '0x2d0c41699a808fef3dcfaa411d95703031d69229e73f5f3299fd6045deb4f962': 'LogCFDFactoryNew',
-  '0xe77178664194a5b1c28f6ee0f3fcb6d4404d796abfdf7edee18b68617768f48a': 'LogCFDFactoryNewByUpgrade'
+  '0xe77178664194a5b1c28f6ee0f3fcb6d4404d796abfdf7edee18b68617768f48a': 'LogCFDFactoryNewByUpgrade',
+  '0x5180589a8efb07c77a3318d1c34775bb649df9d3e93ac2a75a8e9747e3aaccd4': 'LogCFDRegistryParty',
+  '0xd58bd0566ead9ed32659fb925d8d03f4bc085d137fafff69ba9d390275a6eaaf': 'LogCFDRegistryNew',
+  '0x15d100e262556a93dd6558ac262964e8c338b642a9a6530ee29521879cfb9f1a': 'LogCFDRegistrySale'
 }
 /* Return the events, and filter with the event name
  * @param eventName, the event name used to filter (e.g. LogFeedsPush)
@@ -151,7 +154,7 @@ const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBloc
           if (ev == undefined || ev.raw == undefined || ev.raw.topics == undefined || ev.raw.topics.length <= 0 || EVENTS[ev.raw.topics[0]] == undefined)
             return false;
           // Check event is the one we are looking for
-          return (eventName == undefined || EVENTS[ev.raw.topics[0]] == eventName);
+          return (eventName == undefined || EVENTS[ev.raw.topics[0].toLowerCase()] == eventName);
         });
         resolve(events);
       }

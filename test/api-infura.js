@@ -12,7 +12,7 @@ import {config as configBase, web3} from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
 const marketId = Utils.sha3(marketStr)
-const price = '967.00239'
+const price = '77.00239'
 const read = new BigNumber(price)
 const ts = Date.now()
 

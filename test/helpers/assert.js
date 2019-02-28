@@ -30,7 +30,7 @@ const assertLoggedParty = (logRec, expectedCFD, expectedParty) => {
 
 const assertStatus = async (cfd, expected) =>
   assert.equal(
-    (await cfd.status.call()).toNumber(),
+    await cfd.methods.status().call(),
     expected,
     `status incorrect`
   )
