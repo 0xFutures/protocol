@@ -6,10 +6,10 @@ import CFDJSON from '../../abi/ContractForDifference.json'
 import CFDLibraryJSON from '../../abi/ContractForDifferenceLibrary.json'
 import CFDFactoryJSON from '../../abi/ContractForDifferenceFactory.json'
 import CFDRegistryJSON from '../../abi/ContractForDifferenceRegistry.json'
-import ERC20JSON from '../../abi/ERC20.json'
 import FeedsJSON from '../../abi/Feeds.json'
 import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
 import RegistryJSON from '../../abi/Registry.json'
+import MockDAITokenJSON from '../../abi/DAIToken.json'
 
 /*
  * Create handles to deployed contracts.
@@ -37,7 +37,7 @@ const registryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'registryAddr', RegistryJSON)
 
 const daiTokenInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'daiTokenAddr', ERC20JSON)
+  deployedInstance(config, web3, 'daiTokenAddr', MockDAITokenJSON)
 
 const deployedInstance = (
   config,
@@ -78,6 +78,9 @@ const cfdFactoryInstance = (web3Provider, config) =>
 
 const cfdRegistryInstance = (web3Provider, config) =>
   contractInstance(CFDRegistryJSON, web3Provider, config)
+
+const daiTokenInstance = (web3Provider, config) =>
+  contractInstance(MockDAITokenJSON, web3Provider, config)
 
 /**
  * Create a handle to an instance of a contract already deployed on the
@@ -131,6 +134,7 @@ module.exports = {
   cfdRegistryInstance,
   cfdRegistryInstanceDeployed,
   contractInstance,
+  daiTokenInstance,
   daiTokenInstanceDeployed,
   feedsInstance,
   feedsInstanceDeployed,

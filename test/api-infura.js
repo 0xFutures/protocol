@@ -15,6 +15,8 @@ const marketId = Utils.sha3(marketStr)
 const price = '77.00239'
 const read = new BigNumber(price)
 const ts = Date.now()
+const marketStr2 = 'Poloniex_BTC_USD'
+const marketId2 = Utils.sha3(marketStr2)
 
 describe('api-infura.js', function () {
   let readBN
@@ -68,10 +70,13 @@ describe('api-infura.js', function () {
   it('getMarkets() fetchs ALL markets', done =>
     api.getMarkets(
       markets => {
-        assert.equal(markets.length, 1, `Wrong number of markets`)
+        assert.equal(markets.length, 2, `Wrong number of markets`)
         assert.equal(markets[0].strId, marketStr, `Wrong market str`)
         assert.equal(markets[0].bytesId, marketId, `Wrong market ID`)
         assert.isTrue(markets[0].active, `Market should be active`)
+        assert.equal(markets[1].strId, marketStr2, `Wrong market str`)
+        assert.equal(markets[1].bytesId, marketId2, `Wrong market ID`)
+        assert.isTrue(markets[1].active, `Market should be active`)
         done()
       },
       err => assert.fail(`unexpected error: ${err}`)

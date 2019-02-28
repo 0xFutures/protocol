@@ -9,7 +9,8 @@ import {
   fromContractBigNumber,
   toContractBigNumber,
   getAllEventsWithName,
-  signAndSendTransaction
+  signAndSendTransaction,
+  getMarketFromHex
 } from './utils'
 
 const pushGasLimit = 700000
@@ -171,11 +172,15 @@ export default class API {
    * @param onErrorCallback Callback that will receive any errors
    */
   getMarkets (onSuccessCallback, onErrorCallback) {
-    const fromBlock = this.config.deploymentBlockNumber || 0;
+    const fromBlock = this.config.deploymentBlockNumber || 0, self = this;
     getAllEventsWithName("LogFeedsMarketAdded", this.feeds, fromBlock, 'latest').then((markets) => {
       Promise.all(
-        markets.map(market => {
-          const {bytesId, strId} = market.returnValues
+        markets.map(async market => {
+          if (market == undefined || market.raw == undefined || market.raw.topics == undefined ||
+              market.raw.topics.length <= 1)
+            return undefined;
+          const bytesId = market.raw.topics[1];
+          const strId = await self.marketIdBytesToStr(bytesId);
           return this.feeds.methods.isMarketActive(bytesId).call().then(active => {
             return {bytesId, strId, active}
           })
@@ -193,6 +198,16 @@ export default class API {
    */
   marketIdStrToBytes (marketIdStr) {
     return this.web3.utils.sha3(marketIdStr)
+  }
+
+  /**
+   * Convert market id in bytes32 format to string format by looking up the
+   * Feeds.marketNames smart contract list.
+   * @param marketId sha3 of the market id string
+   * @return Market id string
+   */
+  marketIdBytesToStr (marketId) {
+    return this.feeds.methods.marketNames(marketId).call()
   }
 
   /**

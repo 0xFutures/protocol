@@ -2,17 +2,20 @@ import * as Utils from 'web3-utils'
 import BigNumber from 'bignumber.js'
 
 import configTest from '../../config.test.json'
-import {contractInstance} from '../../src/infura/contracts'
+import {
+  contractInstance,
+  daiTokenInstance,
+  daiTokenInstanceDeployed
+} from '../../src/infura/contracts'
 import {deployAll} from '../../src/infura/deploy'
 import {nowSecs, toContractBigNumber} from '../../src/infura/utils'
-import MockDAITokenJSON from '../../build/contracts/DAIToken.json'
 
 // default market for testing
 const MARKET_STR = 'Poloniex_ETH_USD'
 const MARKET_ID = Utils.sha3(MARKET_STR)
 
-const mockDAITokenInstance = (web3Provider, config) =>
-  contractInstance(MockDAITokenJSON, web3Provider, config)
+const MARKET_STR_2 = 'Poloniex_BTC_USD'
+const MARKET_ID_2 = Utils.sha3(MARKET_STR_2)
 
 /**
  * Deploy a mock DAI token for test and develop.
@@ -22,7 +25,7 @@ const mockDAITokenInstance = (web3Provider, config) =>
  */
 const deployMockDAIToken = async (web3, config) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
-  const DAIToken = mockDAITokenInstance(web3.currentProvider, config)
+  const DAIToken = daiTokenInstance(web3.currentProvider, config)
 
   // console.log('Deploying mock DAIToken ...')
   // const daiToken = await DAIToken.new()
@@ -49,7 +52,7 @@ const deployAllForTest = async ({
 }) => {
   const daiToken = firstTime
     ? await deployMockDAIToken(web3, config)
-    : mockDAITokenInstance(web3.currentProvider, config).at(config.daiTokenAddr)
+    : await daiTokenInstanceDeployed(config, web3)
   const configUpdated = Object.assign({}, config, {
     daiTokenAddr: daiToken.options.address
   })
@@ -58,6 +61,7 @@ const deployAllForTest = async ({
 
   const {feeds} = deployment
   await feeds.methods.addMarket(MARKET_STR).send()
+  await feeds.methods.addMarket(MARKET_STR_2).send()
 
   const decimals = await feeds.methods.decimals().call()
   const initialPriceBN = toContractBigNumber(initialPrice, decimals)

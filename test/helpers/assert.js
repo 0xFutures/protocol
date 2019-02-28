@@ -3,7 +3,7 @@ import {web3} from './setup'
 
 const assertEqualBN = (actual, expected, msg = 'numbers not equal') => {
   assert.isTrue(
-    actual.equals(expected),
+    actual.eq(expected),
     `
 \tmsg: ${msg}
 \tactual: ${actual.toString()}
