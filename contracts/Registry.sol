@@ -1,5 +1,4 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
@@ -35,11 +34,11 @@ contract Registry is DBC, Ownable {
         set("DAI", _addr);
     }
 
-    function set(string _name, address _addr) private onlyOwner {
+    function set(string memory _name, address _addr) private onlyOwner {
         contracts[keccak256(abi.encodePacked(_name))] = _addr;
     }
 
-    function get(string _name) private view returns (address addr) {
+    function get(string memory _name) private view returns (address addr) {
         addr = contracts[keccak256(abi.encodePacked(_name))];
     }
 

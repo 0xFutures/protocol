@@ -1,5 +1,4 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../DBC.sol";
@@ -146,7 +145,7 @@ contract ContractForDifference is DBC {
 
     // set to first party that calls upgrade
     // enables identification of who called and that it has been called once
-    address public upgradeCalledBy = 0x0;
+    address public upgradeCalledBy = address(0);
 
     address public cfdRegistryAddr;
     address public feedsAddr;
@@ -235,7 +234,7 @@ contract ContractForDifference is DBC {
         pre_cond(_notionalAmountDai >= MINIMUM_NOTIONAL_AMOUNT_DAI, REASON_NOTIONAL_TOO_LOW)
     {
         registry = Registry(_registryAddr);
-        uint daiBalance = registry.getDAI().balanceOf(this);
+        uint daiBalance = registry.getDAI().balanceOf(address(this));
         uint fees = ContractForDifferenceLibrary.creatorFee(_notionalAmountDai);
         if (daiBalance <= fees)
             revert(REASON_FEES_NOT_ENOUGH);
@@ -389,7 +388,7 @@ contract ContractForDifference is DBC {
             joinerFees + ContractForDifferenceLibrary.creatorFee(notionalAmountDai)
         );
 
-        if (buyer == 0x0) {
+        if (buyer == address(0)) {
             buyer = msg.sender;
             buyerDepositBalance = collateralSent;
         } else {
@@ -422,7 +421,7 @@ contract ContractForDifference is DBC {
         pre_cond(initiated == false, REASON_MUST_NOT_BE_INITIATED)
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
     {
-        uint amountSent = registry.getDAI().balanceOf(this);
+        uint amountSent = registry.getDAI().balanceOf(address(this));
         daiTransfer(msg.sender, amountSent);
         emit LogCFDTransferFunds(msg.sender, amountSent);
         closed = true;
@@ -541,7 +540,7 @@ contract ContractForDifference is DBC {
     {
         if (msg.sender == buyer) buyer = _newAddress;
         else if (msg.sender == seller) seller = _newAddress;
-        else if (msg.sender == upgradeCalledBy) upgradeCalledBy = 0x0;
+        else if (msg.sender == upgradeCalledBy) upgradeCalledBy = address(0);
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(_newAddress);
         emit LogCFDTransferPosition(msg.sender, _newAddress);
     }
@@ -681,7 +680,7 @@ contract ContractForDifference is DBC {
 
         // set new party and balances
         uint remainingPartyDeposits = registry.getDAI().
-            balanceOf(this).sub(collateralSent);
+            balanceOf(address(this)).sub(collateralSent);
 
         // new notional amount value
         uint newNotional = ContractForDifferenceLibrary.calculateNewNotional(
@@ -711,7 +710,7 @@ contract ContractForDifference is DBC {
 
         // clean up upgradeCalledBy if the departing party had set that
         if (upgradeCalledBy == sellingParty) {
-            upgradeCalledBy = 0x0;
+            upgradeCalledBy = address(0);
         }
 
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(msg.sender);
@@ -796,7 +795,7 @@ contract ContractForDifference is DBC {
         address winner = winnerIsBuyer ? buyer : seller;
 
         // winner takes all
-        uint remaining = registry.getDAI().balanceOf(this);
+        uint remaining = registry.getDAI().balanceOf(address(this));
         daiTransfer(winner, remaining);
         emit LogCFDTransferFunds(winner, remaining);
 
@@ -844,7 +843,7 @@ contract ContractForDifference is DBC {
         //     will be sorted out manually
         //
         uint balanceRemainder = registry.getDAI().
-            balanceOf(this).
+            balanceOf(address(this)).
             sub(buyerCollateral).
             sub(sellerCollateral);
         if (balanceRemainder != 0) {
@@ -893,10 +892,10 @@ contract ContractForDifference is DBC {
         pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
         pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
         pre_cond(msg.sender != upgradeCalledBy, REASON_UPGRADE_ALREADY_SET)
-        pre_cond(registry.allCFDs(this) != registry.getCFDFactoryLatest(), REASON_UPGRADE_ALREADY_LATEST)
+        pre_cond(registry.allCFDs(address(this)) != registry.getCFDFactoryLatest(), REASON_UPGRADE_ALREADY_LATEST)
     {
         // 1st call to initiate upgrade process
-        if (upgradeCalledBy == 0x0) {
+        if (upgradeCalledBy == address(0)) {
             upgradeCalledBy = msg.sender;
             return;
         }
@@ -905,9 +904,8 @@ contract ContractForDifference is DBC {
         // kick off the upgrade process
         upgradeable = true;
         address cfdFactoryLatest = registry.getCFDFactoryLatest();
-        address newCfd = ContractForDifferenceFactory(cfdFactoryLatest).
-            createByUpgrade();
-        daiTransfer(newCfd, registry.getDAI().balanceOf(this));
+        address newCfd = address(ContractForDifferenceFactory(cfdFactoryLatest).createByUpgrade());
+        daiTransfer(newCfd, registry.getDAI().balanceOf(address(this)));
         upgradeable = false;
         closed = true;
 
@@ -1194,7 +1192,7 @@ contract ContractForDifference is DBC {
      */
     function daiClaim(uint _value) private {
         require(
-            registry.getDAI().transferFrom(msg.sender, this, _value),
+            registry.getDAI().transferFrom(msg.sender, address(this), _value),
             REASON_DAI_TRANSFER_FAILED
         );
     }

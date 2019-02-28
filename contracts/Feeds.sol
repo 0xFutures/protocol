@@ -1,5 +1,4 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./DBC.sol";
@@ -112,7 +111,7 @@ contract Feeds is DBC, Ownable {
      * @param _marketStrId String id of market something like "Poloniex_BTC_ETH"
      * @return marketId bytes32 keccak256 of the _marketStrId
      */
-    function addMarket(string _marketStrId)
+    function addMarket(string calldata _marketStrId)
         external
         onlyOwner
         returns (bytes32 marketId)

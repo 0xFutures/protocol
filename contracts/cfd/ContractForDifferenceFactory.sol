@@ -1,5 +1,4 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../DBC.sol";
@@ -83,7 +82,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
     )
         external
         pre_cond(
-            registry.getDAI().allowance(msg.sender, this) >= _value, 
+            registry.getDAI().allowance(msg.sender, address(this)) >= _value, 
             REASON_DAI_ALLOWANCE_TOO_LOW
         )
         returns (ContractForDifference cfd)
@@ -94,11 +93,11 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
         require(
-            registry.getDAI().transferFrom(creator, cfd, _value),
+            registry.getDAI().transferFrom(creator, address(cfd), _value),
             REASON_DAI_TRANSFER_FAILED
         );
         cfd.create(
-            registry,
+            address(registry),
             cfdRegistry,
             feeds,
             creator,
@@ -108,9 +107,9 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             _isBuyer
         );
 
-        registry.addCFD(cfd);
-        emit LogCFDFactoryNew(_marketId, creator, cfd);
-        ContractForDifferenceRegistry(cfdRegistry).registerNew(cfd, creator);
+        registry.addCFD(address(cfd));
+        emit LogCFDFactoryNew(_marketId, creator, address(cfd));
+        ContractForDifferenceRegistry(cfdRegistry).registerNew(address(cfd), creator);
     }
 
     /**
@@ -131,7 +130,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         // can only upgrade if cfd registered and not with this latest version
         address registryEntry = registry.allCFDs(cfdAddr);
         require(
-            registryEntry != 0x0 && registryEntry != address(this), 
+            registryEntry != address(0) && registryEntry != address(this), 
             REASON_MUST_REGISTERED_CFD
         );
 
@@ -142,7 +141,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
         ContractForDifferenceRegistry(cfdRegistry).registerNew(
-            newCfd,
+            address(newCfd),
             existingCfd.buyer()
         );
 
@@ -152,11 +151,11 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             cfdRegistry,
             feeds
         );
-        registry.addCFD(newCfd);
+        registry.addCFD(address(newCfd));
 
         // replicate logging for an ordinary create so queries will get this to
-        emit LogCFDFactoryNew(newCfd.market(), newCfd.buyer(), newCfd);
-        emit LogCFDFactoryNewByUpgrade(newCfd, existingCfd);
+        emit LogCFDFactoryNew(newCfd.market(), newCfd.buyer(), address(newCfd));
+        emit LogCFDFactoryNewByUpgrade(address(newCfd), address(existingCfd));
     }
 
 }
