@@ -1,6 +1,5 @@
 {
   "network": "kovan",
-  "chainId": 42,
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
   "deploymentBlockNumber": 10470000,
