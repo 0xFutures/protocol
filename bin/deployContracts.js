@@ -2,7 +2,7 @@ import program from 'commander'
 import {readFileSync} from 'fs'
 import HDWalletProvider from 'truffle-hdwallet-provider'
 import Web3 from 'web3'
-import {deployAll} from '../src/deploy'
+import {deployAll} from '../src/infura/deploy'
 
 const isInfura = addr => addr.indexOf('infura.io/') !== -1
 const hdWalletProvider = config =>
@@ -42,7 +42,7 @@ const deploy = async () => {
   console.log(`Adding markets to Feeds ...`)
   // run in sequence (in parallel has a nonce issue with hdwaller provider)
   for (const market of markets) {
-    await deployment.feeds.addMarket(market)
+    await deployment.feeds.methods.addMarket(market).send()
   }
   console.log(`done\n`)
 
