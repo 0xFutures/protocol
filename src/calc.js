@@ -17,6 +17,8 @@ const calculateCollateral = ({
   depositBalance,
   calcBuyerSide
 }) => {
+  marketPrice = new BigNumber(marketPrice)
+  depositBalance = new BigNumber(depositBalance)
   const difference = notionalAmount.times(
     marketPrice.minus(strikePrice).dividedBy(strikePrice)
   )
