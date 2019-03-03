@@ -87,37 +87,35 @@ const STATUS = {
 const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data, gasPrice, pushGasLimit = 100000) => {
   return new Promise(function(resolve, reject) {
     // Get the transaction count for the nonce
-    web3.eth.getTransactionCount(account, (err, txCount) => {
-      if (err != undefined)
-        reject(err);
-      else {
-        // Create the transaction object to call the contract function
-        const txObject = {
-          nonce: web3.utils.toHex(txCount),
-          gasLimit: web3.utils.toHex(pushGasLimit),
-          gasPrice: web3.utils.toHex(gasPrice),
-          to: contractAddr,
-          data: data,
-          from: account
-        }
-        // Sign the transaction
-        web3.eth.accounts.signTransaction(txObject, privateKeyStr, (err, resp) => {
-          if (err || resp == undefined || resp.rawTransaction == undefined)
-            reject(err);
-          else {
-            // Send the transaction
-            web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function(receipt) {
-              // Transaction has been mined
-              console.log("[API-Infura] Transaction mined!");
-              resolve(receipt);
-            }).on('error', function(error) {
-              // Error
-              reject(error);
-            });
-          }
-        });
+    web3.eth.getTransactionCount(account).then((txCount) => {
+      // Create the transaction object to call the contract function
+      const txObject = {
+        nonce: web3.utils.toHex(txCount),
+        gasLimit: web3.utils.toHex(pushGasLimit),
+        gasPrice: web3.utils.toHex(gasPrice),
+        to: contractAddr,
+        data: data,
+        from: account
       }
-    });
+      // Sign the transaction
+      web3.eth.accounts.signTransaction(txObject, privateKeyStr, (err, resp) => {
+        if (err || resp == undefined || resp.rawTransaction == undefined)
+          reject(err);
+        else {
+          // Send the transaction
+          web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function(receipt) {
+            // Transaction has been mined
+            console.log("[API-Infura] Transaction mined!");
+            resolve(receipt);
+          }).on('error', function(error) {
+            // Error
+            reject(error);
+          });
+        }
+      });
+    }).catch((err) => {
+      reject(err);
+    })
   });
 }
 
