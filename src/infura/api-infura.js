@@ -6,7 +6,6 @@ import {
 } from './contracts'
 import {
   assertBigNumberOrString,
-  fromContractBigNumber,
   toContractBigNumber,
   getAllEventsWithName,
   signAndSendTransaction,

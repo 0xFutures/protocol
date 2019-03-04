@@ -5,6 +5,8 @@ BigNumber.config({DECIMAL_PLACES: 30})
 
 const EMPTY_ACCOUNT = '0x' + '0'.repeat(40)
 
+const WEI_DECIMALS = 18;
+
 /**
  * Feed values must be passed around as Bignumbers or strings due to the 15
  * significant digit limitation of Javascript numbers.
@@ -39,9 +41,9 @@ const toContractBigNumber = (number, numDecimals) => {
  * @param numDecimals Number of decimals to adjust (see Feeds.sol decimals)
  * @return BigNumber original value
  */
-const fromContractBigNumber = (contractBigNumber, numDecimals) => {
-  assertBigNumberOrString(contractBigNumber)
-  const bn = new BigNumber(contractBigNumber)
+const fromContractBigNumber = (number, numDecimals) => {
+  assertBigNumberOrString(number)
+  const bn = new BigNumber(number)
   return bn.div(new BigNumber(10).pow(numDecimals))
 }
 
@@ -170,6 +172,7 @@ module.exports = {
   txGas,
   txGasCost,
   txFailed,
+  WEI_DECIMALS,
   EMPTY_ACCOUNT,
   STATUS,
   getAllEventsWithName,
