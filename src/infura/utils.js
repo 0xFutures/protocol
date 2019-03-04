@@ -149,7 +149,7 @@ const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBloc
       else {
         // Filter the events (using the topics array for now, since event name is missing)
         events = events.filter(function(ev) {
-          if (ev == undefined || ev.raw == undefined || ev.raw.topics == undefined || ev.raw.topics.length <= 0 || EVENTS[ev.raw.topics[0]] == undefined)
+          if (ev == undefined || ev.raw == undefined || ev.raw.topics == undefined || ev.raw.topics.length <= 0 || (EVENTS[ev.raw.topics[0]] == undefined && eventName != undefined))
             return false;
           // Check event is the one we are looking for
           return (eventName == undefined || EVENTS[ev.raw.topics[0].toLowerCase()] == eventName);
