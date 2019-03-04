@@ -134,7 +134,7 @@ export default class API {
     const readBigNumber = toContractBigNumber(next.read, decimals).toFixed()
     const marketId = this.marketIdStrToBytes(next.marketIdStr)
     return signAndSendTransaction(this.web3, this.config.daemonAccountAddr, this.privateKey, this.config.feedContractAddr,
-            this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, pushGasLimit);
+            this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, this.config.chainId, pushGasLimit);
   }
 
   /**

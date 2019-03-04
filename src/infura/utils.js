@@ -84,7 +84,7 @@ const STATUS = {
 /*
  * Sign and send a raw transaction
  */
-const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data, gasPrice, pushGasLimit = 100000) => {
+const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data, gasPrice, chainId, pushGasLimit = 100000) => {
   return new Promise(function(resolve, reject) {
     // Get the transaction count for the nonce
     web3.eth.getTransactionCount(account).then((txCount) => {
@@ -95,6 +95,7 @@ const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data
         gasPrice: web3.utils.toHex(gasPrice),
         to: contractAddr,
         data: data,
+        chainId: chainId,
         from: account
       }
       // Sign the transaction
