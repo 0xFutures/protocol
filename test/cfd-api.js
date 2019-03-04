@@ -14,6 +14,7 @@ const marketStr = 'Poloniex_ETH_USD'
 const marketId = Utils.sha3(marketStr)
 const price = '67.00239'
 const newPrice = '42.05832'
+const liquidationPercentage = 95     // Liquidation price is 95% of the strike price
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_BUYER = 5
@@ -31,6 +32,7 @@ describe('cfd-api-infura.js', function () {
   let buyer, seller
   let party, counterparty, thirdParty
   let notionalAmountDai
+  let decimals
 
   let cfdPartyIsBuyer
   let cfdPartyIsSeller
@@ -77,6 +79,7 @@ describe('cfd-api-infura.js', function () {
       config.daiTokenAddr = daiToken.options.address
 
       notionalAmountDai = new BigNumber('1e18') // 1 DAI
+      decimals = await feeds.methods.decimals.call()
 
       //
       // Create an instance of the cfd-api
@@ -125,6 +128,49 @@ describe('cfd-api-infura.js', function () {
     api.cancelNew(cfd.options.address, buyer)
   })
 
+  it('check cfdPartyIsBuyer contract details', async () => {
+    const cfd = await api.getCFD(cfdPartyIsBuyer.options.address);
+    const daiUsed = 1;
+    const stkPrice = parseFloat(price);
+    const buyerLiquidationPrice = new BigNumber(stkPrice - ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
+
+    assert.equal(cfd.details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.closed, false, 'Wrong closed value')
+    assert.equal(cfd.details.status, 1, 'Wrong status value')
+    assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
+    assert.equal(cfd.details.buyer.toLowerCase(), party.toLowerCase(), 'Wrong buyer value')
+    assert.equal(cfd.details.buyerIsSelling, false, 'Wrong buyerIsSelling value')
+    assert.equal(cfd.details.market, marketStr, 'Wrong market value')
+    assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
+    assert.equal(cfd.details.buyerInitialNotional, daiUsed, 'Wrong buyerInitialNotional value')
+    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
+    assert.equal(cfd.details.buyerDepositBalance.toFixed(), daiUsed, 'Wrong buyerDepositBalance value')
+    assert.equal(cfd.details.buyerInitialStrikePrice, price, 'Wrong buyerInitialStrikePrice value')
+    assert.equal(cfd.details.buyerLiquidationPrice.toFixed(), buyerLiquidationPrice, 'Wrong buyerLiquidationPrice value')
+
+  })
+  it('check cfdPartyIsSeller contract details', async () => {
+    const cfd = await api.getCFD(cfdPartyIsSeller.options.address);
+    const daiUsed = 1;
+    const stkPrice = parseFloat(price);
+    const sellerLiquidationPrice = new BigNumber(stkPrice + ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
+
+    assert.equal(cfd.details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.closed, false, 'Wrong closed value')
+    assert.equal(cfd.details.status, 1, 'Wrong status value')
+    assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
+    assert.equal(cfd.details.seller.toLowerCase(), party.toLowerCase(), 'Wrong seller value')
+    assert.equal(cfd.details.sellerIsSelling, false, 'Wrong sellerIsSelling value')
+    assert.equal(cfd.details.market, marketStr, 'Wrong market value')
+    assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
+    assert.equal(cfd.details.sellerInitialNotional, daiUsed, 'Wrong sellerInitialNotional value')
+    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
+    assert.equal(cfd.details.sellerDepositBalance.toFixed(), daiUsed, 'Wrong sellerDepositBalance value')
+    assert.equal(cfd.details.sellerInitialStrikePrice, price, 'Wrong sellerInitialStrikePrice value')
+    assert.equal(cfd.details.sellerLiquidationPrice.toFixed(), sellerLiquidationPrice, 'Wrong sellerLiquidationPrice value')
+
+  })
+
   it('change strike price', async () => {
     const cfd = await api.newCFD(
       marketStr,
@@ -137,9 +183,11 @@ describe('cfd-api-infura.js', function () {
 
     await api.changeStrikePriceCFD(cfd.options.address, buyer, newPrice)
 
+    const updatedCfd = await api.getCFD(cfd.options.address);
+
     assert.equal(
-      await cfd.methods.strikePrice().call(),
-      new BigNumber(42058320000000).times('1e18').toFixed(),
+      updatedCfd.details.strikePrice,
+      newPrice,
       'Wrong strike price'
     )
 
