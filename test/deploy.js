@@ -140,7 +140,6 @@ describe('deploy', function () {
       await newCFDInitiated(buyer, seller, true)
       assert.fail(`expected create failure`)
     } catch (err) {
-    	console.log(err.message);
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))
     }
   })
