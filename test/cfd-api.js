@@ -134,11 +134,11 @@ describe('cfd-api-infura.js', function () {
     const stkPrice = parseFloat(price);
     const buyerLiquidationPrice = new BigNumber(stkPrice - ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
 
-    assert.equal(cfd.details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.address, cfdPartyIsBuyer.options.address.toLowerCase(), 'Wrong address value')
     assert.equal(cfd.details.closed, false, 'Wrong closed value')
     assert.equal(cfd.details.status, 1, 'Wrong status value')
     assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
-    assert.equal(cfd.details.buyer.toLowerCase(), party.toLowerCase(), 'Wrong buyer value')
+    assert.equal(cfd.details.buyer, party.toLowerCase(), 'Wrong buyer value')
     assert.equal(cfd.details.buyerIsSelling, false, 'Wrong buyerIsSelling value')
     assert.equal(cfd.details.market, marketStr, 'Wrong market value')
     assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
@@ -155,11 +155,11 @@ describe('cfd-api-infura.js', function () {
     const stkPrice = parseFloat(price);
     const sellerLiquidationPrice = new BigNumber(stkPrice + ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
 
-    assert.equal(cfd.details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.address, cfdPartyIsSeller.options.address.toLowerCase(), 'Wrong address value')
     assert.equal(cfd.details.closed, false, 'Wrong closed value')
     assert.equal(cfd.details.status, 1, 'Wrong status value')
     assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
-    assert.equal(cfd.details.seller.toLowerCase(), party.toLowerCase(), 'Wrong seller value')
+    assert.equal(cfd.details.seller, party.toLowerCase(), 'Wrong seller value')
     assert.equal(cfd.details.sellerIsSelling, false, 'Wrong sellerIsSelling value')
     assert.equal(cfd.details.market, marketStr, 'Wrong market value')
     assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
@@ -236,8 +236,8 @@ describe('cfd-api-infura.js', function () {
 
     const cfdDetailed = await api.getCFD(cfd.options.address)
 
-    assert.equal(cfdDetailed.details.buyer, buyer, 'Wrong buyer account')
-    assert.equal(cfdDetailed.details.seller, EMPTY_ACCOUNT, 'Wrong seller account')
+    assert.equal(cfdDetailed.details.buyer, buyer.toLowerCase(), 'Wrong buyer account')
+    assert.equal(cfdDetailed.details.seller, EMPTY_ACCOUNT.toLowerCase(), 'Wrong seller account')
     assert.equal(
       await cfd.methods.notionalAmountDai().call(),
       notionalAmountDai,

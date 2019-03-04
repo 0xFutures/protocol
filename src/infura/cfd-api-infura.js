@@ -157,14 +157,14 @@ export default class CFDAPI {
         ]).then(function (values2) {
           // Got the rest of the data
           return Object.assign(cfd, {details: {
-            address: cfdAddress,
+            address: cfdAddress.toLowerCase(),
             closed: values[4],
             status: parseInt(values[0][7]),
             liquidated: values[2][0],
-            upgradeCalledBy: values[2][1],
-            buyer: values[0][0],
+            upgradeCalledBy: values[2][1].toLowerCase(),
+            buyer: values[0][0].toLowerCase(),
             buyerIsSelling: values[0][5],
-            seller: values[0][1],
+            seller: values[0][1].toLowerCase(),
             sellerIsSelling: values[0][6],
             market: values2[0],
             notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
