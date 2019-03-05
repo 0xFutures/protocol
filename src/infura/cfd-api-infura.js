@@ -264,7 +264,7 @@ export default class CFDAPI {
     const valueToBuyBN = new BigNumber(valueToBuy)
     const value = safeValue(valueToBuyBN.plus(fee))
     await this.daiToken.methods.approve(cfd.options.address, value).send({from: account})
-    await cfd.methods.buy(isBuyerSide, value).send({from: account, gas: 1000000})
+    return cfd.methods.buy(isBuyerSide, value).send({from: account, gas: 1000000})
   }
 
   /**
