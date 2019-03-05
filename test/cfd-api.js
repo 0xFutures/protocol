@@ -326,4 +326,21 @@ describe('cfd-api-infura.js', function () {
       })
     })
   })
+
+
+  describe('changeSaleCFD', function () {
+    it('change sale price for a CFD for sale', async () => {
+      const cfd = await newCFDInitiated(buyer, seller, true)
+
+      await api.sellCFD(cfd.options.address, buyer, price)
+      assert.isTrue(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.SALE)
+
+      await api.changeSaleCFD(cfd.options.address, buyer, parseFloat(price) * 2)
+      const updatedCfd = await api.getCFD(cfd.options.address)
+
+      assert.equal(updatedCfd.details.buyerSaleStrikePrice.toFixed(5), parseFloat(price) * 2, 'Wrong buyerSaleStrikePrice value')
+    })
+  })
+
 })

@@ -171,8 +171,8 @@ export default class CFDAPI {
             buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
             sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
             strikePrice: fromContractBigNumber(values[0][3], values[3]),
-            buyerSaleStrikePrice: fromContractBigNumber(values[1][4], WEI_DECIMALS),
-            sellerSaleStrikePrice: fromContractBigNumber(values[1][5], WEI_DECIMALS),
+            buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
+            sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
             buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
             sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
             buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
@@ -338,6 +338,34 @@ export default class CFDAPI {
     }).catch(error => {
       throw new Error(error);
     });
+  }
+
+  /**
+   * Fulfill a request to change the sale price for a CFD for sale
+   * @param cfdAddress Address of a deployed CFD
+   * @param sellerAccount Account settling the position.
+   * @param desiredStrikePrice Sellers wants to sell at this strike price.
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async changeSaleCFD (cfdAddress, sellerAccount, desiredStrikePrice) {
+  	const cfd = getContract(cfdAddress, this.web3);
+
+    if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
+      return Promise.reject(
+        new Error(`${sellerAccount} is not a party to CFD ${cfdAddress}`)
+      )
+    }
+
+    const decimals = await this.feeds.methods.decimals().call()
+    const desiredStrikePriceBN = toContractBigNumber(
+      desiredStrikePrice,
+      decimals
+    ).toFixed()
+
+    return cfd.methods.sellUpdate(desiredStrikePriceBN).send({
+      from: sellerAccount
+    })
   }
 
 
