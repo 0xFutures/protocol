@@ -305,6 +305,30 @@ export default class CFDAPI {
   }
 
   /**
+   * Cancel a contract for sale (must be for sale)
+   * @param cfdAddress, Address of the deployed CFD
+   * @param account, The address of the account who is canceling
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async cancelSale (cfdAddress, account) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return cfd.methods.sellCancel().send({from: account})
+  }
+
+  /**
+   * Upgrade a contract to the latest deployed version
+   * @param cfdAddress, Address of the deployed CFD
+   * @param account, The address of the account who is upgrading
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async upgradeCFD (cfdAddress, account) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return cfd.methods.upgrade().send({from: account})
+  }
+
+  /**
    * Check for liquidation
    * @param cfdAddress, Address of the contract
    * @param account, Account address of the user

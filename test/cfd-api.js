@@ -343,6 +343,21 @@ describe('cfd-api-infura.js', function () {
     })
   })
 
+  describe('cancelSale', function () {
+    it('cancel a sale for a CFD', async () => {
+      const cfd = await newCFDInitiated(buyer, seller, true)
+
+      await api.sellCFD(cfd.options.address, buyer, price)
+      assert.isTrue(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.SALE)
+
+      await api.cancelSale(cfd.options.address, buyer)
+      assert.isFalse(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.INITIATED)
+      
+    })
+  })
+
 
   describe('topup & withdraw', function () {
 
