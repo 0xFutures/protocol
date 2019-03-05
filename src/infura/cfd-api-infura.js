@@ -388,6 +388,24 @@ export default class CFDAPI {
     return cfd.methods.topup(value).send({from: account})
   }
 
+  /**
+   * Withdraw the amount from a CFD
+   * @param cfdAddress, Address of the deployed CFD
+   * @param account, The address of the account who is withdrawing
+   * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
+   */
+  async withdraw (cfdAddress, account, valueToWithdraw) {
+    const cfd = getContract(cfdAddress, this.web3);
+    if ((await cfd.methods.isContractParty(account).call()) === false) {
+      return Promise.reject(
+        new Error(`${account} is not a party to CFD ${cfdAddress}`)
+      )
+    }
+
+    const value = safeValue(valueToWithdraw)
+    return cfd.methods.withdraw(value).send({from: account})
+  }
+
 
 
 

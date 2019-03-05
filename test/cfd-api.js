@@ -344,11 +344,16 @@ describe('cfd-api-infura.js', function () {
   })
 
 
-  describe('topup', function () {
-    it('topup a CFD', async () => {
-      const cfd = await newCFDInitiated(buyer, seller, true)
-      const valueAdd = new BigNumber('2e18') // 2 DAI
+  describe('topup & withdraw', function () {
 
+    let cfd
+    const valueAdd = new BigNumber('2e18') // 2 DAI
+
+    before(async () => {
+      cfd = await newCFDInitiated(buyer, seller, true)
+    })
+
+    it('topup a CFD', async () => {
       const currentCfd = await api.getCFD(cfd.options.address)
       assert.equal(currentCfd.details.buyerDepositBalance.toNumber(), 1, 'Initial buyerDepositBalance is wrong')
       
@@ -357,6 +362,17 @@ describe('cfd-api-infura.js', function () {
       const newCfd = await api.getCFD(cfd.options.address)
       assert.equal(newCfd.details.buyerDepositBalance.toNumber(), 3, 'Initial buyerDepositBalance is wrong')
     })
+
+    it('withdraw a CFD', async () => {
+      const currentCfd = await api.getCFD(cfd.options.address)
+      assert.equal(currentCfd.details.buyerDepositBalance.toNumber(), 3, 'Initial buyerDepositBalance is wrong')
+      
+      await api.withdraw(cfd.options.address, buyer, valueAdd)
+
+      const newCfd = await api.getCFD(cfd.options.address)
+      assert.equal(newCfd.details.buyerDepositBalance.toNumber(), 1, 'Initial buyerDepositBalance is wrong')
+    })
+
   })
 
 })
