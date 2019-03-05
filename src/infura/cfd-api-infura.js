@@ -515,12 +515,17 @@ export default class CFDAPI {
   ) {
     const self = this;
     // Function to get one CFD details
-    const getDetailsCfd = async address => self.getCFD(address);
+    const getDetailsCfd = async (ev) => {
+      let cfd = await self.getCFD(ev.address);
+      const block = await self.web3.eth.getBlockAsync(ev.blockNumber);
+      cfd.details.ts = new Date(block.timestamp * 1000);
+      return cfd;
+    }
     // Function to get the CFDs from addresses
     const getCFDs = async events => {
       let results = await Promise.all(
         events.map((ev) => {
-          return getDetailsCfd(ev.address);
+          return getDetailsCfd(ev);
         })
       )
       return results
