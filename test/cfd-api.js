@@ -336,10 +336,26 @@ describe('cfd-api-infura.js', function () {
       assert.isTrue(await cfd.methods.buyerSelling().call())
       await assertStatus(cfd, STATUS.SALE)
 
-      await api.changeSaleCFD(cfd.options.address, buyer, parseFloat(price) * 2)
+      await api.changeSaleCFD(cfd.options.address, buyer, parseFloat(price) * 2)  // Set the sale strike price as double
       const updatedCfd = await api.getCFD(cfd.options.address)
 
       assert.equal(updatedCfd.details.buyerSaleStrikePrice.toFixed(5), parseFloat(price) * 2, 'Wrong buyerSaleStrikePrice value')
+    })
+  })
+
+
+  describe('topup', function () {
+    it('topup a CFD', async () => {
+      const cfd = await newCFDInitiated(buyer, seller, true)
+      const valueAdd = new BigNumber('2e18') // 2 DAI
+
+      const currentCfd = await api.getCFD(cfd.options.address)
+      assert.equal(currentCfd.details.buyerDepositBalance.toNumber(), 1, 'Initial buyerDepositBalance is wrong')
+      
+      await api.topup(cfd.options.address, buyer, valueAdd)
+
+      const newCfd = await api.getCFD(cfd.options.address)
+      assert.equal(newCfd.details.buyerDepositBalance.toNumber(), 3, 'Initial buyerDepositBalance is wrong')
     })
   })
 

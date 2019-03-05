@@ -368,6 +368,26 @@ export default class CFDAPI {
     })
   }
 
+  /**
+   * Topup a CFD by the amount sent by the user
+   * @param cfdAddress, Address of the deployed CFD
+   * @param account, The address of the account who is topuping
+   * @param valueToAdd, The amount the user wants to add (DAI)
+   */
+  async topup (cfdAddress, account, valueToAdd) {
+    const cfd = getContract(cfdAddress, this.web3);
+
+    if ((await cfd.methods.isContractParty(account).call()) === false) {
+      return Promise.reject(
+        new Error(`${account} is not a party to CFD ${cfdAddress}`)
+      )
+    }
+
+    const value = safeValue(valueToAdd)
+    await this.daiToken.methods.approve(cfdAddress, value).send({from: account})
+    return cfd.methods.topup(value).send({from: account})
+  }
+
 
 
 
