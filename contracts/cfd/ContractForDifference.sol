@@ -566,23 +566,24 @@ contract ContractForDifference is DBC {
         // calculate cutoff price
         bool isBuyer = (msg.sender == buyer) ? true : false;
         uint depositBalance = (isBuyer) ? buyerDepositBalance : sellerDepositBalance;
+        uint currStrikePrice = (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice;
         uint cutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
             depositBalance,
-            _desiredStrikePrice,
+            currStrikePrice,
             isBuyer
         );
 
         // mark side on sale
         uint timeLimit = timeLimitFutureOrZero(_timeLimit);
         if (msg.sender == buyer) {
-            // check strike price is not below liquidation price
+            // check sale strike price is not below liquidation price
             require(_desiredStrikePrice > cutOff, REASON_MUST_BE_MORE_THAN_CUTOFF);
             buyerSelling = true;
             buyerSaleStrikePrice = _desiredStrikePrice;
             buyerSaleTimeLimit = timeLimit;
         } else if (msg.sender == seller) {
-            // check strike price is not already above liquidation price
+            // check sale strike price is not already above liquidation price
             require(_desiredStrikePrice < cutOff, REASON_MUST_BE_LESS_THAN_CUTOFF);
             sellerSelling = true;
             sellerSaleStrikePrice = _desiredStrikePrice;
@@ -608,9 +609,24 @@ contract ContractForDifference is DBC {
         pre_cond(isSelling(msg.sender), REASON_MUST_BE_SELLER)
         pre_cond(_newPrice > 0, REASON_MUST_BE_POSITIVE_PRICE)
     {
+        // calculate cutoff price
+        bool isBuyer = (msg.sender == buyer) ? true : false;
+        uint depositBalance = (isBuyer) ? buyerDepositBalance : sellerDepositBalance;
+        uint currStrikePrice = (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice;
+        uint cutOff = ContractForDifferenceLibrary.cutOffPrice(
+            notionalAmountDai,
+            depositBalance,
+            currStrikePrice,
+            isBuyer
+        );
+
         if (msg.sender == buyer) {
+            // check new strike price is not below liquidation price
+            require(_newPrice > cutOff, REASON_MUST_BE_MORE_THAN_CUTOFF);
             buyerSaleStrikePrice = _newPrice;
         } else if (msg.sender == seller) {
+            // check new strike price is not already above liquidation price
+            require(_newPrice < cutOff, REASON_MUST_BE_LESS_THAN_CUTOFF);
             sellerSaleStrikePrice = _newPrice;
         }
         emit LogCFDSaleUpdated(msg.sender, _newPrice);
