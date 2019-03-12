@@ -565,12 +565,10 @@ contract ContractForDifference is DBC {
     {
         // calculate cutoff price
         bool isBuyer = (msg.sender == buyer) ? true : false;
-        uint depositBalance = (isBuyer) ? buyerDepositBalance : sellerDepositBalance;
-        uint currStrikePrice = (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice;
         uint cutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
-            depositBalance,
-            currStrikePrice,
+            (isBuyer) ? buyerDepositBalance : sellerDepositBalance,
+            (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice,
             isBuyer
         );
 
@@ -611,12 +609,10 @@ contract ContractForDifference is DBC {
     {
         // calculate cutoff price
         bool isBuyer = (msg.sender == buyer) ? true : false;
-        uint depositBalance = (isBuyer) ? buyerDepositBalance : sellerDepositBalance;
-        uint currStrikePrice = (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice;
         uint cutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
-            depositBalance,
-            currStrikePrice,
+            (isBuyer) ? buyerDepositBalance : sellerDepositBalance,
+            (isBuyer) ? buyerInitialStrikePrice : sellerInitialStrikePrice,
             isBuyer
         );
 

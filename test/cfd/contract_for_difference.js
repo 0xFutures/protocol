@@ -1621,6 +1621,106 @@ describe('ContractForDifference', function () {
         })
       })
 
+
+
+
+
+
+
+
+
+
+
+      describe('check selling over liquidation price', async () => {
+        const buyer = CREATOR_ACCOUNT
+        const seller = COUNTERPARTY_ACCOUNT
+
+        before(async () => {
+          // push in the original strike price (in case another test has changed it)
+          await feeds.methods.push(marketId, strikePriceAdjusted.toFixed(), nowSecs()).send({
+            from: DAEMON_ACCOUNT
+          })
+        })
+
+        it('selling at liquidation price as buyer',
+          async () => {
+            // initiate contract
+            const cfd = await newCFD({ notionalAmount, isBuyer: true })
+            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            const deposits = notionalAmount.dividedBy(1)
+            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),true).call()
+            // put buyer side on sale at liquidation price
+            try {
+              await cfd.methods.sellPrepare(new BigNumber(buyerLiqPrice / 2).toFixed(), 0).send({ from: buyer })
+              assert.fail('expected reject sale with liquidation price error')
+            } catch (err) {
+              assert.equal(`${REJECT_MESSAGE} Must be more than liquidation price`, err.message)
+            }
+          }
+        )
+
+        it('selling at liquidation price as seller',
+          async () => {
+            // initiate contract
+            const cfd = await newCFD({ notionalAmount, isBuyer: true })
+            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            const deposits = notionalAmount.dividedBy(1)
+            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),false).call()
+            // put seller side on sale at liquidation price
+            try {
+              await cfd.methods.sellPrepare(new BigNumber(sellerLiqPrice * 2).toFixed(), 0).send({ from: seller })
+              assert.fail('expected reject sale with liquidation price error')
+            } catch (err) {
+              assert.equal(`${REJECT_MESSAGE} Must be less than liquidation price`, err.message)
+            }
+          }
+        )
+
+        it('selling over liquidation price as buyer',
+          async () => {
+            // initiate contract
+            const cfd = await newCFD({ notionalAmount, isBuyer: true })
+            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            const deposits = notionalAmount.dividedBy(1)
+            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),true).call()
+            // put buyer side on sale over liquidation price
+            await cfd.methods.sellPrepare(new BigNumber(buyerLiqPrice * 2).toFixed(), 0).send({ from: buyer })
+            assert.isTrue(await cfd.methods.buyerSelling().call())
+          }
+        )
+
+        it('selling under liquidation price as seller',
+          async () => {
+            // initiate contract
+            const cfd = await newCFD({ notionalAmount, isBuyer: true })
+            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            const deposits = notionalAmount.dividedBy(1)
+            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),false).call()
+            // put seller side on sale under liquidation price
+            await cfd.methods.sellPrepare(new BigNumber(sellerLiqPrice / 2).toFixed(), 0).send({ from: seller })
+            assert.isTrue(await cfd.methods.sellerSelling().call())
+          }
+        )
+
+      })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       run()
 
     }, 2000)
