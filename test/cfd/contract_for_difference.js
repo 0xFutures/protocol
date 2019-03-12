@@ -1621,16 +1621,6 @@ describe('ContractForDifference', function () {
         })
       })
 
-
-
-
-
-
-
-
-
-
-
       describe('check selling over liquidation price', async () => {
         const buyer = CREATOR_ACCOUNT
         const seller = COUNTERPARTY_ACCOUNT
@@ -1703,23 +1693,6 @@ describe('ContractForDifference', function () {
         )
 
       })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
       run()
 
