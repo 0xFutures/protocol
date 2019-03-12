@@ -151,9 +151,9 @@ export default class CFDAPI {
       ]).then(function (values) {
         // Got all the data, fetch the data that needed previous values
         return Promise.all([
-          self.marketIdBytesToStr(values[0][2]),                                            // [0]
-          cfd.methods.cutOffPrice(values[0][4], values[1][2], values[0][3], true).call(),   // [1]
-          cfd.methods.cutOffPrice(values[0][4], values[1][3], values[0][3], false).call()   // [2]
+          self.marketIdBytesToStr(values[0][2]),                                            // [market]
+          cfd.methods.cutOffPrice(values[0][4], values[1][2], values[1][6], true).call(),   // [buyerLiquidationPrice]
+          cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
         ]).then(function (values2) {
           // Got the rest of the data
           return Object.assign(cfd, {details: {
