@@ -2,14 +2,14 @@
   "network": "kovan",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
-  "deploymentBlockNumber": 10470000,
+  "deploymentBlockNumber": 10535000,
   "daemonPrivateKey": "<daemonPrivateKey>",
   "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
   "registryAddr": "0x6adda96526557b70538839747cde8e82d654995e",
-  "feedContractAddr": "0xCD4941e75F761C04364481a0eAe4fe1B88f77494",
-  "cfdRegistryContractAddr": "0x5DEFB756ECa5aE44AFDC9f69fE9F31c1504af45d",
-  "cfdFactoryContractAddr": "0x9C0c106fb2Ad0e627f8D64Cd8bF26B56cAa10c93"
+  "feedContractAddr": "0xE9513C8fEa3340057AbbA0A34cca4b653f1CC5b1",
+  "cfdRegistryContractAddr": "0xAe0E0466b12CE358d6803E0a47313B59f47F596E",
+  "cfdFactoryContractAddr": "0xC0c8808f371E1587F79e173EbD304efB3A17FAF2"
 }
