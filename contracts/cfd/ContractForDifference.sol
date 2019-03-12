@@ -100,6 +100,8 @@ contract ContractForDifference is DBC {
     string constant REASON_UPGRADE_ALREADY_SET = "msg.sender already called";
     string constant REASON_UPGRADE_ALREADY_LATEST = "Already at latest version";
     string constant REASON_TRANSFER_TO_EXISTING_PARTY = "Can't transfer to existing party";
+    string constant REASON_MUST_BE_MORE_THAN_CUTOFF = "Must be more than liquidation price";
+    string constant REASON_MUST_BE_LESS_THAN_CUTOFF = "Must be less than liquidation price";
 
     uint public constant FORCE_TERMINATE_PENALTY_PERCENT = 5;
     uint public constant MINIMUM_NOTIONAL_AMOUNT_DAI = 1 * 1e18; // 1 DAI/1 USD
@@ -561,13 +563,27 @@ contract ContractForDifference is DBC {
         pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
         pre_cond(_desiredStrikePrice > 0, REASON_MUST_BE_POSITIVE_PRICE)
     {
+        // calculate cutoff price
+        bool isBuyer = (msg.sender == buyer) ? true : false;
+        uint depositBalance = (isBuyer) ? _buyerDepositBalance : _sellerDepositBalance;
+        uint cutOff = ContractForDifferenceLibrary.cutOffPrice(
+            notionalAmountDai,
+            depositBalance,
+            _desiredStrikePrice,
+            isBuyer
+        );
+
         // mark side on sale
         uint timeLimit = timeLimitFutureOrZero(_timeLimit);
         if (msg.sender == buyer) {
+            // check strike price is not below liquidation price
+            require(_desiredStrikePrice > cutOff, REASON_MUST_BE_MORE_THAN_CUTOFF);
             buyerSelling = true;
             buyerSaleStrikePrice = _desiredStrikePrice;
             buyerSaleTimeLimit = timeLimit;
         } else if (msg.sender == seller) {
+            // check strike price is not already above liquidation price
+            require(_desiredStrikePrice < cutOff, REASON_MUST_BE_LESS_THAN_CUTOFF);
             sellerSelling = true;
             sellerSaleStrikePrice = _desiredStrikePrice;
             sellerSaleTimeLimit = timeLimit;
