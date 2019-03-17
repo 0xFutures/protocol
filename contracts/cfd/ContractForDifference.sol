@@ -59,7 +59,7 @@ contract ContractForDifference is DBC {
     );
     event LogCFDSaleCancelled(address party);
     event LogCFDSaleUpdated(address party, uint newPrice);
-    event LogCFDSold(address to, address by, uint newNotional, uint sellerAmount, uint buyerDeposit, bytes32 market);
+    event LogCFDSold(address to, address by, uint sellerAmount, uint buyerDeposit, bytes32 market);
 
     event LogCFDPartyBalanceUpdate(address party, uint amount, bool isWithdraw, uint newBalance, bytes32 market);
     event LogCFDTransferFunds(address receiver, uint amount);
@@ -116,11 +116,8 @@ contract ContractForDifference is DBC {
     bytes32 public market;
 
     uint public notionalAmountDai;
-    uint public buyerInitialNotional;
-    uint public sellerInitialNotional;
 
     // format of strike prices as in Feeds contract - see Feeds.decimals()
-    uint public strikePrice;
     uint public buyerInitialStrikePrice;
     uint public sellerInitialStrikePrice;
 
@@ -255,10 +252,7 @@ contract ContractForDifference is DBC {
 
         market = _marketId;
         notionalAmountDai = _notionalAmountDai;
-        buyerInitialNotional = _notionalAmountDai;
-        sellerInitialNotional = _notionalAmountDai;
 
-        strikePrice = _strikePrice;
         buyerInitialStrikePrice = _strikePrice;
         sellerInitialStrikePrice = _strikePrice;
 
@@ -294,16 +288,13 @@ contract ContractForDifference is DBC {
 
         market = oldCfd.market();
         notionalAmountDai = oldCfd.notionalAmountDai();
-        strikePrice = oldCfd.strikePrice();
         buyer = oldCfd.buyer();
         seller = oldCfd.seller();
 
         buyerDepositBalance = oldCfd.buyerDepositBalance();
-        buyerInitialNotional = oldCfd.buyerInitialNotional();
         buyerInitialStrikePrice = oldCfd.buyerInitialStrikePrice();
 
         sellerDepositBalance = oldCfd.sellerDepositBalance();
-        sellerInitialNotional = oldCfd.sellerInitialNotional();
         sellerInitialStrikePrice = oldCfd.sellerInitialStrikePrice();
 
         cfdRegistryAddr = _cfdRegistryAddr;
@@ -323,13 +314,12 @@ contract ContractForDifference is DBC {
     function getCfdAttributes()
         public
         view
-        returns (address, address, bytes32, uint, uint, bool, bool, Status)
+        returns (address, address, bytes32, uint, bool, bool, Status)
     {
         return (
             buyer,
             seller,
             market,
-            strikePrice,
             notionalAmountDai,
             buyerSelling,
             sellerSelling,
@@ -339,11 +329,9 @@ contract ContractForDifference is DBC {
     function getCfdAttributes2()
         public
         view
-        returns (uint, uint, uint, uint, uint, uint, uint, uint)
+        returns (uint, uint, uint, uint, uint, uint)
     {
         return (
-            buyerInitialNotional,
-            sellerInitialNotional,
             buyerDepositBalance,
             sellerDepositBalance,
             buyerSaleStrikePrice,
@@ -407,7 +395,7 @@ contract ContractForDifference is DBC {
             seller,
             market,
             notionalAmountDai,
-            strikePrice,
+            buyerInitialStrikePrice, // strikePrice is same for buyer and seller at this stage
             buyerDepositBalance,
             sellerDepositBalance
         );
@@ -488,13 +476,14 @@ contract ContractForDifference is DBC {
             marketPrice,
             isBuyer ? newDepositBal : buyerDepositBalance,
             isBuyer ? sellerDepositBalance : newDepositBal,
-            strikePrice // unchanged on withdraw
+            buyerInitialStrikePrice,
+            sellerInitialStrikePrice
         )) {
             revert(REASON_MARKET_PRICE_RANGE_FAILED);
         }
 
         uint collateral = ContractForDifferenceLibrary.calculateCollateralAmount(
-            strikePrice,
+            isBuyer ? buyerInitialStrikePrice : sellerInitialStrikePrice,
             marketPrice,
             notionalAmountDai,
             newDepositBal,
@@ -640,7 +629,6 @@ contract ContractForDifference is DBC {
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
         pre_cond(_newStrikePrice > 0, REASON_MUST_BE_POSITIVE_PRICE)
     {
-        strikePrice = _newStrikePrice;
         buyerInitialStrikePrice = _newStrikePrice;
         sellerInitialStrikePrice = _newStrikePrice;
         emit LogCFDStrikePriceUpdated(msg.sender, _newStrikePrice);
@@ -680,7 +668,7 @@ contract ContractForDifference is DBC {
             revert(REASON_COLLATERAL_RANGE_FAILED);
 
         uint marketPrice = latestPrice();
-        uint newStrikePrice = _buyBuyerSide ?
+        uint buyStrikePrice = _buyBuyerSide ?
             buyerSaleStrikePrice :
             sellerSaleStrikePrice;
 
@@ -689,7 +677,8 @@ contract ContractForDifference is DBC {
             marketPrice,
             _buyBuyerSide ? collateralSent : buyerDepositBalance,
             _buyBuyerSide ? sellerDepositBalance : collateralSent,
-            newStrikePrice // buying at this strike price
+            _buyBuyerSide ? buyStrikePrice : buyerInitialStrikePrice,
+            _buyBuyerSide ? sellerInitialStrikePrice : buyStrikePrice
         )) {
             revert(REASON_MARKET_PRICE_RANGE_FAILED);
         }
@@ -702,7 +691,6 @@ contract ContractForDifference is DBC {
         address sellingParty = _buyBuyerSide ? buyer : seller;
         uint sellingPartyCollateral = buyTransferFunds(
             _buyBuyerSide,
-            newStrikePrice,
             sellingParty
         );
 
@@ -710,29 +698,17 @@ contract ContractForDifference is DBC {
         uint remainingPartyDeposits = registry.getDAI().
             balanceOf(address(this)).sub(collateralSent);
 
-        // new notional amount value
-        uint newNotional = ContractForDifferenceLibrary.calculateNewNotional(
-            notionalAmountDai,
-            strikePrice,
-            newStrikePrice
-        );
-
         if (_buyBuyerSide) {
             buyer = msg.sender;
             buyerDepositBalance = collateralSent;
-            buyerInitialStrikePrice = newStrikePrice;
-            buyerInitialNotional = newNotional;
+            buyerInitialStrikePrice = buyStrikePrice;
             sellerDepositBalance = remainingPartyDeposits;
         } else {
             seller = msg.sender;
             sellerDepositBalance = collateralSent;
-            sellerInitialStrikePrice = newStrikePrice;
-            sellerInitialNotional = newNotional;
+            sellerInitialStrikePrice = buyStrikePrice;
             buyerDepositBalance = remainingPartyDeposits;
         }
-
-        strikePrice = newStrikePrice;
-        notionalAmountDai = newNotional;
 
         clearSale(_buyBuyerSide);
 
@@ -742,7 +718,7 @@ contract ContractForDifference is DBC {
         }
 
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(msg.sender);
-        emit LogCFDSold(msg.sender, sellingParty, newNotional, sellingPartyCollateral, _value, market);
+        emit LogCFDSold(msg.sender, sellingParty, sellingPartyCollateral, _value, market);
     }
 
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
@@ -762,7 +738,6 @@ contract ContractForDifference is DBC {
      */
     function buyTransferFunds(
         bool buyBuyerSide,
-        uint newStrikePrice,
         address sellingParty
     )
         private
@@ -770,8 +745,8 @@ contract ContractForDifference is DBC {
     {
         // determine collateral amount to send to the selling party
         sellingPartyCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
-            strikePrice,
-            newStrikePrice,
+            buyBuyerSide ? buyerInitialStrikePrice : sellerInitialStrikePrice,
+            buyBuyerSide ? buyerSaleStrikePrice : sellerSaleStrikePrice,
             notionalAmountDai,
             buyBuyerSide ? buyerDepositBalance : sellerDepositBalance,
             buyBuyerSide
@@ -805,7 +780,8 @@ contract ContractForDifference is DBC {
                 marketPrice,
                 buyerDepositBalance,
                 sellerDepositBalance,
-                strikePrice
+                buyerInitialStrikePrice,
+                sellerInitialStrikePrice
             ), 
             "Liquidate threshold not yet reached"
         );
@@ -814,7 +790,7 @@ contract ContractForDifference is DBC {
         uint buyerCutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
             buyerDepositBalance,
-            strikePrice,
+            buyerInitialStrikePrice,
             true
         );
 
@@ -850,14 +826,14 @@ contract ContractForDifference is DBC {
         bool forcingPartyIsBuyer = msg.sender == buyer;
 
         uint buyerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
-            strikePrice,
+            buyerInitialStrikePrice,
             marketPrice,
             notionalAmountDai,
             buyerDepositBalance,
             true
         );
         uint sellerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
-            strikePrice,
+            sellerInitialStrikePrice,
             marketPrice,
             notionalAmountDai,
             sellerDepositBalance,
@@ -980,6 +956,10 @@ contract ContractForDifference is DBC {
      *      liquidation event due to too little collateral.
      *
      * @param _marketPrice Current market price
+     * @param _buyerDepositBalance Buyer deposits amount
+     * @param _sellerDepositBalance Seller deposits amount
+     * @param _buyerStrikePrice Buyer strike price
+     * @param _sellerStrikePrice Seller strike price
      * @return true if in range; false if not
      */
 
@@ -987,7 +967,8 @@ contract ContractForDifference is DBC {
         uint _marketPrice,
         uint _buyerDepositBalance,
         uint _sellerDepositBalance,
-        uint _strikePrice
+        uint _buyerStrikePrice,
+        uint _sellerStrikePrice
     )
         public
         view
@@ -996,48 +977,16 @@ contract ContractForDifference is DBC {
         uint buyerCutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
             _buyerDepositBalance,
-            _strikePrice,
+            _buyerStrikePrice,
             true
         );
         uint sellerCutOff = ContractForDifferenceLibrary.cutOffPrice(
             notionalAmountDai,
             _sellerDepositBalance,
-            _strikePrice,
+            _sellerStrikePrice,
             false
         );
         inRange = _marketPrice > buyerCutOff && _marketPrice < sellerCutOff;
-    }
-
-   /**
-     * @dev Calculate new notional amount after a side has been sold at a new
-     *      strike price.
-     *
-     * Formula is:
-     *  N2 = N1 * S2 / S1
-     * Where:
-     *  N1 = previous notional
-     *  S1 = previous strike price
-     *  S2 = sale strike price
-     *
-     * @param _oldNotional Existing notional.
-     * @param _oldStrikePrice Existing strike price.
-     * @param _newStrikePrice New / Sale strike price.
-     * @return newNotional Result of the calculation.
-     */
-    function calculateNewNotional(
-        uint _oldNotional,
-        uint _oldStrikePrice,
-        uint _newStrikePrice
-    )
-        public
-        pure
-        returns (uint newNotional)
-    {
-        newNotional = ContractForDifferenceLibrary.calculateNewNotional(
-            _oldNotional,
-            _oldStrikePrice,
-            _newStrikePrice
-        );
     }
 
     /**
@@ -1046,7 +995,7 @@ contract ContractForDifference is DBC {
      *      amount the party has deposited into the contract.
      *
      * @param _marketPrice Current market price
-     * @param _strikePrice CFD strike price
+     * @param _strikePrice Party strike price
      * @param _notionalAmount CFD notional amount
      * @param _depositBalance Balances of deposits into the contract
      * @param _isBuyer Buyer or Seller / Long or short party?
@@ -1120,26 +1069,6 @@ contract ContractForDifference is DBC {
      */
     function joinerFee(uint _notional) public pure returns (uint fee) {
         fee = ContractForDifferenceLibrary.joinerFee(_notional);
-    }
-
-    /**
-     * @dev Calculate the change in contract value based on the price change.
-     * @param _currentPrice Current market price
-     */
-    function changeInDai(
-        uint _strikePrice,
-        uint _currentPrice,
-        uint _notionalAmount
-    )
-        public
-        pure
-        returns (uint change)
-    {
-        change = ContractForDifferenceLibrary.changeInDai(
-            _strikePrice,
-            _currentPrice,
-            _notionalAmount
-        );
     }
 
     /**

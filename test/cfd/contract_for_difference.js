@@ -9,7 +9,6 @@ import {
 } from '../../src/infura/utils'
 import {
   calculateCollateral,
-  calculateNewNotional,
   cutOffPrice,
   creatorFee as creatorFeeCalc,
   joinerFee as joinerFeeCalc
@@ -32,7 +31,6 @@ describe('ContractForDifference', function () {
   const ContractForDifference = cfdInstance(web3.currentProvider, config)
 
   web3.eth.getAccounts().then((accounts) => {
-
     const DAEMON_ACCOUNT = accounts[3]
     const CREATOR_ACCOUNT = accounts[2]
     const COUNTERPARTY_ACCOUNT = accounts[4]
@@ -55,9 +53,9 @@ describe('ContractForDifference', function () {
     const getBalance = addr => {
       return new Promise((resolve, reject) => {
         daiToken.methods.balanceOf(addr).call().then((val) => {
-          resolve(new BigNumber(val));
-        }, (err) => reject());
-      });
+          resolve(new BigNumber(val))
+        }, (err) => reject())
+      })
     }
     const deposit = async (cfd, from, amount) => {
       await daiToken.methods.approve(cfd.options.address, amount).send({ from: from })
@@ -82,7 +80,6 @@ describe('ContractForDifference', function () {
       daiValue = notionalAmount,
       creator = CREATOR_ACCOUNT
     }) => {
-
       const cfd = await ContractForDifference.deploy({}).send({
         from: creator,
         gas: 6700000
@@ -100,10 +97,10 @@ describe('ContractForDifference', function () {
         new BigNumber(strikePrice).toFixed(),
         new BigNumber(notionalAmount).toFixed(),
         isBuyer)
-      .send({
-        gas: 1000000,
-        from: creator
-      })
+        .send({
+          gas: 1000000,
+          from: creator
+        })
 
       // from default web3 account masquerading as a factory (see setFactory call in setup)
       await cfdRegistry.methods.registerNew(cfd.options.address, CREATOR_ACCOUNT).send()
@@ -112,7 +109,6 @@ describe('ContractForDifference', function () {
     }
 
     before(async () => {
-
       // eslint-disable-next-line no-extra-semi
       ; ({ cfdRegistry, feeds, registry, daiToken, decimals, marketId } = await deployAllForTest(
         {
@@ -137,22 +133,15 @@ describe('ContractForDifference', function () {
       await Promise.all(daiSendingTestAccounts.map(acc => daiToken.methods.transfer(acc, ONE_DAI.times(100).toFixed()).send()))
     })
 
-    setTimeout(function() {
-
+    setTimeout(function () {
       describe('initiation', async () => {
         it('creates a new CFD with contract terms', async () => {
-
           const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           assert.equal(await cfd.methods.market().call(), marketId, 'market incorrect')
           assert.equal(await cfd.methods.buyer().call(), CREATOR_ACCOUNT, 'buyer incorrect')
           assert.equal(await cfd.methods.seller().call(), EMPTY_ACCOUNT, 'seller incorrect')
-          assertEqualBN(
-            await cfd.methods.strikePrice().call(),
-            strikePriceAdjusted,
-            'strike price incorrect'
-          )
           assertEqualBN(
             await cfd.methods.sellerInitialStrikePrice().call(),
             strikePriceAdjusted,
@@ -182,7 +171,6 @@ describe('ContractForDifference', function () {
           await assertStatus(cfd, STATUS.CREATED)
         })
 
-        
         it('creates a new CFD with colateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async () => {
           const collateral = minimumCollateral
           const cfd = await newCFD({
@@ -335,11 +323,11 @@ describe('ContractForDifference', function () {
             marketId,
             strikePriceAdjusted.times(1 + priceRise).toFixed(),
             nowSecs())
-          .send(
-            {
-              from: DAEMON_ACCOUNT
-            }
-          )
+            .send(
+              {
+                from: DAEMON_ACCOUNT
+              }
+            )
 
           assert.isFalse(await cfd.methods.terminated().call())
 
@@ -397,11 +385,11 @@ describe('ContractForDifference', function () {
             marketId,
             strikePriceAdjusted.times(1 - priceFall).toFixed(),
             nowSecs())
-          .send(
-            {
-              from: DAEMON_ACCOUNT
-            }
-          )
+            .send(
+              {
+                from: DAEMON_ACCOUNT
+              }
+            )
 
           assert.isFalse(await cfd.methods.terminated().call())
 
@@ -753,33 +741,6 @@ describe('ContractForDifference', function () {
             new BigNumber('99')
           )
         })
-
-        it('changeInDai() calculates value change based on new price', async () => {
-          const price = toContractBigNumber('100', decimals)
-          const amount = ONE_DAI
-          const cfd = await newCFD({
-            notionalAmount: amount,
-            isBuyer: true,
-            strikePrice: price.toFixed()
-          })
-
-          const assertChange = async (newPrice, expected) =>
-            assertEqualBN(
-              await cfd.methods.changeInDai(price.toFixed(), newPrice.toFixed(), amount.toFixed()).call(),
-              expected
-            )
-
-          // price down 10% / change amount 10%
-          await assertChange(price.times(0.9), amount.times(0.1))
-          // price up 10% / change amount 10%
-          await assertChange(price.times(1.1), amount.times(0.1))
-          // price up 500% / change amount 400%
-          await assertChange(price.times(5), amount.times(4))
-          // price down 99% / change amount 99%
-          await assertChange(price.times(0.01), amount.times(0.99))
-          // price unchanged
-          await assertChange(price, 0)
-        })
       })
 
       describe('cutOffPrice()', async () => {
@@ -802,7 +763,7 @@ describe('ContractForDifference', function () {
               buyerSide
             })
             assertEqualBN(
-              await cfd.methods.cutOffPrice(notional.toFixed(),deposits.toFixed(),strikePrice.toFixed(),buyerSide).call(),
+              await cfd.methods.cutOffPrice(notional.toFixed(), deposits.toFixed(), strikePrice.toFixed(), buyerSide).call(),
               expected,
               msg
             )
@@ -982,33 +943,6 @@ describe('ContractForDifference', function () {
         })
       })
 
-      describe('calculateNewNotional', async () => {
-        let cfd
-
-        before(async () => {
-          cfd = await newCFD({ notionalAmount, isBuyer: true })
-        })
-
-        it('calculates the new notional correctly', async () => {
-          assertEqualBN(
-            await cfd.methods.calculateNewNotional(
-              notionalAmount.toFixed(),
-              strikePriceAdjusted.toFixed(),
-              strikePriceAdjusted.times(2).toFixed()
-            ).call(),
-            notionalAmount.times(2)
-          )
-          assertEqualBN(
-            await cfd.methods.calculateNewNotional(
-              notionalAmount.toFixed(),
-              strikePriceAdjusted.toFixed(),
-              strikePriceAdjusted.times(0.5).toFixed()
-            ).call(),
-            notionalAmount.times(0.5)
-          )
-        })
-      })
-
       describe('fee calculations', async () => {
         let cfd
 
@@ -1111,11 +1045,8 @@ describe('ContractForDifference', function () {
 
           // all notionals unchanged as the strike price hasn't changed:
           assertEqualBN(await cfd.methods.notionalAmountDai().call(), notionalAmount)
-          assertEqualBN(await cfd.methods.notionalAmountDai().call(), notionalAmount)
-          assertEqualBN(await cfd.methods.buyerInitialNotional().call(), notionalAmount)
 
           // all strike prices unchanged as the strike price hasn't changed:
-          assertEqualBN(await cfd.methods.strikePrice().call(), strikePriceAdjusted)
           assertEqualBN(
             await cfd.methods.sellerInitialStrikePrice().call(),
             strikePriceAdjusted
@@ -1182,88 +1113,6 @@ describe('ContractForDifference', function () {
 
         //
         // Summary:
-        //  - buyer at 1X puts side on sale at a strike price 20% above
-        //  - a buyer comes along and buys that side
-        //  - new notional amount is set
-        //
-        it('new notional correct when buyer sells at 20% higher strike price', async () => {
-          // initiate contract
-          const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
-          // put seller side on sale
-          const saleStrikePrice = strikePriceAdjusted.times(1.2)
-          await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: buyer })
-          await assertStatus(cfd, STATUS.SALE)
-
-          // assert sale details in the contract
-          assertEqualBN(await cfd.methods.buyerSaleStrikePrice().call(), saleStrikePrice)
-
-          // buyingParty buys the seller side
-          const buyBuyerSide = true
-          const joinFee = joinerFee()
-          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee).toFixed())
-
-          const expectedNewNotional = notionalAmount.times(1.2)
-          assertEqualBN(
-            await cfd.methods.notionalAmountDai().call(),
-            expectedNewNotional,
-            'new notional'
-          )
-          assertEqualBN(
-            await cfd.methods.buyerInitialNotional().call(),
-            expectedNewNotional,
-            'buyer initial notional same as new notional'
-          )
-          assertEqualBN(
-            await cfd.methods.sellerInitialNotional().call(),
-            notionalAmount,
-            'seller initial notional unchanged'
-          ) // unchanged
-        })
-
-        //
-        // Summary:
-        //  - seller at 1X puts side on sale at a strike price 20% below
-        //  - a buyer comes along and buys that side
-        //  - new notional amount is set
-        //
-        it('new notional correct when seller sells at 20% lower strike price', async () => {
-          // initiate contract
-          const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
-          // put seller side on sale
-          const saleStrikePrice = strikePriceAdjusted.times(0.8)
-          await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: seller })
-          await assertStatus(cfd, STATUS.SALE)
-
-          // assert sale details in the contract
-          assertEqualBN(await cfd.methods.sellerSaleStrikePrice().call(), saleStrikePrice)
-
-          // buyingParty buys the seller side
-          const buyBuyerSide = false // buying seller side
-          const joinFee = joinerFee()
-          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee).toFixed())
-
-          const expectedNewNotional = notionalAmount.times(0.8)
-          assertEqualBN(
-            await cfd.methods.notionalAmountDai().call(),
-            expectedNewNotional,
-            'new notional'
-          )
-          assertEqualBN(
-            await cfd.methods.sellerInitialNotional().call(),
-            expectedNewNotional,
-            'seller initial notional same as new notional'
-          )
-          assertEqualBN(
-            await cfd.methods.buyerInitialNotional().call(),
-            notionalAmount,
-            'buyer initial notional unchanged'
-          ) // unchanged
-        })
-
-        //
-        // Summary:
         //  - a buyer in at 1X puts side on sale at price 10% more
         //  - a seller in at 2X puts side on sale at price 20% more
         //  - a new buyer buys the buyer side at 2x collateral
@@ -1318,7 +1167,6 @@ describe('ContractForDifference', function () {
           // check the state
           assert.equal(await cfd.methods.buyer().call(), buyingParty1)
           assertLoggedParty(buy1Tx.events['4'].raw, cfd.options.address, buyingParty1)
-          assertEqualBN(await cfd.methods.strikePrice().call(), buyerDesiredPrice)
           assertEqualBN(await cfd.methods.buyerInitialStrikePrice().call(), buyerDesiredPrice)
           assertEqualBN(
             await cfd.methods.buyerDepositBalance().call(),
@@ -1336,35 +1184,25 @@ describe('ContractForDifference', function () {
             'buyer balance has collateral from sale'
           )
 
-          const newNotional = calculateNewNotional({
-            oldNotional: notionalAmount,
-            oldStrikePrice: strikePriceAdjusted,
-            newStrikePrice: buyerDesiredPrice
-          })
-          const expectedNewNotional = notionalAmount.times(
-            buyerDesiredPrice.dividedBy(strikePriceAdjusted)
-          )
-          assertEqualBN(newNotional, expectedNewNotional, 'new notional')
-
           //
           // Seller side buy
           //
           const sellerSideCollateralAtSale = calculateCollateral({
-            strikePrice: await cfd.methods.strikePrice().call(),
+            strikePrice: await cfd.methods.sellerInitialStrikePrice().call(),
             marketPrice: sellerDesiredPrice,
-            notionalAmount: newNotional,
+            notionalAmount,
             depositBalance: await cfd.methods.sellerDepositBalance().call(),
             calcBuyerSide: false
           })
 
-          const collateral4XBuy2 = newNotional.dividedBy(4)
-          const joinFeeBuy2 = joinerFee(newNotional)
+          const collateral4XBuy2 = notionalAmount.dividedBy(4)
+          const joinFeeBuy2 = joinerFee(notionalAmount)
           const buy2Tx = await buy(cfd, buyingParty2, !buyBuyerSide, collateral4XBuy2.plus(joinFeeBuy2).toFixed())
 
           // check the state
           assert.equal(await cfd.methods.seller().call(), buyingParty2)
           assertLoggedParty(buy2Tx.events['4'].raw, cfd.options.address, buyingParty2)
-          assertEqualBN(await cfd.methods.strikePrice().call(), sellerDesiredPrice)
+          assertEqualBN(await cfd.methods.sellerInitialStrikePrice().call(), sellerDesiredPrice)
           assertEqualBN(
             await cfd.methods.sellerInitialStrikePrice().call(),
             sellerDesiredPrice
@@ -1380,7 +1218,7 @@ describe('ContractForDifference', function () {
           assertEqualBN(
             await getBalance(seller),
             sellerBalBefore.plus(
-              sellerSideCollateralAtSale.dividedToIntegerBy(1).plus(1) // truncated and rounded up 1
+              sellerSideCollateralAtSale.dividedToIntegerBy(1)
             ),
             'seller balance has collateral from sale'
           )
@@ -1638,7 +1476,7 @@ describe('ContractForDifference', function () {
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
             await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
             const deposits = notionalAmount.dividedBy(1)
-            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),true).call()
+            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), true).call()
             // put buyer side on sale at liquidation price
             try {
               await cfd.methods.sellPrepare(new BigNumber(buyerLiqPrice / 2).toFixed(), 0).send({ from: buyer })
@@ -1655,7 +1493,7 @@ describe('ContractForDifference', function () {
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
             await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
             const deposits = notionalAmount.dividedBy(1)
-            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),false).call()
+            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), false).call()
             // put seller side on sale at liquidation price
             try {
               await cfd.methods.sellPrepare(new BigNumber(sellerLiqPrice * 2).toFixed(), 0).send({ from: seller })
@@ -1672,7 +1510,7 @@ describe('ContractForDifference', function () {
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
             await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
             const deposits = notionalAmount.dividedBy(1)
-            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),true).call()
+            const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), true).call()
             // put buyer side on sale over liquidation price
             await cfd.methods.sellPrepare(new BigNumber(buyerLiqPrice * 2).toFixed(), 0).send({ from: buyer })
             assert.isTrue(await cfd.methods.buyerSelling().call())
@@ -1685,19 +1523,16 @@ describe('ContractForDifference', function () {
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
             await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
             const deposits = notionalAmount.dividedBy(1)
-            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(),deposits.toFixed(),strikePriceAdjusted.toFixed(),false).call()
+            const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), false).call()
             // put seller side on sale under liquidation price
             await cfd.methods.sellPrepare(new BigNumber(sellerLiqPrice / 2).toFixed(), 0).send({ from: seller })
             assert.isTrue(await cfd.methods.sellerSelling().call())
           }
         )
-
       })
 
       run()
-
     }, 2000)
-
   }).catch((err) => {
     console.log(err)
     process.exit(-1)

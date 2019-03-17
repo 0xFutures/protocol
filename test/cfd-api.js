@@ -142,8 +142,6 @@ describe('cfd-api-infura.js', function () {
     assert.equal(cfd.details.buyerIsSelling, false, 'Wrong buyerIsSelling value')
     assert.equal(cfd.details.market, marketStr, 'Wrong market value')
     assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
-    assert.equal(cfd.details.buyerInitialNotional, daiUsed, 'Wrong buyerInitialNotional value')
-    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
     assert.equal(cfd.details.buyerDepositBalance.toFixed(), daiUsed, 'Wrong buyerDepositBalance value')
     assert.equal(cfd.details.buyerInitialStrikePrice, price, 'Wrong buyerInitialStrikePrice value')
     assert.equal(cfd.details.buyerLiquidationPrice.toFixed(), buyerLiquidationPrice, 'Wrong buyerLiquidationPrice value')
@@ -163,8 +161,6 @@ describe('cfd-api-infura.js', function () {
     assert.equal(cfd.details.sellerIsSelling, false, 'Wrong sellerIsSelling value')
     assert.equal(cfd.details.market, marketStr, 'Wrong market value')
     assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
-    assert.equal(cfd.details.sellerInitialNotional, daiUsed, 'Wrong sellerInitialNotional value')
-    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
     assert.equal(cfd.details.sellerDepositBalance.toFixed(), daiUsed, 'Wrong sellerDepositBalance value')
     assert.equal(cfd.details.sellerInitialStrikePrice, price, 'Wrong sellerInitialStrikePrice value')
     assert.equal(cfd.details.sellerLiquidationPrice.toFixed(), sellerLiquidationPrice, 'Wrong sellerLiquidationPrice value')
@@ -186,9 +182,15 @@ describe('cfd-api-infura.js', function () {
     const updatedCfd = await api.getCFD(cfd.options.address);
 
     assert.equal(
-      updatedCfd.details.strikePrice,
+      updatedCfd.details.buyerInitialStrikePrice,
       newPrice,
-      'Wrong strike price'
+      'Wrong buyer initial strike price'
+    )
+
+    assert.equal(
+      updatedCfd.details.sellerInitialStrikePrice,
+      newPrice,
+      'Wrong seller initial strike price'
     )
 
     api.cancelNew(cfd.options.address, buyer)
