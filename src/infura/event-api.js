@@ -1,10 +1,11 @@
 import Promise from 'bluebird'
 import {
-  cfdInstance
+  cfdInstance,
+  getContract
 } from './contracts'
-
-// Transaction event timeout (in ms)
-const TRANSACTIONS_EVENT_TIMEOUT = 30000;
+import {
+  getAllEventsWithName
+} from './utils'
 
 export default class EVENTAPI {
 
@@ -19,69 +20,57 @@ export default class EVENTAPI {
    * @return Constructed and initialised instance of this class
    */
   static async newInstance (config, web3) {
-    if (web3.isConnected() !== true) {
+    /*if (web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
       )
-    }
+    }*/
     const api = new EVENTAPI(config, web3)
     await api.initialise()
     return api
   }
 
   /**
-   * Get all the transactions events for each contract passed in parameter
+   * Get all the events for each contract passed in parameter
    * @param contracts A list of contracts
-   * @param onSuccessCallback Callback receives list of events
-   * @param onErrorCallback Callback receives error details on error
+   * @param eventName (optional) To get a specific event only (undefined to get all)
+   * @return Promise resolving to a list of events
    */
-  getAllTransactionsEvent (
+  getAllEvents (
     contracts,
-    onSuccessCallback,
-    onErrorCallback
+    eventName = undefined
   ) {
     let self = this
-    let transactions = []
+    let resEvents = []
     let nbContracts = (contracts != undefined && contracts.length != undefined) ? contracts.length : 0;
     let nbContractDone = 0
-    // Check if we have 0 contracts
-    if (nbContracts <= 0)
-      onSuccessCallback(transactions);
-    else {
-      // For each contract
-      contracts.forEach(function (contract) {
-
-        // Get all the events
-        let events = self.cfd.at(contract.cfd.address).allEvents({fromBlock: 0, toBlock: 'latest'})
-        events.get((err, events) => {
-          // If we have at least one event, push them into the transactions array
-          if (err == null && events != null && events !== undefined && events.length > 0) {
-            events.forEach(function (e) {
-              transactions.push(e)
-            })
-          }
-          // Check if we are done with all the contracts
-          nbContractDone += 1
-          if (nbContractDone >= nbContracts) {
-            // Sort array by block number
-            transactions.sort(function (a, b) { return b.blockNumber - a.blockNumber })
-            onSuccessCallback(transactions)
-          }
-        })
-
-        // In case the events never return, use a timeout
-        setTimeout(function() {
-          // Check if we are done with all the contracts
-          nbContractDone += 1
-          if (nbContractDone >= nbContracts) {
-            // Sort array by block number
-            transactions.sort(function (a, b) { return b.blockNumber - a.blockNumber })
-            onSuccessCallback(transactions)
-          }
-        }, TRANSACTIONS_EVENT_TIMEOUT)
-
-      })
+    // Function to check if we are done requesting
+    const checkDone = (resolve) => {
+    	nbContractDone += 1;
+    	if (nbContractDone >= nbContracts)
+    		resolve(resEvents);
     }
+    return new Promise(function(resolve, reject) {
+	    // Check if we have 0 contracts
+	    if (nbContracts <= 0)
+	      resolve([]);
+	    else {
+	      // For each contract
+	      contracts.forEach(function (contract) {
+	      	// Get the CFD instance
+	      	const cfd = getContract(contract.options.address, self.web3);
+	      	// Get all the events
+	      	getAllEventsWithName(eventName, cfd, self.config.deploymentBlockNumber, 'latest').then((events) => {
+	      		events.forEach(function(ev) {
+	      			resEvents.push(ev);
+	      		});
+	      		checkDone(resolve);
+	      	}).catch((err) => {
+	      		checkDone(resolve);
+	      	});
+	      })
+	    }
+	});
   }
 
   /**

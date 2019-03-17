@@ -5,7 +5,7 @@ const {
   toContractBigNumber,
   isValidMarketId,
   txGas
-} = require('../src/utils')
+} = require('../src/infura/utils')
 const { assertEqualBN } = require('./helpers/assert')
 
 describe('utils.js', () => {

@@ -18,11 +18,11 @@ export default class AdminAPI {
    * @return Constructed and initialised instance of this class
    */
   static async newInstance (config, web3) {
-    if (web3.isConnected() !== true) {
+    /*if (web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
       )
-    }
+    }*/
     const api = new AdminAPI(config, web3)
     await api.initialise()
     return api
@@ -38,8 +38,7 @@ export default class AdminAPI {
    *          on the outcome.
    */
   changeDaemonAccount (newDaemonAddr) {
-    return this.feeds.setDaemonAccount(
-      newDaemonAddr,
+    return this.feeds.methods.setDaemonAccount(newDaemonAddr).send(
       {from: this.config.ownerAccountAddr}
     ).then(() => {
       this.config.daemonAccountAddr = newDaemonAddr
@@ -64,12 +63,10 @@ export default class AdminAPI {
       ? ['registry']
       : ['feeds', 'registry', 'cfdRegistry', 'cfdFactory']
     return Promise.all(ownableContracts.map(contractKey =>
-      this[contractKey].transferOwnership(
-        newOwnerAddr,
+      this[contractKey].methods.transferOwnership(newOwnerAddr).send(
         {from: this.config.ownerAccountAddr}
       )
-    )
-    ).then(() => {
+    )).then(() => {
       this.config.ownerAccountAddr = newOwnerAddr
       console.log(`Owner updated on chain to ${newOwnerAddr}.\n`)
       console.log(`Update ownerAccountAddr in your config.${this.config.network}.json file now.`)

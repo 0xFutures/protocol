@@ -1,5 +1,4 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
 /// @title Desing by contract (Hoare logic)
 /// @author Melonport AG <team@melonport.com>
@@ -8,7 +7,7 @@ contract DBC {
 
     // MODIFIERS
 
-    modifier pre_cond(bool condition, string reason) {
+    modifier pre_cond(bool condition, string memory reason) {
         require(condition, reason);
         _;
     }
@@ -18,7 +17,7 @@ contract DBC {
         assert(condition);
     }
 
-    modifier invariant(bool condition, string reason) {
+    modifier invariant(bool condition, string memory reason) {
         require(condition, reason);
         _;
         assert(condition);

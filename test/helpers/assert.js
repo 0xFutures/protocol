@@ -1,9 +1,11 @@
 import {assert} from 'chai'
-import {web3} from '../helpers/setup'
+import {web3} from './setup'
+import {BigNumber} from 'bignumber.js'
 
 const assertEqualBN = (actual, expected, msg = 'numbers not equal') => {
+  actual = new BigNumber(actual)
   assert.isTrue(
-    actual.equals(expected),
+    actual.eq(expected),
     `
 \tmsg: ${msg}
 \tactual: ${actual.toString()}
@@ -17,20 +19,20 @@ const assertLoggedParty = (logRec, expectedCFD, expectedParty) => {
   const zeroPad24 = hexStr => `0x${'0'.repeat(24)}${hexStr.substring(2)}`
   assert.equal(
     logRec.topics[0],
-    web3.sha3('LogCFDRegistryParty(address,address)'),
+    web3.utils.sha3('LogCFDRegistryParty(address,address)'),
     'logged party: topic wrong'
   )
-  assert.equal(logRec.topics[1], zeroPad24(expectedCFD), 'logged party: cfd')
+  assert.equal(logRec.topics[1].toLowerCase(), zeroPad24(expectedCFD).toLowerCase(), 'logged party: cfd')
   assert.equal(
-    logRec.topics[2],
-    zeroPad24(expectedParty),
+    logRec.topics[2].toLowerCase(),
+    zeroPad24(expectedParty).toLowerCase(),
     'logged party: party'
   )
 }
 
 const assertStatus = async (cfd, expected) =>
   assert.equal(
-    (await cfd.status.call()).toNumber(),
+    await cfd.methods.status().call(),
     expected,
     `status incorrect`
   )

@@ -1,17 +1,21 @@
-import sha3 from 'web3/lib/utils/sha3'
+import * as Utils from 'web3-utils'
+import BigNumber from 'bignumber.js'
 
 import configTest from '../../config.test.json'
-import {contractInstance} from '../../src/contracts'
-import {deployAll} from '../../src/deploy'
-import {nowSecs, toContractBigNumber} from '../../src/utils'
-import MockDAITokenJSON from '../../build/contracts/DAIToken.json'
+import {
+  contractInstance,
+  daiTokenInstance,
+  daiTokenInstanceDeployed
+} from '../../src/infura/contracts'
+import {deployAll} from '../../src/infura/deploy'
+import {nowSecs, toContractBigNumber} from '../../src/infura/utils'
 
 // default market for testing
 const MARKET_STR = 'Poloniex_ETH_USD'
-const MARKET_ID = '0x' + sha3(MARKET_STR)
+const MARKET_ID = Utils.sha3(MARKET_STR)
 
-const mockDAITokenInstance = (web3Provider, config) =>
-  contractInstance(MockDAITokenJSON, web3Provider, config)
+const MARKET_STR_2 = 'Poloniex_BTC_USD'
+const MARKET_ID_2 = Utils.sha3(MARKET_STR_2)
 
 /**
  * Deploy a mock DAI token for test and develop.
@@ -21,11 +25,15 @@ const mockDAITokenInstance = (web3Provider, config) =>
  */
 const deployMockDAIToken = async (web3, config) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
-  const DAIToken = mockDAITokenInstance(web3.currentProvider, config)
+  const DAIToken = daiTokenInstance(web3.currentProvider, config)
 
   // console.log('Deploying mock DAIToken ...')
-  const daiToken = await DAIToken.new()
-  // console.log(`DAIToken: ${daiToken.address}`)
+  // const daiToken = await DAIToken.new()
+  const daiToken = await DAIToken.deploy({}).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault
+  })
+  // console.log(`DAIToken: ${daiToken.options.address}`)
   // console.log('done\n')
 
   return daiToken
@@ -44,27 +52,28 @@ const deployAllForTest = async ({
 }) => {
   const daiToken = firstTime
     ? await deployMockDAIToken(web3, config)
-    : mockDAITokenInstance(web3.currentProvider, config).at(config.daiTokenAddr)
+    : await daiTokenInstanceDeployed(config, web3)
   const configUpdated = Object.assign({}, config, {
-    daiTokenAddr: daiToken.address
+    daiTokenAddr: daiToken.options.address
   })
 
   const deployment = await deployAll(web3, configUpdated, firstTime)
 
   const {feeds} = deployment
-  await feeds.addMarket(MARKET_STR)
+  await feeds.methods.addMarket(MARKET_STR).send()
+  await feeds.methods.addMarket(MARKET_STR_2).send()
 
-  const decimals = await feeds.decimals.call()
+  const decimals = await feeds.methods.decimals().call()
   const initialPriceBN = toContractBigNumber(initialPrice, decimals)
-  await feeds.push(MARKET_ID, initialPriceBN, nowSecs(), {
+  await feeds.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).send({
     from: configUpdated.daemonAccountAddr
   })
 
   if (firstTime === true && seedAccounts.length > 0) {
-    const tenDAI = web3.toBigNumber('1e18').times(10)
+    const tenDAI = new BigNumber('1e18').times(10)
     await Promise.all(
       seedAccounts.map(acc =>
-        daiToken.transfer(acc, tenDAI, {
+        daiToken.methods.transfer(acc, tenDAI.toFixed()).send({
           from: configUpdated.ownerAccountAddr
         })
       )

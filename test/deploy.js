@@ -1,13 +1,14 @@
 import {assert} from 'chai'
+import BigNumber from 'bignumber.js'
 
-import CFDAPI from '../src/cfd-api'
-import {registryInstanceDeployed} from '../src/contracts'
-import {STATUS} from '../src/utils'
+import CFDAPI from '../src/infura/cfd-api-infura'
+import {registryInstanceDeployed} from '../src/infura/contracts'
+import {STATUS} from '../src/infura/utils'
 
 import {deployAllForTest} from './helpers/deploy'
 import {config as configBase, web3} from './helpers/setup'
 
-const REJECT_MESSAGE = 'VM Exception while processing transaction'
+const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction: revert'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_OWNER_1 = 0
@@ -17,7 +18,7 @@ const ACCOUNT_DAEMON_2 = 5
 const ACCOUNT_BUYER = 6
 const ACCOUNT_SELLER = 7
 
-const ONE_DAI = web3.toBigNumber('1e18')
+const ONE_DAI = new BigNumber('1e18')
 
 const marketStr = 'Poloniex_ETH_USD'
 const price = '67.00239'
@@ -57,11 +58,11 @@ describe('deploy', function () {
     }))
 
     const updatedConfig = Object.assign({}, config, {
-      feedContractAddr: feeds.address,
-      registryAddr: registry.address,
-      cfdFactoryContractAddr: cfdFactory.address,
-      cfdRegistryContractAddr: cfdRegistry.address,
-      daiTokenAddr: daiToken.address
+      feedContractAddr: feeds.options.address,
+      registryAddr: registry.options.address,
+      cfdFactoryContractAddr: cfdFactory.options.address,
+      cfdRegistryContractAddr: cfdRegistry.options.address,
+      daiTokenAddr: daiToken.options.address
     })
 
     return updatedConfig
@@ -76,25 +77,24 @@ describe('deploy', function () {
       partyIsBuyer,
       party
     )
-    await cfdAPI.deposit(cfd.address, counterparty, notionalAmount)
+    await cfdAPI.deposit(cfd.options.address, counterparty, notionalAmount)
     return cfd
   }
 
   before(done => {
     notionalAmount = ONE_DAI
-    web3.eth.getAccounts(async (err, accounts) => {
-      if (err) {
-        console.log(err)
-        process.exit(-1)
-      }
-      daemon1 = accounts[ACCOUNT_DAEMON_1]
+    web3.eth.getAccounts().then(async (accounts) => {
+    	daemon1 = accounts[ACCOUNT_DAEMON_1]
       daemon2 = accounts[ACCOUNT_DAEMON_2]
       owner1 = accounts[ACCOUNT_OWNER_1]
       owner2 = accounts[ACCOUNT_OWNER_2]
       buyer = accounts[ACCOUNT_BUYER]
       seller = accounts[ACCOUNT_SELLER]
       done()
-    })
+    }).catch((err) => {
+      console.log(err)
+      process.exit(-1)
+    });
   })
 
   it('deploy new set of contracts with new owner and daemon account', async () => {
@@ -111,8 +111,8 @@ describe('deploy', function () {
     deploymentConfig.v1 = await deployFullSet(config1, true)
 
     const registry = await registryInstanceDeployed(deploymentConfig.v1, web3)
-    await registry.transferOwnership(owner2, {from: owner1})
-    assert.equal(owner2, await registry.owner.call(), 'owner updated')
+    await registry.methods.transferOwnership(owner2).send({from: owner1})
+    assert.equal(owner2, await registry.methods.owner().call(), 'owner updated')
 
     /*
      * Deploy second time - will use the existing Registry but create ALL others
@@ -132,7 +132,7 @@ describe('deploy', function () {
     // check can create CFDs on the new set of contracts
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v2, web3)
     const cfd = await newCFDInitiated(buyer, seller, true)
-    assert.equal(STATUS.INITIATED, await cfd.status.call(), 'new cfd initiated')
+    assert.equal(STATUS.INITIATED, await cfd.methods.status().call(), 'new cfd initiated')
 
     // check cannot create CFD on the old set
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)

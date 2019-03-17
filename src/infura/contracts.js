@@ -6,10 +6,10 @@ import CFDJSON from '../../abi/ContractForDifference.json'
 import CFDLibraryJSON from '../../abi/ContractForDifferenceLibrary.json'
 import CFDFactoryJSON from '../../abi/ContractForDifferenceFactory.json'
 import CFDRegistryJSON from '../../abi/ContractForDifferenceRegistry.json'
-import ERC20JSON from '../../abi/ERC20.json'
 import FeedsJSON from '../../abi/Feeds.json'
 import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
 import RegistryJSON from '../../abi/Registry.json'
+import MockDAITokenJSON from '../../abi/DAIToken.json'
 
 /*
  * Create handles to deployed contracts.
@@ -37,7 +37,7 @@ const registryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'registryAddr', RegistryJSON)
 
 const daiTokenInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'daiTokenAddr', ERC20JSON)
+  deployedInstance(config, web3, 'daiTokenAddr', MockDAITokenJSON)
 
 const deployedInstance = (
   config,
@@ -79,6 +79,9 @@ const cfdFactoryInstance = (web3Provider, config) =>
 const cfdRegistryInstance = (web3Provider, config) =>
   contractInstance(CFDRegistryJSON, web3Provider, config)
 
+const daiTokenInstance = (web3Provider, config) =>
+  contractInstance(MockDAITokenJSON, web3Provider, config)
+
 /**
  * Create a handle to an instance of a contract already deployed on the
  * blockchain.
@@ -100,7 +103,6 @@ const deployedContractInstance = async (
         ` Check the address and network settings.`
     )
   }
-
   return new web3.eth.Contract(contractJSON, addr, {
     from: defaultFrom,
     gasPrice: defaultGasPrice,
@@ -112,13 +114,15 @@ const deployedContractInstance = async (
  * Create a handle to a contract given the JSON and a web3 provider instance.
  */
 const contractInstance = (contractJSON, web3Provider, config) => {
-  var contractData = {};
-  if (config.ownerAccountAddr && config.gasDefault) {
-    contractData.from = config.ownerAccountAddr;
-    contractData.gas = config.gasDefault;
-  }
   const web3 = new Web3(web3Provider);
-  return new web3.eth.Contract(contractJSON.abi, contractData)
+  var contractInstance = new web3.eth.Contract(contractJSON.abi)
+  if (config.ownerAccountAddr)
+    contractInstance.options.from = config.ownerAccountAddr;
+  if (config.gasDefault)
+    contractInstance.options.gas = config.gasDefault;
+  if (contractJSON.bytecode)
+    contractInstance.options.data = contractJSON.bytecode;
+  return contractInstance;
 }
 
 module.exports = {
@@ -130,6 +134,7 @@ module.exports = {
   cfdRegistryInstance,
   cfdRegistryInstanceDeployed,
   contractInstance,
+  daiTokenInstance,
   daiTokenInstanceDeployed,
   feedsInstance,
   feedsInstanceDeployed,

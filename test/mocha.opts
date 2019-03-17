@@ -1,3 +1,5 @@
 --recursive
---timeout 15000
+--delay
+--timeout 30000
 --require babel-core/register
+--exit

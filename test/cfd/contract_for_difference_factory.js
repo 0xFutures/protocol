@@ -1,13 +1,15 @@
 import { assert } from 'chai'
+import { BigNumber } from 'bignumber.js'
 
 const { creatorFee } = require('../../src/calc')
 const {
+  getContract,
   cfdInstance,
   cfdFactoryInstance,
   cfdRegistryInstance,
   forwardFactoryInstance
-} = require('../../src/contracts')
-const { EMPTY_ACCOUNT } = require('../../src/utils')
+} = require('../../src/infura/contracts')
+const { EMPTY_ACCOUNT } = require('../../src/infura/utils')
 
 const { assertEqualBN } = require('../helpers/assert')
 const { deployAllForTest } = require('../helpers/deploy')
@@ -28,7 +30,7 @@ describe('ContractForDifferenceFactory', function () {
   const OWNER_ACCOUNT = config.ownerAccountAddr
 
   const MARKET_STR = 'Poloniex_ETH_USD'
-  const MARKET_ID = web3.sha3(MARKET_STR)
+  const MARKET_ID = web3.utils.sha3(MARKET_STR)
 
   let cfdFactory
   let daiToken
@@ -36,7 +38,7 @@ describe('ContractForDifferenceFactory', function () {
   let strikePrice
 
   before(async () => {
-    strikePrice = web3.toBigNumber('800.0')
+    strikePrice = new BigNumber('800.0')
 
     let feeds
       // eslint-disable-next-line no-extra-semi
@@ -46,84 +48,82 @@ describe('ContractForDifferenceFactory', function () {
     }))
 
     // create the CFD Factory
-    const cfdRegistry = await ContractForDifferenceRegistry.new()
+    const cfdRegistry = await ContractForDifferenceRegistry.deploy({}).send();
 
-    const cfd = await ContractForDifference.new({ gas: 7000000 })
-    const ff = await ForwardFactory.new()
-    cfdFactory = await ContractForDifferenceFactory.new(
-      registry.address,
-      cfd.address,
-      ff.address,
-      feeds.address,
-      { gas: 3000000 }
-    )
+    const cfd = await ContractForDifference.deploy({}).send({ gas: 7000000 });
+    const ff = await ForwardFactory.deploy({}).send();
+    cfdFactory = await ContractForDifferenceFactory.deploy({
+      arguments: [registry.options.address,cfd.options.address,ff.options.address,feeds.options.address]
+    }).send({ gas: 3000000 });
+
     await Promise.all([
-      cfdFactory.setCFDRegistry(cfdRegistry.address),
-      cfdRegistry.setFactory(cfdFactory.address),
-      registry.setCFDFactoryLatest(cfdFactory.address)
+      cfdFactory.methods.setCFDRegistry(cfdRegistry.options.address).send(),
+      cfdRegistry.methods.setFactory(cfdFactory.options.address).send(),
+      registry.methods.setCFDFactoryLatest(cfdFactory.options.address).send()
     ])
   })
 
   it('creates a new CFD given valid terms and value', async () => {
-    const notionalAmount = web3.toBigNumber('1e18') // 1 DAI
+    const notionalAmount = new BigNumber('1e18') // 1 DAI
     const initialValue = notionalAmount.plus(creatorFee(notionalAmount))
-    await daiToken.approve(cfdFactory.address, initialValue, {
+    await daiToken.methods.approve(cfdFactory.options.address, initialValue.toFixed()).send({
       from: OWNER_ACCOUNT
     })
 
-    const txReceipt = await cfdFactory.createContract(
+    const txReceipt = await cfdFactory.methods.createContract(
       MARKET_ID,
-      strikePrice,
-      notionalAmount,
+      strikePrice.toFixed(),
+      notionalAmount.toFixed(),
       true,
-      initialValue,
-      {
+      initialValue.toFixed())
+    .send({
         gas: 2500000,
         from: OWNER_ACCOUNT
       }
     )
 
-    const cfdAddr = txReceipt.logs[0].args.newCFDAddr
-    const cfd = ContractForDifference.at(cfdAddr)
+    const cfdAddrStr = txReceipt.events.LogCFDFactoryNew.raw.data
+    const cfdAddr = '0x' + cfdAddrStr.substr(cfdAddrStr.length - 40);
+    const cfd = getContract(cfdAddr, web3);
 
-    assert.equal(await cfd.market.call(), MARKET_ID, 'market incorrect')
-    assert.equal(await cfd.buyer.call(), OWNER_ACCOUNT, 'buyer incorrect')
-    assert.equal(await cfd.seller.call(), EMPTY_ACCOUNT, 'seller incorrect')
+    assert.equal((await cfd.methods.market().call()).toLowerCase(), MARKET_ID.toLowerCase(), 'market incorrect')
+    assert.equal((await cfd.methods.buyer().call()).toLowerCase(), OWNER_ACCOUNT.toLowerCase(), 'buyer incorrect')
+    assert.equal((await cfd.methods.seller().call()).toLowerCase(), EMPTY_ACCOUNT.toLowerCase(), 'seller incorrect')
     assertEqualBN(
-      await cfd.strikePrice.call(),
+      await cfd.methods.strikePrice().call(),
       strikePrice,
       'strike price incorrect'
     )
     assertEqualBN(
-      await cfd.notionalAmountDai.call(),
+      await cfd.methods.notionalAmountDai().call(),
       notionalAmount,
       'notionalAmountDai incorrect'
     )
     assertEqualBN(
-      await daiToken.balanceOf.call(cfd.address),
+      await daiToken.methods.balanceOf(cfd.options.address).call(),
       notionalAmount.plus(creatorFee(notionalAmount)),
       'cfd balance incorrect'
     )
-    assert.isFalse(await cfd.initiated.call(), 'should not be initiated')
+    assert.isFalse(await cfd.methods.initiated().call(), 'should not be initiated')
 
     assert.equal(
-      await cfd.registry.call(),
-      await cfdFactory.registry.call(),
+      await cfd.methods.registry().call(),
+      await cfdFactory.methods.registry().call(),
       'registry address incorrect'
     )
     assert.equal(
-      await cfd.feedsAddr.call(),
-      await cfdFactory.feeds.call(),
+      await cfd.methods.feedsAddr().call(),
+      await cfdFactory.methods.feeds().call(),
       'feed address incorrect'
     )
     assert.equal(
-      await cfd.cfdRegistryAddr.call(),
-      await cfdFactory.cfdRegistry.call(),
+      await cfd.methods.cfdRegistryAddr().call(),
+      await cfdFactory.methods.cfdRegistry().call(),
       'cfd registry address incorrect'
     )
     assert.equal(
-      cfdFactory.address,
-      await registry.allCFDs.call(cfd.address),
+      cfdFactory.options.address,
+      await registry.methods.allCFDs(cfd.options.address).call(),
       'registry cfd address does not match the factory'
     )
   })

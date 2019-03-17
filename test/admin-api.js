@@ -1,6 +1,6 @@
 import { assert } from 'chai'
 
-import AdminAPI from '../src/admin-api'
+import AdminAPI from '../src/infura/admin-api'
 import { deployAllForTest } from './helpers/deploy'
 import { config as configBase, web3 } from './helpers/setup'
 
@@ -14,12 +14,12 @@ describe('admin-api.js', function () {
   let config
   let api
 
+  let accounts
+
   before(done => {
-    web3.eth.getAccounts(async (err, accounts) => {
-      if (err) {
-        console.log(err)
-        process.exit(-1)
-      }
+    web3.eth.getAccounts().then(async (accs) => {
+
+      accounts = accs
 
       let registry
 
@@ -32,22 +32,25 @@ describe('admin-api.js', function () {
         ))
 
       config = Object.assign({}, configBase)
-      config.feedContractAddr = feeds.address
-      config.cfdFactoryContractAddr = cfdFactory.address
-      config.cfdRegistryContractAddr = cfdRegistry.address
-      config.registryAddr = registry.address
+      config.feedContractAddr = feeds.options.address
+      config.cfdFactoryContractAddr = cfdFactory.options.address
+      config.cfdRegistryContractAddr = cfdRegistry.options.address
+      config.registryAddr = registry.options.address
 
       api = await AdminAPI.newInstance(config, web3)
 
       done()
+    }).catch((err) => {
+      console.log(err)
+      process.exit(-1)
     })
   })
 
   it('changeDaemonAccount', async () => {
-    assert.equal(await api.feeds.daemonAccount.call(), config.daemonAccountAddr)
-    const newDaemonAddr = web3.eth.accounts[4]
+    assert.equal((await api.feeds.methods.daemonAccount().call()).toLowerCase(), config.daemonAccountAddr.toLowerCase())
+    const newDaemonAddr = accounts[4]
     await api.changeDaemonAccount(newDaemonAddr)
-    assert.equal(await api.feeds.daemonAccount.call(), newDaemonAddr)
+    assert.equal((await api.feeds.methods.daemonAccount().call()).toLowerCase(), newDaemonAddr.toLowerCase())
   })
 
   describe('changeOwnerAccount', () => {
@@ -55,8 +58,8 @@ describe('admin-api.js', function () {
 
     const assertOwnerAll = (ownerAddr, owned = OWNED_CONTRACTS) => Promise.all(owned.map(
       async contract => assert.equal(
-        ownerAddr,
-        await api[contract].owner.call(),
+        ownerAddr.toLowerCase(),
+        (await api[contract].methods.owner().call()).toLowerCase(),
         `${contract} owner`
       ))
     )
@@ -64,13 +67,13 @@ describe('admin-api.js', function () {
     it('all ownable', async () => {
       await assertOwnerAll(api.config.ownerAccountAddr)
 
-      const NEW_OWNER_ADDR = web3.eth.accounts[5]
+      const NEW_OWNER_ADDR = accounts[5]
       await api.changeOwnerAccount(NEW_OWNER_ADDR)
 
       await assertOwnerAll(NEW_OWNER_ADDR)
       assert.equal(
-        NEW_OWNER_ADDR,
-        api.config.ownerAccountAddr,
+        NEW_OWNER_ADDR.toLowerCase(),
+        api.config.ownerAccountAddr.toLowerCase(),
         'in memory config updated'
       )
     })
@@ -80,7 +83,7 @@ describe('admin-api.js', function () {
       await assertOwnerAll(ORIGINAL_OWNER_ADDR)
 
       // change to new account
-      const NEW_OWNER_ADDR = web3.eth.accounts[6]
+      const NEW_OWNER_ADDR = accounts[6].toLowerCase()
       await api.changeOwnerAccount(NEW_OWNER_ADDR, { registryOnly: true })
 
       // registry updated
@@ -94,8 +97,8 @@ describe('admin-api.js', function () {
 
       // config on admin api updated
       assert.equal(
-        NEW_OWNER_ADDR,
-        api.config.ownerAccountAddr,
+        NEW_OWNER_ADDR.toLowerCase(),
+        api.config.ownerAccountAddr.toLowerCase(),
         'in memory config updated'
       )
     })

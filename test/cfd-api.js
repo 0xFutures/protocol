@@ -1,17 +1,20 @@
 import {assert} from 'chai'
-import sha3 from 'web3/lib/utils/sha3'
+import BigNumber from 'bignumber.js'
 
-import CFDAPI from '../src/cfd-api'
-import {EMPTY_ACCOUNT, STATUS} from '../src/utils'
+import * as Utils from 'web3-utils'
+
+import CFDAPI from '../src/infura/cfd-api-infura'
+import {EMPTY_ACCOUNT, STATUS} from '../src/infura/utils'
 
 import {assertEqualBN, assertStatus} from './helpers/assert'
 import {deployAllForTest} from './helpers/deploy'
 import {config as configBase, web3} from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
-const marketId = sha3(marketStr)
+const marketId = Utils.sha3(marketStr)
 const price = '67.00239'
 const newPrice = '42.05832'
+const liquidationPercentage = 95     // Liquidation price is 95% of the strike price
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_BUYER = 5
@@ -20,7 +23,7 @@ const ACCOUNT_PARTY = 7
 const ACCOUNT_COUNTERPARTY = 8
 const ACCOUNT_THIRDPARTY = 9
 
-describe('cfd-api.js', function () {
+describe('cfd-api-infura.js', function () {
   let feeds
   let cfdFactory
   let cfdRegistry
@@ -29,6 +32,7 @@ describe('cfd-api.js', function () {
   let buyer, seller
   let party, counterparty, thirdParty
   let notionalAmountDai
+  let decimals
 
   let cfdPartyIsBuyer
   let cfdPartyIsSeller
@@ -48,15 +52,12 @@ describe('cfd-api.js', function () {
       partyIsBuyer,
       party
     )
-    await api.deposit(cfd.address, counterparty, notionalAmountDai)
+    await api.deposit(cfd.options.address, counterparty, notionalAmountDai)
     return cfd
   }
 
   before(done => {
-    web3.eth.getAccounts(async (err, accounts) => {
-      if (err) {
-        process.exit(-1)
-      }
+    web3.eth.getAccounts().then(async (accounts) => {
 
       buyer = accounts[ACCOUNT_BUYER]
       seller = accounts[ACCOUNT_SELLER]
@@ -72,12 +73,13 @@ describe('cfd-api.js', function () {
       }))
 
       const config = Object.assign({}, configBase)
-      config.feedContractAddr = feeds.address
-      config.cfdFactoryContractAddr = cfdFactory.address
-      config.cfdRegistryContractAddr = cfdRegistry.address
-      config.daiTokenAddr = daiToken.address
+      config.feedContractAddr = feeds.options.address
+      config.cfdFactoryContractAddr = cfdFactory.options.address
+      config.cfdRegistryContractAddr = cfdRegistry.options.address
+      config.daiTokenAddr = daiToken.options.address
 
-      notionalAmountDai = web3.toBigNumber('1e18') // 1 DAI
+      notionalAmountDai = new BigNumber('1e18') // 1 DAI
+      decimals = await feeds.methods.decimals.call()
 
       //
       // Create an instance of the cfd-api
@@ -92,22 +94,22 @@ describe('cfd-api.js', function () {
 
       cfdTransferToThirdParty = await newCFDInitiated(party, counterparty, true)
       await api.transferPosition(
-        cfdTransferToThirdParty.address,
+        cfdTransferToThirdParty.options.address,
         party,
         thirdParty
       )
 
       cfdLiquidated = await newCFDInitiated(party, counterparty, true)
-
-      await cfdLiquidated.forceTerminate({
-        from: party,
-        gas: 150000
-      })
+      await api.forceTerminate(cfdLiquidated.options.address, party)
 
       done()
+    }).catch((err) => {
+      console.log(err)
+      process.exit(-1)
     })
   })
 
+  
   it('newCFD creates new contracts', async () => {
     const cfd = await api.newCFD(
       marketStr,
@@ -117,14 +119,56 @@ describe('cfd-api.js', function () {
       true,
       buyer
     )
-    assert.equal(await cfd.buyer.call(), buyer)
-    assert.equal(await cfd.seller.call(), EMPTY_ACCOUNT)
-    assertEqualBN(
-      await cfd.notionalAmountDai.call(),
-      notionalAmountDai,
-      'notional'
-    )
-    assert.equal(await cfd.market.call(), `0x${marketId}`)
+
+    assert.equal(await cfd.methods.buyer().call(), buyer, 'Wrong buyer account')
+    assert.equal(await cfd.methods.seller().call(), EMPTY_ACCOUNT, 'Wrong seller account')
+    assert.equal(await cfd.methods.notionalAmountDai().call(), notionalAmountDai, 'Wrong notional')
+    assert.equal(await cfd.methods.market().call(), `${marketId}`, 'Wrong market ID')
+
+    api.cancelNew(cfd.options.address, buyer)
+  })
+
+  it('check cfdPartyIsBuyer contract details', async () => {
+    const cfd = await api.getCFD(cfdPartyIsBuyer.options.address);
+    const daiUsed = 1;
+    const stkPrice = parseFloat(price);
+    const buyerLiquidationPrice = new BigNumber(stkPrice - ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
+
+    assert.equal(cfd.details.address, cfdPartyIsBuyer.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.closed, false, 'Wrong closed value')
+    assert.equal(cfd.details.status, 1, 'Wrong status value')
+    assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
+    assert.equal(cfd.details.buyer, party.toLowerCase(), 'Wrong buyer value')
+    assert.equal(cfd.details.buyerIsSelling, false, 'Wrong buyerIsSelling value')
+    assert.equal(cfd.details.market, marketStr, 'Wrong market value')
+    assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
+    assert.equal(cfd.details.buyerInitialNotional, daiUsed, 'Wrong buyerInitialNotional value')
+    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
+    assert.equal(cfd.details.buyerDepositBalance.toFixed(), daiUsed, 'Wrong buyerDepositBalance value')
+    assert.equal(cfd.details.buyerInitialStrikePrice, price, 'Wrong buyerInitialStrikePrice value')
+    assert.equal(cfd.details.buyerLiquidationPrice.toFixed(), buyerLiquidationPrice, 'Wrong buyerLiquidationPrice value')
+
+  })
+  it('check cfdPartyIsSeller contract details', async () => {
+    const cfd = await api.getCFD(cfdPartyIsSeller.options.address);
+    const daiUsed = 1;
+    const stkPrice = parseFloat(price);
+    const sellerLiquidationPrice = new BigNumber(stkPrice + ((stkPrice * liquidationPercentage) / 100)).toFixed(7);
+
+    assert.equal(cfd.details.address, cfdPartyIsSeller.options.address.toLowerCase(), 'Wrong address value')
+    assert.equal(cfd.details.closed, false, 'Wrong closed value')
+    assert.equal(cfd.details.status, 1, 'Wrong status value')
+    assert.equal(cfd.details.liquidated, false, 'Wrong liquidated value')
+    assert.equal(cfd.details.seller, party.toLowerCase(), 'Wrong seller value')
+    assert.equal(cfd.details.sellerIsSelling, false, 'Wrong sellerIsSelling value')
+    assert.equal(cfd.details.market, marketStr, 'Wrong market value')
+    assert.equal(cfd.details.notionalAmountDai, daiUsed, 'Wrong notionalAmountDai value')
+    assert.equal(cfd.details.sellerInitialNotional, daiUsed, 'Wrong sellerInitialNotional value')
+    assert.equal(cfd.details.strikePrice, price, 'Wrong strikePrice value')
+    assert.equal(cfd.details.sellerDepositBalance.toFixed(), daiUsed, 'Wrong sellerDepositBalance value')
+    assert.equal(cfd.details.sellerInitialStrikePrice, price, 'Wrong sellerInitialStrikePrice value')
+    assert.equal(cfd.details.sellerLiquidationPrice.toFixed(), sellerLiquidationPrice, 'Wrong sellerLiquidationPrice value')
+
   })
 
   it('change strike price', async () => {
@@ -137,14 +181,19 @@ describe('cfd-api.js', function () {
       buyer
     )
 
-    await api.changeStrikePriceCFD(cfd.address, buyer, newPrice)
+    await api.changeStrikePriceCFD(cfd.options.address, buyer, newPrice)
 
-    assertEqualBN(
-      await cfd.strikePrice.call(),
-      web3.toBigNumber(42058320000000).times('1e18'),
-      'strike price'
+    const updatedCfd = await api.getCFD(cfd.options.address);
+
+    assert.equal(
+      updatedCfd.details.strikePrice,
+      newPrice,
+      'Wrong strike price'
     )
+
+    api.cancelNew(cfd.options.address, buyer)
   })
+
 
   it('deposit joins new party and initiates the contract', async () => {
     const cfd = await api.newCFD(
@@ -156,21 +205,23 @@ describe('cfd-api.js', function () {
       buyer
     )
 
-    await api.deposit(cfd.address, counterparty, notionalAmountDai)
+    await api.deposit(cfd.options.address, counterparty, notionalAmountDai)
 
-    assertEqualBN(
-      await daiToken.balanceOf.call(cfd.address),
+    assert.equal(
+      await daiToken.methods.balanceOf(cfd.options.address).call(),
       notionalAmountDai.times(2),
-      'value is combined collateral'
+      'Value is combined collateral'
     )
-    assert.equal(await cfd.buyer.call(), buyer, 'buyer')
-    assert.equal(await cfd.seller.call(), counterparty, 'seller')
-    assertEqualBN(
-      await cfd.notionalAmountDai.call(),
+    assert.equal(await cfd.methods.buyer().call(), buyer, 'Wrong buyer account')
+    assert.equal(await cfd.methods.seller().call(), counterparty, 'Wrong seller account')
+    assert.equal(
+      await cfd.methods.notionalAmountDai().call(),
       notionalAmountDai,
-      'notional'
+      'Wrong notional'
     )
-    assert.equal(await cfd.market.call(), `0x${marketId}`)
+    assert.equal(await cfd.methods.market().call(), `${marketId}`, 'Wrong market ID')
+
+    api.forceTerminate(cfd.options.address, buyer)
   })
 
   it('getCFD gets contract details', async () => {
@@ -182,60 +233,52 @@ describe('cfd-api.js', function () {
       true,
       buyer
     )
-    const cfdDetails = await api.getCFD(cfd.address)
-    assert.equal(cfdDetails.buyer, buyer)
-    assert.equal(cfdDetails.seller, EMPTY_ACCOUNT)
-    assertEqualBN(
-      await cfd.notionalAmountDai.call(),
+
+    const cfdDetailed = await api.getCFD(cfd.options.address)
+
+    assert.equal(cfdDetailed.details.buyer, buyer.toLowerCase(), 'Wrong buyer account')
+    assert.equal(cfdDetailed.details.seller, EMPTY_ACCOUNT.toLowerCase(), 'Wrong seller account')
+    assert.equal(
+      await cfd.methods.notionalAmountDai().call(),
       notionalAmountDai,
       'notional'
     )
-    assert.equal(cfdDetails.market, marketStr) // translates to string
-    assert.isFalse(cfdDetails.liquidated)
+    assert.equal(cfdDetailed.details.market, marketStr, 'Wrong market string') // translates to string
+    assert.isFalse(cfdDetailed.details.liquidated)
+
+    api.cancelNew(cfd.options.address, buyer)
   })
 
   it('getCFD gets liquidated contract details', async () => {
-    const cfdDetails = await api.getCFD(cfdLiquidated.address)
+    const cfdDetailed = await api.getCFD(cfdLiquidated.options.address)
 
-    assert.isTrue(cfdDetails.liquidated)
+    assert.isTrue(cfdDetailed.details.liquidated)
   })
 
   it('sale flow with sellCFD and buyCFD faciliates a sale', async () => {
     const cfd = await newCFDInitiated(buyer, seller, true)
 
-    await api.sellCFD(cfd.address, buyer, price)
-    assert.isTrue(await cfd.buyerSelling.call())
+    await api.sellCFD(cfd.options.address, buyer, price)
+    assert.isTrue(await cfd.methods.buyerSelling().call())
     await assertStatus(cfd, STATUS.SALE)
 
-    await api.buyCFD(cfd.address, thirdParty, notionalAmountDai, true)
-    assert.equal(await cfd.buyer.call(), thirdParty)
+    await api.buyCFD(cfd.options.address, thirdParty, notionalAmountDai, true)
+    assert.equal(await cfd.methods.buyer().call(), thirdParty)
     await assertStatus(cfd, STATUS.INITIATED)
   })
 
+
   describe('contractsForParty', function () {
     const callAndAssert = (party, options, assertFn) =>
-      api.contractsForParty(
-        party,
-        options,
-        cfds => assertFn(cfds),
-        error => assert.fail(`unexpected error [${error}]`)
-      )
+      api.contractsForParty(party, options)
+        .then((cfds) => assertFn(cfds))
+        .catch((error) => assert.fail(`unexpected error [${error}]`))
 
     it('returns only current open contracts when default options', done => {
       callAndAssert(party, {}, cfds => {
         assert.equal(cfds.length, 2)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        done()
-      })
-    })
-
-    it('includes transferred contracts if requested', done => {
-      callAndAssert(party, {includeTransferred: true}, cfds => {
-        assert.equal(cfds.length, 3)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        assert.equal(cfds[2].cfd.address, cfdTransferToThirdParty.address)
+        assert.equal(cfds[0].details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase())
+        assert.equal(cfds[1].details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase())
         done()
       })
     })
@@ -243,29 +286,26 @@ describe('cfd-api.js', function () {
     it('includes liquidated/closed contracts if requested', done => {
       callAndAssert(party, {includeLiquidated: true}, cfds => {
         assert.equal(cfds.length, 3)
-        assert.equal(cfds[0].cfd.address, cfdPartyIsBuyer.address)
-        assert.equal(cfds[1].cfd.address, cfdPartyIsSeller.address)
-        assert.equal(cfds[2].cfd.address, cfdLiquidated.address)
+        assert.equal(cfds[0].details.address.toLowerCase(), cfdPartyIsBuyer.options.address.toLowerCase())
+        assert.equal(cfds[1].details.address.toLowerCase(), cfdPartyIsSeller.options.address.toLowerCase())
+        assert.equal(cfds[2].details.address.toLowerCase(), cfdLiquidated.options.address.toLowerCase())
         done()
       })
     })
   })
 
+  
   describe('contractsWaitingCounterparty', function () {
     it('returns contracts awaiting a deposit', done => {
       api
         .newCFD(marketStr, price, notionalAmountDai, leverage, true, buyer)
-        .then(newCFD =>
-          api.contractsWaitingCounterparty(
-            {fromBlock: web3.eth.blockNumber},
-            cfds => {
-              assert.equal(cfds.length, 1)
-              assert.equal(cfds[0].cfd.address, newCFD.address)
-              done()
-            },
-            error => assert.fail(`unexpected error [${error}]`)
-          )
-        )
+        .then(newCFD => {
+          api.contractsWaitingCounterparty({}).then((cfds) => {
+            assert.equal(cfds.length, 1)
+            assert.equal(cfds[0].details.address.toLowerCase(), newCFD.options.address.toLowerCase())
+            done()
+          }).catch((error) => assert.fail(`unexpected error [${error}]`))
+        })
     })
   })
 
@@ -276,21 +316,78 @@ describe('cfd-api.js', function () {
   describe('contractsForSale', function () {
     it('returns contracts for sale', async () => {
       const cfd = await newCFDInitiated(party, counterparty, true)
-      await cfd.sellPrepare(price, 0, {
-        from: counterparty,
-        gas: 2100200
-      })
+      await api.sellCFD(cfd.options.address, counterparty, price)
       return new Promise((resolve, reject) => {
-        api.contractsForSale(
-          {},
-          cfds => {
-            assert.equal(cfds.length, 1)
-            assert.equal(cfds[0].cfd.address, cfd.address)
-            resolve()
-          },
-          error => reject(new Error(`unexpected error [${error}]`))
-        )
+        api.contractsForSale({}).then((cfds) => {
+          assert.equal(cfds.length, 1)
+          assert.equal(cfds[0].details.address.toLowerCase(), cfd.options.address.toLowerCase())
+          resolve()
+        }).catch((error) => reject(new Error(`unexpected error [${error}]`)))
       })
     })
   })
+
+
+  describe('changeSaleCFD', function () {
+    it('change sale price for a CFD for sale', async () => {
+      const cfd = await newCFDInitiated(buyer, seller, true)
+
+      await api.sellCFD(cfd.options.address, buyer, price)
+      assert.isTrue(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.SALE)
+
+      await api.changeSaleCFD(cfd.options.address, buyer, parseFloat(price) * 2)  // Set the sale strike price as double
+      const updatedCfd = await api.getCFD(cfd.options.address)
+
+      assert.equal(updatedCfd.details.buyerSaleStrikePrice.toFixed(5), parseFloat(price) * 2, 'Wrong buyerSaleStrikePrice value')
+    })
+  })
+
+  describe('cancelSale', function () {
+    it('cancel a sale for a CFD', async () => {
+      const cfd = await newCFDInitiated(buyer, seller, true)
+
+      await api.sellCFD(cfd.options.address, buyer, price)
+      assert.isTrue(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.SALE)
+
+      await api.cancelSale(cfd.options.address, buyer)
+      assert.isFalse(await cfd.methods.buyerSelling().call())
+      await assertStatus(cfd, STATUS.INITIATED)
+      
+    })
+  })
+
+
+  describe('topup & withdraw', function () {
+
+    let cfd
+    const valueAdd = new BigNumber('2e18') // 2 DAI
+
+    before(async () => {
+      cfd = await newCFDInitiated(buyer, seller, true)
+    })
+
+    it('topup a CFD', async () => {
+      const currentCfd = await api.getCFD(cfd.options.address)
+      assert.equal(currentCfd.details.buyerDepositBalance.toNumber(), 1, 'Initial buyerDepositBalance is wrong')
+      
+      await api.topup(cfd.options.address, buyer, valueAdd)
+
+      const newCfd = await api.getCFD(cfd.options.address)
+      assert.equal(newCfd.details.buyerDepositBalance.toNumber(), 3, 'Initial buyerDepositBalance is wrong')
+    })
+
+    it('withdraw a CFD', async () => {
+      const currentCfd = await api.getCFD(cfd.options.address)
+      assert.equal(currentCfd.details.buyerDepositBalance.toNumber(), 3, 'Initial buyerDepositBalance is wrong')
+      
+      await api.withdraw(cfd.options.address, buyer, valueAdd)
+
+      const newCfd = await api.getCFD(cfd.options.address)
+      assert.equal(newCfd.details.buyerDepositBalance.toNumber(), 1, 'Initial buyerDepositBalance is wrong')
+    })
+
+  })
+
 })

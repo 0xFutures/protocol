@@ -1,5 +1,6 @@
 #!/bin/sh
 cd `dirname $0`/..
+$(npm bin)/pm2 delete test_server
 $(npm bin)/pm2 start bin/test_server --interpreter=sh
 sleep 2
 $(npm bin)/mocha

@@ -1,14 +1,12 @@
-pragma solidity ^0.4.23;
-pragma experimental "v0.5.0";
+pragma solidity ^0.5.0;
 
-import "openzeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 
-contract DAIToken is StandardToken {
+contract DAIToken is ERC20 {
     string public constant symbol = "DAI";
     uint public constant initialSupply = 10000 * 1e18;
 
     constructor() public {
-        totalSupply_ = initialSupply;
-        balances[msg.sender] = initialSupply;
+        _mint(msg.sender, initialSupply);
     }
 }

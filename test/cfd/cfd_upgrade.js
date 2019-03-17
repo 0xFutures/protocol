@@ -1,17 +1,18 @@
 import {assert} from 'chai'
+import BigNumber from 'bignumber.js'
 
-import CFDAPI from '../../src/cfd-api'
+import CFDAPI from '../../src/infura/cfd-api-infura'
 import {
   registryInstanceDeployed,
   daiTokenInstanceDeployed
-} from '../../src/contracts'
-import {STATUS} from '../../src/utils'
+} from '../../src/infura/contracts'
+import {STATUS} from '../../src/infura/utils'
 
 import {assertStatus, assertEqualBN} from '../helpers/assert'
 import {deployAllForTest} from '../helpers/deploy'
 import {config as configBase, web3} from '../helpers/setup'
 
-const REJECT_MESSAGE = 'VM Exception while processing transaction'
+const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_OWNER = 0
@@ -62,11 +63,11 @@ describe('cfd upgrade', function () {
     const updatedConfig = Object.assign({}, configBase, {
       daemonAccountAddr,
       ownerAccountAddr,
-      feedContractAddr: feeds.address,
-      registryAddr: registry.address,
-      cfdFactoryContractAddr: cfdFactory.address,
-      cfdRegistryContractAddr: cfdRegistry.address,
-      daiTokenAddr: daiToken.address
+      feedContractAddr: feeds.options.address,
+      registryAddr: registry.options.address,
+      cfdFactoryContractAddr: cfdFactory.options.address,
+      cfdRegistryContractAddr: cfdRegistry.options.address,
+      daiTokenAddr: daiToken.options.address
     })
 
     return updatedConfig
@@ -81,22 +82,21 @@ describe('cfd upgrade', function () {
       partyIsBuyer,
       party
     )
-    await cfdAPI.deposit(cfd.address, counterparty, notionalAmountDai)
+    await cfdAPI.deposit(cfd.options.address, counterparty, notionalAmountDai)
     return cfd
   }
 
   before(done => {
-    notionalAmountDai = web3.toBigNumber('1e18') // 1 DAI
-    web3.eth.getAccounts(async (err, accounts) => {
-      if (err) {
-        console.log(err)
-        process.exit(-1)
-      }
+    notionalAmountDai = new BigNumber('1e18') // 1 DAI
+    web3.eth.getAccounts().then(async (accounts) => {
       daemonAccountAddr = accounts[ACCOUNT_DAEMON]
       ownerAccountAddr = accounts[ACCOUNT_OWNER]
       buyer = accounts[ACCOUNT_BUYER]
       seller = accounts[ACCOUNT_SELLER]
       done()
+    }).catch((err) => {
+      console.log(err)
+      process.exit(-1)
     })
   })
 
@@ -117,12 +117,12 @@ describe('cfd upgrade', function () {
     await assertStatus(cfd, STATUS.INITIATED)
     assert.equal(
       deploymentConfig.v1.cfdFactoryContractAddr,
-      await registry.getCFDFactoryLatest.call(),
+      await registry.methods.getCFDFactoryLatest().call(),
       'new CFDFactory registered'
     )
     assert.equal(
       deploymentConfig.v1.cfdFactoryContractAddr,
-      await registry.allCFDs.call(cfd.address),
+      await registry.methods.allCFDs(cfd.options.address).call(),
       'cfd added with current factory to registry.allCFDs'
     )
 
@@ -145,7 +145,7 @@ describe('cfd upgrade', function () {
     )
     assert.equal(
       deploymentConfig.v2.cfdFactoryContractAddr,
-      await registry.getCFDFactoryLatest.call(),
+      await registry.methods.getCFDFactoryLatest().call(),
       'CFDFactory updated to latest in registry'
     )
 
@@ -153,24 +153,24 @@ describe('cfd upgrade', function () {
     // Upgrade the contract - requires an upgrade call each party, upgrade
     // happens on the second call
     //
-    await cfd.upgrade({from: buyer})
+    await cfd.methods.upgrade().send({from: buyer})
     assert.equal(
       buyer,
-      await cfd.upgradeCalledBy.call(),
+      await cfd.methods.upgradeCalledBy().call(),
       'upgrade caller marked'
     )
     await assertStatus(cfd, STATUS.INITIATED)
-    assert.isFalse(await cfd.upgradeable.call(), 'upgradeable not set yet')
+    assert.isFalse(await cfd.methods.upgradeable().call(), 'upgradeable not set yet')
 
-    const cfdBalanceBefore = await daiToken.balanceOf.call(cfd.address)
-    const txUpgrade = await cfd.upgrade({from: seller, gas: 700000})
+    const cfdBalanceBefore = await daiToken.methods.balanceOf(cfd.options.address).call()
+    const txUpgrade = await cfd.methods.upgrade().send({from: seller, gas: 700000})
 
     //
     // Check the old contract
     //
     assert.equal(
       0,
-      await daiToken.balanceOf.call(cfd.address),
+      await daiToken.methods.balanceOf(cfd.options.address).call(),
       'balance transferred out'
     )
     await assertStatus(cfd, STATUS.CLOSED)
@@ -178,19 +178,21 @@ describe('cfd upgrade', function () {
     //
     // Check the new contract
     //
-    const newCFDAddr = txUpgrade.logs[0].args.newCFD
+    const newCFDAddrStr = txUpgrade.events.LogCFDUpgraded.raw.data
+    const newCFDAddr = '0x' + newCFDAddrStr.substr(newCFDAddrStr.length - 40);
     assertEqualBN(
       cfdBalanceBefore,
-      await daiToken.balanceOf.call(newCFDAddr),
+      await daiToken.methods.balanceOf(newCFDAddr).call(),
       'balance transferred in'
     )
 
     const newCFD = await cfdAPI.getCFD(newCFDAddr)
-    const oldCFD = await cfdAPI.getCFD(cfd.address)
+    const oldCFD = await cfdAPI.getCFD(cfd.options.address)
 
-    assert.equal(STATUS.INITIATED, newCFD.status.toNumber(), `status initiated`)
+    assert.equal(STATUS.INITIATED, newCFD.details.status, `status initiated`)
 
     const cfdProps = [
+      'closed',
       'liquidated',
       'buyer',
       'buyerIsSelling',
@@ -225,7 +227,7 @@ describe('cfd upgrade', function () {
     cfdAPI = await CFDAPI.newInstance(deploymentConfig, web3)
     const cfd = await newCFDInitiated(buyer, seller, true)
     try {
-      await cfd.upgrade({from: buyer})
+      await cfd.methods.upgrade().send({from: buyer})
       assert.fail(`expected upgrade failure`)
     } catch (err) {
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))
