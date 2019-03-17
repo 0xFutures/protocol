@@ -44,55 +44,6 @@ library ContractForDifferenceLibrary {
     }
 
     /**
-     * @dev Calculate new notional amount after a side has been sold at a new
-     *      strike price.
-     *
-     * Formula is:
-     *  N2 = N1 * S2 / S1
-     * Where:
-     *  N1 = previous notional
-     *  S1 = previous strike price
-     *  S2 = sale strike price
-     *
-     * @param _oldNotional Existing notional.
-     * @param _oldStrikePrice Existing strike price.
-     * @param _newStrikePrice New / Sale strike price.
-     * @return newNotional Result of the calculation.
-     */
-    function calculateNewNotional(
-        uint _oldNotional,
-        uint _oldStrikePrice,
-        uint _newStrikePrice
-    )
-        internal
-        pure
-        returns (uint newNotional)
-    {
-        newNotional = (
-            _oldNotional.mul(
-                (_newStrikePrice.mul(FACTOR_UINT) / (_oldStrikePrice))
-            )
-        ) / (FACTOR_UINT);
-    }
-
-    /**
-     * @dev Calculate the change in contract value based on the price change.
-     * @param _currentPrice Current market price
-     */
-    function changeInDai(
-        uint _strikePrice,
-        uint _currentPrice,
-        uint _notionalAmount
-    )
-        internal
-        pure
-        returns (uint change)
-    {
-        uint changePercent = percentChange(_strikePrice, _currentPrice);
-        change = percentOf(_notionalAmount, changePercent);
-    }
-
-    /**
      * @dev Return a percentage change comparing a value with a new value.
      * @param _value The existing value to compare against
      * @param _newValue The new value to compare the change against
@@ -127,9 +78,9 @@ library ContractForDifferenceLibrary {
      *      market price and original strike price, notional amount and the
      *      amount the party has deposited into the contract.
      *
-     * @param _marketPrice Current market price
-     * @param _strikePrice CFD strike price
-     * @param _notionalAmount CFD notional amount
+     * @param _strikePrice CFD strike price (S)
+     * @param _marketPrice Current market price (P)
+     * @param _notionalAmount CFD notional amount (N)
      * @param _depositBalance Balances of deposits into the contract
      * @param _isBuyer Buyer or Seller / Long or short party?
      *
