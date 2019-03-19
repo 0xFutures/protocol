@@ -135,7 +135,7 @@ export default class CFDAPI {
    * Get details of a CFD given a deployment address.
    * @param cfdAddress Address of a deployed CFD
    */
-  getCFD (cfdAddress) {
+  async getCFD (cfdAddress) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
