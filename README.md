@@ -1,5 +1,5 @@
 [![npm version](https://badge.fury.io/js/%400xfutures%2Fprotocol.svg)](https://badge.fury.io/js/%400xfutures%2Fprotocol)
-[![Build Status](https://travis-ci.org/0xfutures/protocol.svg?branch=master)](https://travis-ci.org/0xfutures/protocol)
+[![Build Status](https://travis-ci.org/0xFutures/protocol.svg?branch=master)](https://travis-ci.org/0xFutures/protocol)
 
 # 0xFutures protocol
 
