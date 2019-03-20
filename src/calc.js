@@ -66,8 +66,31 @@ const creatorFee = notionalAmount => notionalAmount.times(0.003)
  */
 const joinerFee = notionalAmount => notionalAmount.times(0.005)
 
+/**
+ * Calculate new notional amount after a side has been sold at a new strike price.
+ *
+ * @see ContractForDifference.sol calculateNewNotional() for the CFD
+ *      Solidity implementation.
+ *
+ * Formula is:
+ *  N2 = N1 * S2 / S1
+ * Where:
+ *  N1 = previous notional
+ *  S1 = previous strike price
+ *  S2 = sale strike price
+ *
+ * @param _oldNotional Existing notional.
+ * @param _oldStrikePrice Existing strike price.
+ * @param _newStrikePrice New / Sale strike price.
+ * @return newNotional Result of the calculation.
+ *
+ */
+const calculateNewNotional = ({oldNotional, oldStrikePrice, newStrikePrice}) =>
+  oldNotional.times(newStrikePrice.dividedBy(oldStrikePrice))
+
 module.exports = {
   calculateCollateral,
+  calculateNewNotional,
   cutOffPrice,
   creatorFee,
   joinerFee

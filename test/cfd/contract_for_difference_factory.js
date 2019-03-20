@@ -90,14 +90,9 @@ describe('ContractForDifferenceFactory', function () {
     assert.equal((await cfd.methods.buyer().call()).toLowerCase(), OWNER_ACCOUNT.toLowerCase(), 'buyer incorrect')
     assert.equal((await cfd.methods.seller().call()).toLowerCase(), EMPTY_ACCOUNT.toLowerCase(), 'seller incorrect')
     assertEqualBN(
-      await cfd.methods.buyerInitialStrikePrice().call(),
+      await cfd.methods.strikePrice().call(),
       strikePrice,
-      'buyer initial strike price incorrect'
-    )
-    assertEqualBN(
-      await cfd.methods.sellerInitialStrikePrice().call(),
-      strikePrice,
-      'seller initial strike price incorrect'
+      'strike price incorrect'
     )
     assertEqualBN(
       await cfd.methods.notionalAmountDai().call(),

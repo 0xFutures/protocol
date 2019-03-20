@@ -1,6 +1,7 @@
 const BigNumber = require('bignumber.js')
 const {
   calculateCollateral,
+  calculateNewNotional,
   cutOffPrice,
   creatorFee,
   joinerFee
@@ -103,6 +104,41 @@ describe('calc.js', () => {
         deposit5X,
         !buyerSide,
         deposit5X.times(1.5) // expect: collateral up 50%
+      )
+    })
+  })
+
+  describe('calculateNewNotional', () => {
+    const assertNewNotional = (
+      oldNotional,
+      oldStrikePrice,
+      newStrikePrice,
+      expected
+    ) =>
+      assertEqualBN(
+        calculateNewNotional({
+          oldNotional,
+          oldStrikePrice,
+          newStrikePrice
+        }),
+        expected
+      )
+
+    it('calculates new notional correctly', () => {
+      const oldNotional = notional // 10000
+      const oldStrikePrice = strikePrice // 1000
+
+      assertNewNotional(
+        oldNotional,
+        oldStrikePrice,
+        oldStrikePrice.times(2),
+        oldNotional.times(2)
+      )
+      assertNewNotional(
+        oldNotional,
+        oldStrikePrice,
+        oldStrikePrice.times(0.5),
+        oldNotional.times(0.5)
       )
     })
   })
