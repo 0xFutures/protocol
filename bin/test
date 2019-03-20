@@ -2,7 +2,17 @@
 cd `dirname $0`/..
 $(npm bin)/pm2 delete test_server
 $(npm bin)/pm2 start bin/test_server --interpreter=sh
+
 sleep 2
-$(npm bin)/mocha
+
+if $(npm bin)/mocha; then
+  RET=0
+else 
+  echo 'Tests failed!\n'
+  RET=1
+fi
+
 $(npm bin)/pm2 stop bin/test_server --interpreter=sh
 cd -
+
+exit $RET
