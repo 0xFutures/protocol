@@ -41,7 +41,6 @@
     "deploy-live-first-time": "npm run prepare && babel-node bin/deployContracts config.live.json --first-time",
     "develop-console": "truffle console --network develop",
     "develop-server": "bin/develop_server",
-    "postinstall": "bin/installExtra",
     "lint": "solium -d contracts",
     "prepare": "npm run build && npm run publish-abi && npm run lint && npm run test",
     "publish-abi": "bin/publish_abi",
