@@ -111,7 +111,7 @@ export default class CFDAPI {
       return undefined;
     const cfdAddressRaw = receipt.events.LogCFDFactoryNew.raw.data;
     const cfdAddress = '0x' + cfdAddressRaw.substr(cfdAddressRaw.length - 40);
-    return getContract(cfdAddress, this.web3)
+    return this.getCFD(cfdAddress)
   }
 
   /**
@@ -135,7 +135,7 @@ export default class CFDAPI {
    * Get details of a CFD given a deployment address.
    * @param cfdAddress Address of a deployed CFD
    */
-  getCFD (cfdAddress) {
+  async getCFD (cfdAddress) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
