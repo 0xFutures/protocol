@@ -111,7 +111,7 @@ export default class CFDAPI {
       return undefined;
     const cfdAddressRaw = receipt.events.LogCFDFactoryNew.raw.data;
     const cfdAddress = '0x' + cfdAddressRaw.substr(cfdAddressRaw.length - 40);
-    return getContract(cfdAddress, this.web3)
+    return this.getCFD(cfdAddress)
   }
 
   /**
@@ -135,54 +135,46 @@ export default class CFDAPI {
    * Get details of a CFD given a deployment address.
    * @param cfdAddress Address of a deployed CFD
    */
-  getCFD (cfdAddress) {
-    const self = this;
+  async getCFD (cfdAddress) {
+    const self = this, cfd = getContract(cfdAddress, self.web3);
     return Promise.all([
-      this.web3.eth.getCodeAsync(cfdAddress)
-    ]).then(() => {
-      // Contract address exists
-      const cfd = getContract(cfdAddress, self.web3);
+      cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
+      cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
+      cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
+      self.feeds.methods.decimals().call(),
+      cfd.methods.closed().call()
+    ]).then(function (values) {
+      // Got all the data, fetch the data that needed previous values
       return Promise.all([
-        cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
-        cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
-        cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
-        self.feeds.methods.decimals().call(),
-        cfd.methods.closed().call()
-      ]).then(function (values) {
-        // Got all the data, fetch the data that needed previous values
-        return Promise.all([
-          self.marketIdBytesToStr(values[0][2]),                                            // [market]
-          cfd.methods.cutOffPrice(values[0][4], values[1][2], values[1][6], true).call(),   // [buyerLiquidationPrice]
-          cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
-        ]).then(function (values2) {
-          // Got the rest of the data
-          return Object.assign(cfd, {details: {
-            address: cfdAddress.toLowerCase(),
-            closed: values[4],
-            status: parseInt(values[0][7]),
-            liquidated: values[2][0],
-            upgradeCalledBy: values[2][1].toLowerCase(),
-            buyer: values[0][0].toLowerCase(),
-            buyerIsSelling: values[0][5],
-            seller: values[0][1].toLowerCase(),
-            sellerIsSelling: values[0][6],
-            market: values2[0],
-            notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
-            buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
-            sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
-            strikePrice: fromContractBigNumber(values[0][3], values[3]),
-            buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
-            sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
-            buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
-            sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
-            buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
-            sellerInitialStrikePrice: fromContractBigNumber(values[1][7], values[3]),
-            buyerLiquidationPrice: fromContractBigNumber(values2[1], values[3]),
-            sellerLiquidationPrice: fromContractBigNumber(values2[2], values[3])
-          }})
-        }).catch(error => {
-          throw new Error(error);
-        });
+        self.marketIdBytesToStr(values[0][2]),                                            // [market]
+        cfd.methods.cutOffPrice(values[0][4], values[1][2], values[1][6], true).call(),   // [buyerLiquidationPrice]
+        cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
+      ]).then(function (values2) {
+        // Got the rest of the data
+        return Object.assign(cfd, {details: {
+          address: cfdAddress.toLowerCase(),
+          closed: values[4],
+          status: parseInt(values[0][7]),
+          liquidated: values[2][0],
+          upgradeCalledBy: values[2][1].toLowerCase(),
+          buyer: values[0][0].toLowerCase(),
+          buyerIsSelling: values[0][5],
+          seller: values[0][1].toLowerCase(),
+          sellerIsSelling: values[0][6],
+          market: values2[0],
+          notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
+          buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
+          sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
+          strikePrice: fromContractBigNumber(values[0][3], values[3]),
+          buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
+          sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
+          buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
+          sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
+          buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
+          sellerInitialStrikePrice: fromContractBigNumber(values[1][7], values[3]),
+          buyerLiquidationPrice: fromContractBigNumber(values2[1], values[3]),
+          sellerLiquidationPrice: fromContractBigNumber(values2[2], values[3])
+        }})
       }).catch(error => {
         throw new Error(error);
       });

@@ -1,6 +1,6 @@
 {
   "name": "@0xfutures/protocol",
-  "version": "0.1.25",
+  "version": "0.1.34",
   "license": "GPL-3.0",
   "description": "0xFutures Protocol Implementation",
   "repository": "0xFutures/protocol",
@@ -41,7 +41,6 @@
     "deploy-live-first-time": "npm run prepare && babel-node bin/deployContracts config.live.json --first-time",
     "develop-console": "truffle console --network develop",
     "develop-server": "bin/develop_server",
-    "postinstall": "bin/installExtra",
     "lint": "solium -d contracts",
     "prepare": "npm run build && npm run publish-abi && npm run lint && npm run test",
     "publish-abi": "bin/publish_abi",
