@@ -63,7 +63,7 @@ describe('api-infura.js', function () {
 
   it('read() converts response values back to useable formats', async () => {
     const res = await api.read(marketStr)
-    assert.equal(fromContractBigNumber(res.value, decimals).toString(), read, `value should be return unchanged`)
+    assert.equal(res.value, read.toString(), `value should be return unchanged`)
     assert.equal(res.timestamp, ts, `timestamp should be return unchanged`)
   })
 
