@@ -7,6 +7,7 @@ import {
 import {
   assertBigNumberOrString,
   toContractBigNumber,
+  fromContractBigNumber,
   getAllEventsWithName,
   signAndSendTransaction,
   getMarketFromHex
@@ -71,7 +72,7 @@ export default class API {
   async read (marketIdStr) {
     const marketId = this.marketIdStrToBytes(marketIdStr)
     const res = await this.feeds.methods.read(marketId).call();
-    return {value: res.value, timestamp: res.timestamp};
+    return {value: fromContractBigNumber(res.value, this.decimals), timestamp: res.timestamp};
   }
 
   /**
@@ -129,8 +130,7 @@ export default class API {
    */
   async signAndPush (next) {
     assertBigNumberOrString(next.read)
-    const decimals = await this.feeds.methods.decimals().call()
-    const readBigNumber = toContractBigNumber(next.read, decimals).toFixed()
+    const readBigNumber = toContractBigNumber(next.read, this.decimals).toFixed()
     const marketId = this.marketIdStrToBytes(next.marketIdStr)
     return signAndSendTransaction(this.web3, this.config.daemonAccountAddr, this.privateKey, this.config.feedContractAddr,
             this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, pushGasLimit);
@@ -244,7 +244,8 @@ export default class API {
    */
   async initialise () {
     var self = this;
-    this.feeds = await feedsInstanceDeployed(this.config, this.web3)
+    this.feeds = await feedsInstanceDeployed(this.config, this.web3);
+    this.decimals = await this.feeds.methods.decimals().call();
     // Start our recurrent function to check and eventually start pushing on the blockchain
     setInterval(function() {
       // If no pending transaction, push the next value waiting in the queue
