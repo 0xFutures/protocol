@@ -73,10 +73,18 @@ export default class API {
   async read (marketIdStr) {
     // Find which feed source to use
     // If no feed found for this market, use the default one (daemon feed)
-    const feedSource = (this.specificFeeds[marketIdStr] != undefined) ? this.specificFeeds[marketIdStr] : this.feeds;
-    const marketId = this.marketIdStrToBytes(marketIdStr)
-    const res = await feedSource.methods.read(marketId).call();
-    return {value: fromContractBigNumber(res.value, this.decimals), timestamp: res.timestamp};
+    if (this.specificFeeds[marketIdStr] != undefined) {
+      // Use the specific source feed
+      const res = await this.specificFeeds[marketIdStr].methods.read().call();
+      const numberStr = this.web3.utils.hexToNumberString(res);
+      return {value: this.web3.utils.fromWei(numberStr)};
+    }
+    else {
+      // Else, use the default source feed
+      const marketId = this.marketIdStrToBytes(marketIdStr)
+      const res = await this.feeds.methods.read(marketId).call();
+      return {value: fromContractBigNumber(res.value, this.decimals), timestamp: res.timestamp};
+    }
   }
 
   /**
