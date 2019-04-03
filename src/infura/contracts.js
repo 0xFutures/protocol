@@ -11,6 +11,8 @@ import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
 import RegistryJSON from '../../abi/Registry.json'
 import MockDAITokenJSON from '../../abi/DAIToken.json'
 
+import FeedsMakerEthUsdJSON from '../../abi/FeedsMakerEthUsd.json'
+
 /*
  * Create handles to deployed contracts.
  */
@@ -33,6 +35,15 @@ const feedsInstanceDeployed = async (config, web3) =>
     config.daemonAccountAddr
   )
 
+const feedsMakerEthUsdInstanceDeployed = async (config, web3) =>
+  deployedInstance(
+    config,
+    web3,
+    'feedMakerEthUsdAddr',
+    FeedsMakerEthUsdJSON,
+    config.daemonAccountAddr
+  )
+
 const registryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'registryAddr', RegistryJSON)
 
@@ -48,7 +59,7 @@ const deployedInstance = (
 ) =>
   deployedContractInstance(
     config[addrKey],
-    abiJSON.abi,
+    abiJSON,
     defaultFrom,
     config.gasPrice,
     config.gasLimit,
@@ -95,15 +106,19 @@ const deployedContractInstance = async (
   defaultGasLimit,
   web3
 ) => {
-  let code = await web3.eth.getCode(addr);
 
+  if (addr == undefined)
+    return undefined;
+
+  let code = await web3.eth.getCode(addr);
+  
   if (code === '0x0' || code === '0x') {
     throw new Error(
       `${contractJSON.contractName} contract NOT deployed at ${addr}.` +
         ` Check the address and network settings.`
     )
   }
-  return new web3.eth.Contract(contractJSON, addr, {
+  return new web3.eth.Contract(contractJSON.abi, addr, {
     from: defaultFrom,
     gasPrice: defaultGasPrice,
     gas: defaultGasLimit
@@ -138,6 +153,7 @@ module.exports = {
   daiTokenInstanceDeployed,
   feedsInstance,
   feedsInstanceDeployed,
+  feedsMakerEthUsdInstanceDeployed,
   forwardFactoryInstance,
   registryInstance,
   registryInstanceDeployed

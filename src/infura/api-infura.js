@@ -2,7 +2,8 @@ import Promise from 'bluebird'
 import has from 'lodash/has'
 
 import {
-  feedsInstanceDeployed
+  feedsInstanceDeployed,
+  feedsMakerEthUsdInstanceDeployed
 } from './contracts'
 import {
   assertBigNumberOrString,
@@ -70,8 +71,11 @@ export default class API {
    * @return {value: <read value>, timestamp: <epoch milliseconds timestamp>}
    */
   async read (marketIdStr) {
+    // Find which feed source to use
+    // If no feed found for this market, use the default one (daemon feed)
+    const feedSource = (this.specificFeeds[marketIdStr] != undefined) ? this.specificFeeds[marketIdStr] : this.feeds;
     const marketId = this.marketIdStrToBytes(marketIdStr)
-    const res = await this.feeds.methods.read(marketId).call();
+    const res = await feedSource.methods.read(marketId).call();
     return {value: fromContractBigNumber(res.value, this.decimals), timestamp: res.timestamp};
   }
 
@@ -230,6 +234,10 @@ export default class API {
     this.pushQueue = [];
     // When a transaction is pending, that variable will hold the transaction hash
     this.currentTx = undefined;
+    // Specify another feed source for some markets
+    // If the market is not listed in this object, it means we will use the default daemon feed
+    // Else, we use the specified feed
+    this.specificFeeds = {};
   }
 
   /**
@@ -246,6 +254,8 @@ export default class API {
     var self = this;
     this.feeds = await feedsInstanceDeployed(this.config, this.web3);
     this.decimals = await this.feeds.methods.decimals().call();
+    // Specify another feed source for market Coinbase_ETH
+    this.specificFeeds['Coinbase_ETH'] = await feedsMakerEthUsdInstanceDeployed(this.config, this.web3);
     // Start our recurrent function to check and eventually start pushing on the blockchain
     setInterval(function() {
       // If no pending transaction, push the next value waiting in the queue
