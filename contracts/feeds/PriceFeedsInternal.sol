@@ -1,14 +1,19 @@
 pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./DBC.sol";
+import "../DBC.sol";
 
+/**
+ * Market prices feeds coming from 0xfutures managed price feeds. 
+ * These are centralised feeds pushed on to the blockchain.
+ * Example: Coinbase BTCUSD price feed
+ */
 
-contract Feeds is DBC, Ownable {
+contract PriceFeedsInternal is DBC, Ownable {
 
-    event LogFeedsMarketAdded(bytes32 indexed bytesId, string strId);
-    event LogFeedsMarketRemoved(bytes32 indexed marketId);
-    event LogFeedsPush(bytes32 indexed marketId, uint indexed timestamp, uint value);
+    event LogPriceFeedsInternalMarketAdded(bytes32 indexed bytesId, string strId);
+    event LogPriceFeedsInternalMarketRemoved(bytes32 indexed marketId);
+    event LogPriceFeedsInternalPush(bytes32 indexed marketId, uint indexed timestamp, uint value);
 
     string constant REASON_MUST_BE_FROM_DAEMON = "Caller must be the registered Daemon";
     string constant REASON_MUST_BE_ACTIVE_MARKET = "Market must be active to push a value";
@@ -81,7 +86,7 @@ contract Feeds is DBC, Ownable {
         pre_cond(isMarketActive(_marketId), REASON_MUST_BE_ACTIVE_MARKET)
     {
         latestData[_marketId] = DataPoint(_value, _timestamp);
-        emit LogFeedsPush(_marketId, _timestamp, _value);
+        emit LogPriceFeedsInternalPush(_marketId, _timestamp, _value);
     }
 
     /**
@@ -119,7 +124,7 @@ contract Feeds is DBC, Ownable {
         marketId = keccak256(abi.encodePacked(_marketStrId));
         markets[marketId] = true;
         marketNames[marketId] = _marketStrId;
-        emit LogFeedsMarketAdded(marketId, _marketStrId);
+        emit LogPriceFeedsInternalMarketAdded(marketId, _marketStrId);
     }
 
     /**
@@ -132,7 +137,7 @@ contract Feeds is DBC, Ownable {
     {
         markets[_marketId] = false;
         latestData[_marketId] = DataPoint(0, 0);
-        emit LogFeedsMarketRemoved(_marketId);
+        emit LogPriceFeedsInternalMarketRemoved(_marketId);
         // TODO: provide a withdraw and mark balances
     }
 

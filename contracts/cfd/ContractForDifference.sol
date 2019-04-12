@@ -2,7 +2,7 @@ pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../DBC.sol";
-import "../Feeds.sol";
+import "../feeds/PriceFeeds.sol";
 import "../Registry.sol";
 import "./ContractForDifferenceFactory.sol";
 import "./ContractForDifferenceRegistry.sol";
@@ -159,6 +159,7 @@ contract ContractForDifference is DBC {
      */
 
     constructor() public {}
+    
 
     /**
      * @dev Contract has been initiated (has 2 parties) and not yet terminated.
@@ -967,9 +968,7 @@ contract ContractForDifference is DBC {
         view
         returns (uint price)
     {
-        uint marketPrice;
-        (marketPrice, ) = Feeds(feedsAddr).read(market);
-        return marketPrice;
+        price = PriceFeeds(feedsAddr).read(market);
     }
 
     /**
