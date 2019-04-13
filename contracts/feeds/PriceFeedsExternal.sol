@@ -25,7 +25,7 @@ contract PriceFeedsExternal is DBC, Ownable {
     mapping(bytes32 => string) public marketNames;
 
     function isMarketActive(bytes32 _marketId) public view returns (bool) {
-        return markets[_marketId].priceContract != address(0x0);
+        return markets[_marketId].priceContract != address(0);
     }
 
     /**

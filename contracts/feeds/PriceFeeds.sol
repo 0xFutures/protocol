@@ -9,6 +9,7 @@ import "./PriceFeedsExternal.sol";
  */
 contract PriceFeeds is Ownable {
     string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
+    string constant REASON_MARKET_VALUE_ZERO = "Market price is zero";
 
     PriceFeedsInternal feedInternal;
     PriceFeedsExternal feedExternal;
@@ -29,6 +30,10 @@ contract PriceFeeds is Ownable {
             value = feedExternal.read(_marketId);
         } else {
             revert(REASON_MARKET_INACTIVE_OR_UNKNOWN);
+        }
+
+        if (value == 0) {
+            revert(REASON_MARKET_VALUE_ZERO);
         }
     }
 
