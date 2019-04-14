@@ -1,11 +1,11 @@
 var Tx = require('ethereumjs-tx')
 
 const BigNumber = require('bignumber.js')
-BigNumber.config({DECIMAL_PLACES: 30})
+BigNumber.config({ DECIMAL_PLACES: 30 })
 
 const EMPTY_ACCOUNT = '0x' + '0'.repeat(40)
 
-const WEI_DECIMALS = 18;
+const NUMBER_DECIMALS = 18;
 
 /**
  * Feed values must be passed around as Bignumbers or strings due to the 15
@@ -20,31 +20,28 @@ const assertBigNumberOrString = number => {
 }
 
 /**
- * Convert number to format expected in the smart contract - Adjust it by
- * numDecimals places such that 11.8209 becomes 11820900000000000000 if
- * numDecimals is 18.
+ * Convert number to format expected in the smart contract - adjust it by
+ * 18 places such that 11.8209 becomes 11820900000000000000.
  *
  * @param number BigNumber|String Actual number to be converted
- * @param numDecimals Number of decimals to adjust (see Feeds.sol decimals)
  * @return BigNumber contract format value
  */
-const toContractBigNumber = (number, numDecimals) => {
+const toContractBigNumber = (number) => {
   assertBigNumberOrString(number)
   const bn = new BigNumber(number)
-  return bn.times(Math.pow(10, numDecimals))
+  return bn.times(Math.pow(10, NUMBER_DECIMALS))
 }
 
 /**
  * The reverse of toContractBigNumber (See above)
  *
  * @param contractBigNumber BigNumber Contract format number to be adjusted
- * @param numDecimals Number of decimals to adjust (see Feeds.sol decimals)
  * @return BigNumber original value
  */
-const fromContractBigNumber = (number, numDecimals) => {
+const fromContractBigNumber = (number) => {
   assertBigNumberOrString(number)
   const bn = new BigNumber(number)
-  return bn.div(new BigNumber(10).pow(numDecimals))
+  return bn.div(new BigNumber(10).pow(NUMBER_DECIMALS))
 }
 
 const nowSecs = () => Math.floor(Date.now() / 1000)
@@ -57,8 +54,8 @@ const txGas = txReceipt => txReceipt.receipt.gasUsed
 
 // extract the gas cost in wei for a given transaction
 const txGasCost = (txHash, web3) => {
-  const {gasPrice} = web3.eth.getTransaction(txHash)
-  const {gasUsed} = web3.eth.getTransactionReceipt(txHash)
+  const { gasPrice } = web3.eth.getTransaction(txHash)
+  const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
   return gasPrice.times(gasUsed)
 }
 
@@ -87,7 +84,7 @@ const STATUS = {
  * Sign and send a raw transaction
  */
 const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data, gasPrice, pushGasLimit = 100000) => {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     // Get the transaction count for the nonce
     web3.eth.getTransactionCount(account).then((txCount) => {
       // Create the transaction object to call the contract function
@@ -105,11 +102,11 @@ const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data
           reject(err);
         else {
           // Send the transaction
-          web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function(receipt) {
+          web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function (receipt) {
             // Transaction has been mined
             console.log("[API-Infura] Transaction mined!");
             resolve(receipt);
-          }).on('error', function(error) {
+          }).on('error', function (error) {
             // Error
             reject(error);
           });
@@ -144,13 +141,13 @@ const EVENTS = {
  */
 const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBlock = 'latest') => {
   return new Promise((resolve, reject) => {
-    contractInstance.getPastEvents('allEvents', {fromBlock: fromBlock, toBlock: toBlock}, (error, events) => {
+    contractInstance.getPastEvents('allEvents', { fromBlock: fromBlock, toBlock: toBlock }, (error, events) => {
       // If there is an error
       if (error || events == undefined)
         reject(error);
       else {
         // Filter the events (using the topics array for now, since event name is missing)
-        events = events.filter(function(ev) {
+        events = events.filter(function (ev) {
           if (ev == undefined || ev.raw == undefined || ev.raw.topics == undefined || ev.raw.topics.length <= 0 || (EVENTS[ev.raw.topics[0]] == undefined && eventName != undefined))
             return false;
           // Check event is the one we are looking for
@@ -172,7 +169,6 @@ module.exports = {
   txGas,
   txGasCost,
   txFailed,
-  WEI_DECIMALS,
   EMPTY_ACCOUNT,
   STATUS,
   getAllEventsWithName,

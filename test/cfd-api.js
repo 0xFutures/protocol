@@ -6,7 +6,7 @@ import * as Utils from 'web3-utils'
 import CFDAPI from '../src/infura/cfd-api-infura'
 import { EMPTY_ACCOUNT, STATUS } from '../src/infura/utils'
 
-import { assertEqualBN, assertStatus } from './helpers/assert'
+import { assertStatus } from './helpers/assert'
 import { deployAllForTest } from './helpers/deploy'
 import { config as configBase, web3 } from './helpers/setup'
 
@@ -78,7 +78,6 @@ describe.skip('cfd-api-infura.js', function () {
       config.daiTokenAddr = daiToken.options.address
 
       notionalAmountDai = new BigNumber('1e18') // 1 DAI
-      decimals = await priceFeeds.methods.decimals.call()
 
       //
       // Create an instance of the cfd-api

@@ -21,24 +21,21 @@ const MakerMarket = {
   name: MakerMarketStr,
   id: Utils.sha3(MakerMarketStr),
   address: undefined, // added when deployed below
-  callSig: MakerReadCallSig,
-  decimals: '18'
+  callSig: MakerReadCallSig
 }
 
 const EtherexMarket = {
   name: EtherexMarketStr,
   id: Utils.sha3(EtherexMarketStr),
   address: Utils.randomHex(20), // stub fake address - tests don't call this one
-  callSig: Utils.randomHex(4), // stub call sig - tests don't call it
-  decimals: '18'
+  callSig: Utils.randomHex(4) // stub call sig - tests don't call it
 }
 
 const addMarket = (feedsContract, market) =>
   feedsContract.methods.addMarket(
     market.name,
     market.address,
-    market.callSig,
-    market.decimals
+    market.callSig
   ).send();
 
 describe('PriceFeedsExternal', function () {
@@ -48,7 +45,7 @@ describe('PriceFeedsExternal', function () {
   const OWNER_ACCOUNT = config.ownerAccountAddr
 
   const makerValueStr = '164.625'
-  const makerValueContract = toContractBigNumber(makerValueStr, MakerMarket.decimals)
+  const makerValueContract = toContractBigNumber(makerValueStr)
 
   const txOpts = { from: OWNER_ACCOUNT, gas: 2000000 }
 

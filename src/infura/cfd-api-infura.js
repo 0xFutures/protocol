@@ -11,7 +11,6 @@ import {
 } from './contracts'
 import {
   STATUS,
-  WEI_DECIMALS,
   assertBigNumberOrString,
   fromContractBigNumber,
   toContractBigNumber,
@@ -76,8 +75,7 @@ export default class CFDAPI {
     assertBigNumberOrString(notionalAmountDai)
     assertBigNumberOrString(leverage)
 
-    const decimals = await this.priceFeeds.methods.decimals().call()
-    const strikePriceBN = toContractBigNumber(strikePrice, decimals).toFixed()
+    const strikePriceBN = toContractBigNumber(strikePrice).toFixed()
     const marketId = this.marketIdStrToBytes(marketIdStr)
     const leverageValue = parseFloat(leverage)
 
@@ -146,7 +144,6 @@ export default class CFDAPI {
       cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
       cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
       cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
-      self.priceFeeds.methods.decimals().call(),
       cfd.methods.closed().call()
     ]).then(function (values) {
       // Got all the data, fetch the data that needed previous values
@@ -159,7 +156,7 @@ export default class CFDAPI {
         return Object.assign(cfd, {
           details: {
             address: cfdAddress.toLowerCase(),
-            closed: values[4],
+            closed: values[3],
             status: parseInt(values[0][7]),
             liquidated: values[2][0],
             upgradeCalledBy: values[2][1].toLowerCase(),
@@ -168,18 +165,18 @@ export default class CFDAPI {
             seller: values[0][1].toLowerCase(),
             sellerIsSelling: values[0][6],
             market: values2[0],
-            notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
-            buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
-            sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
-            strikePrice: fromContractBigNumber(values[0][3], values[3]),
-            buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
-            sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
-            buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
-            sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
-            buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
-            sellerInitialStrikePrice: fromContractBigNumber(values[1][7], values[3]),
-            buyerLiquidationPrice: fromContractBigNumber(values2[1], values[3]),
-            sellerLiquidationPrice: fromContractBigNumber(values2[2], values[3])
+            notionalAmountDai: fromContractBigNumber(values[0][4]),
+            buyerInitialNotional: fromContractBigNumber(values[1][0]),
+            sellerInitialNotional: fromContractBigNumber(values[1][1]),
+            strikePrice: fromContractBigNumber(values[0][3]),
+            buyerSaleStrikePrice: fromContractBigNumber(values[1][4]),
+            sellerSaleStrikePrice: fromContractBigNumber(values[1][5]),
+            buyerDepositBalance: fromContractBigNumber(values[1][2]),
+            sellerDepositBalance: fromContractBigNumber(values[1][3]),
+            buyerInitialStrikePrice: fromContractBigNumber(values[1][6]),
+            sellerInitialStrikePrice: fromContractBigNumber(values[1][7]),
+            buyerLiquidationPrice: fromContractBigNumber(values2[1]),
+            sellerLiquidationPrice: fromContractBigNumber(values2[2])
           }
         })
       }).catch(error => {
@@ -207,10 +204,8 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
-      desiredStrikePrice,
-      decimals
+      desiredStrikePrice
     ).toFixed()
 
     return cfd.methods.changeStrikePrice(desiredStrikePriceBN).send({ from: userAccount })
@@ -236,10 +231,8 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
-      desiredStrikePrice,
-      decimals
+      desiredStrikePrice
     ).toFixed()
 
     return cfd.methods.sellPrepare(desiredStrikePriceBN, timeLimit).send({
@@ -380,10 +373,8 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
-      desiredStrikePrice,
-      decimals
+      desiredStrikePrice
     ).toFixed()
 
     return cfd.methods.sellUpdate(desiredStrikePriceBN).send({

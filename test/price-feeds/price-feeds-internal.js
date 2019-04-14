@@ -19,7 +19,6 @@ describe('PriceFeedsInternal', function () {
   const FEED_VALUE = 11.8209
 
   let feedValueAdjusted
-  let decimals // num of decimal places for values as fixed in the contract
 
   let feedContract
 
@@ -31,12 +30,7 @@ describe('PriceFeedsInternal', function () {
     })
     await feedContract.methods.setDaemonAccount(DAEMON_ACCOUNT).send();
     await feedContract.methods.addMarket(MARKET1_STR).send();
-
-    // set decimals and value adjusted firstime only
-    if (!decimals) {
-      decimals = await feedContract.methods.decimals().call()
-      feedValueAdjusted = toContractBigNumber(FEED_VALUE, decimals)
-    }
+    feedValueAdjusted = toContractBigNumber(FEED_VALUE)
   })
 
   it('supports adding and removing markets', async () => {
@@ -74,7 +68,7 @@ describe('PriceFeedsInternal', function () {
     assert.equal(rsp[0], feedValueAdjusted.toFixed(), "value doesn't match")
     assert.equal(rsp[1], timestamp, "timestamp doesn't match")
     assert.equal(
-      fromContractBigNumber(rsp[0], decimals),
+      fromContractBigNumber(rsp[0]),
       FEED_VALUE,
       "value adjusted back to float doesn't match"
     )

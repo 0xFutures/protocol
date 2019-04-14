@@ -25,8 +25,7 @@ const MakerMarket = {
   name: MakerMarketStr,
   id: Utils.sha3(MakerMarketStr),
   address: undefined, // added when deployed below
-  callSig: MakerReadCallSig,
-  decimals: '18'
+  callSig: MakerReadCallSig
 }
 
 const CoinbaseMarket = {
@@ -46,7 +45,7 @@ describe('PriceFeeds', function () {
   const coinbaseBTCValueStr = '5000.50'
 
   const makerValueStr = '164.625'
-  const makerValueContract = toContractBigNumber(makerValueStr, MakerMarket.decimals)
+  const makerValueContract = toContractBigNumber(makerValueStr)
 
   const txOpts = { from: OWNER_ACCOUNT, gas: 2000000 }
 
@@ -64,8 +63,7 @@ describe('PriceFeeds', function () {
     await pfiContract.methods.addMarket(CoinbaseMarket.name).send();
 
     // push value
-    const pfiDecimals = await pfiContract.methods.decimals().call()
-    coinbaseBTCValueContract = toContractBigNumber(coinbaseBTCValueStr, pfiDecimals)
+    coinbaseBTCValueContract = toContractBigNumber(coinbaseBTCValueStr)
     await pfiContract.methods.push(
       CoinbaseMarket.id,
       coinbaseBTCValueContract.toFixed(),
@@ -82,8 +80,7 @@ describe('PriceFeeds', function () {
     await pfeContract.methods.addMarket(
       MakerMarket.name,
       MakerMarket.address,
-      MakerMarket.callSig,
-      MakerMarket.decimals
+      MakerMarket.callSig
     ).send();
 
     const valueAsBytes32 = Utils.padLeft(Utils.numberToHex(makerValueContract), 64)

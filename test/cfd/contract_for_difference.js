@@ -47,7 +47,6 @@ describe('ContractForDifference', function () {
     let priceFeedsInternal
     let cfdRegistry
     let daiToken
-    let decimals
     let marketId
 
     let minimumCollateral
@@ -121,14 +120,13 @@ describe('ContractForDifference', function () {
         priceFeedsInternal,
         registry,
         daiToken,
-        decimals,
         marketId
       } = await deployAllForTest({
         web3,
         initialPrice: strikePriceRaw
       })
       )
-      strikePriceAdjusted = toContractBigNumber(strikePriceRaw, decimals)
+      strikePriceAdjusted = toContractBigNumber(strikePriceRaw)
 
       // set factory to default account so we can manually call registerNew
       await cfdRegistry.methods.setFactory(config.ownerAccountAddr).send()
@@ -763,7 +761,7 @@ describe('ContractForDifference', function () {
         })
 
         it('changeInDai() calculates value change based on new price', async () => {
-          const price = toContractBigNumber('100', decimals)
+          const price = toContractBigNumber('100')
           const amount = ONE_DAI
           const cfd = await newCFD({
             notionalAmount: amount,
@@ -793,7 +791,7 @@ describe('ContractForDifference', function () {
       describe('cutOffPrice()', async () => {
         it('calculates dynamic percentage correctly for each side', async () => {
           const notional = ONE_DAI.times(10)
-          const strikePrice = toContractBigNumber('1000', decimals)
+          const strikePrice = toContractBigNumber('1000')
 
           const cfd = await newCFD({
             isBuyer: true,
@@ -844,7 +842,6 @@ describe('ContractForDifference', function () {
         let defaultInitialStrikePrice
         let defaultNotional = notionalAmount
         let defaultCFD
-        let decimals
 
         const assertCollateral = async ({
           cfd = defaultCFD,
@@ -865,10 +862,8 @@ describe('ContractForDifference', function () {
         }
 
         before(async () => {
-          decimals = await priceFeedsInternal.methods.decimals().call()
-
           // setup a default CFD for some of the test cases
-          defaultInitialStrikePrice = toContractBigNumber('1000', decimals)
+          defaultInitialStrikePrice = toContractBigNumber('1000')
           defaultNotional = notionalAmount
           defaultCFD = await newCFD({
             strikePrice: defaultInitialStrikePrice,

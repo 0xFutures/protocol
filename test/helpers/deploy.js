@@ -76,8 +76,7 @@ const deployAllForTest = async ({
   await priceFeedsInternal.methods.addMarket(MARKET_STR).send()
   await priceFeedsInternal.methods.addMarket(MARKET_STR_2).send()
 
-  const decimals = await priceFeedsInternal.methods.decimals().call()
-  const initialPriceBN = toContractBigNumber(initialPrice, decimals)
+  const initialPriceBN = toContractBigNumber(initialPrice)
   await priceFeedsInternal.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).send({
     from: configUpdated.daemonAccountAddr
   })
@@ -95,7 +94,6 @@ const deployAllForTest = async ({
 
   return Object.assign({}, deployment, {
     marketId: MARKET_ID,
-    decimals,
     ethUsdMaker // not in deployment as it's a test only contract so add it here
   })
 }

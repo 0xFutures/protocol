@@ -3,7 +3,6 @@ import has from 'lodash/has'
 
 import {
   priceFeedsInternalInstanceDeployed,
-  feedsMakerEthUsdInstanceDeployed
 } from './contracts'
 import {
   assertBigNumberOrString,
@@ -11,7 +10,6 @@ import {
   fromContractBigNumber,
   getAllEventsWithName,
   signAndSendTransaction,
-  getMarketFromHex
 } from './utils'
 
 const pushGasLimit = 700000
@@ -32,7 +30,7 @@ export default class API {
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance (config, web3, privateKey) {
+  static async newInstance(config, web3, privateKey) {
     /*if (web3 == undefined || web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
@@ -51,16 +49,18 @@ export default class API {
    * @param ts UNIX millisecond timestamp of the read.
    * @param doneCallback Callback when the transaction has been mined
    */
-  push (marketIdStr, read, ts) {
+  push(marketIdStr, read, ts) {
     var self = this;
-    return new Promise(function(resolve, reject) {
-      self.pushQueue.unshift({marketIdStr: marketIdStr, read: read, ts: ts, doneCallback: function(receipt) {
-        // Success
-        resolve(receipt);
-      }, errorCallback: function(err) {
-        // Error
-        reject(err);
-      }});
+    return new Promise(function (resolve, reject) {
+      self.pushQueue.unshift({
+        marketIdStr, read, ts, doneCallback: function (receipt) {
+          // Success
+          resolve(receipt);
+        }, errorCallback: function (err) {
+          // Error
+          reject(err);
+        }
+      });
     });
   }
 
@@ -70,20 +70,20 @@ export default class API {
    * @param marketIdStr Read value for this market (eg. "Poloniex_ETH_USD")
    * @return {value: <read value>, timestamp: <epoch milliseconds timestamp>}
    */
-  async read (marketIdStr) {
+  async read(marketIdStr) {
     // Find which feed source to use
     // If no feed found for this market, use the default one (daemon feed)
     if (this.specificFeeds[marketIdStr] != undefined) {
       // Use the specific source feed
       const res = await this.specificFeeds[marketIdStr].methods.read().call();
       const numberStr = this.web3.utils.hexToNumberString(res);
-      return {value: this.web3.utils.fromWei(numberStr)};
+      return { value: this.web3.utils.fromWei(numberStr) };
     }
     else {
       // Else, use the default source feed
       const marketId = this.marketIdStrToBytes(marketIdStr)
       const res = await this.feeds.methods.read(marketId).call();
-      return {value: fromContractBigNumber(res.value, this.decimals), timestamp: res.timestamp};
+      return { value: fromContractBigNumber(res.value), timestamp: res.timestamp };
     }
   }
 
@@ -92,15 +92,15 @@ export default class API {
    * @param marketIdStr Market ID for new market (eg. "Poloniex_ETH_USD")
    * @return Promise resolving to the transaction receipt
    */
-  async addMarket (marketIdStr) {
-    return new Promise(function(resolve, reject) {
+  async addMarket(marketIdStr) {
+    return new Promise(function (resolve, reject) {
       this.feeds.methods.addMarket(marketIdStr).send({
         from: this.config.ownerAccountAddr,
         gas: addMarketGasLimit
-      }).once('receipt', function(receipt) {
+      }).once('receipt', function (receipt) {
         // Transaction has been mined
         resolve(receipt);
-      }).on('error', function(error) {
+      }).on('error', function (error) {
         // Error
         reject(error);
       });
@@ -113,8 +113,8 @@ export default class API {
    * @param Callback expecting error as the first param and an object with
    *        event arguments as the second param.
    */
-  watchPushEvents (onEventCallback) {
-    this.feeds.events.allEvents({fromBlock: 0}, (error, event) => {
+  watchPushEvents(onEventCallback) {
+    this.feeds.events.allEvents({ fromBlock: 0 }, (error, event) => {
       if (event != undefined)
         onEventCallback(event);
     });
@@ -126,7 +126,7 @@ export default class API {
    * @param toBlock, The end of the block interval
    * @return a promise with the array of events
    */
-  async getAllFeedsPushEvents (
+  async getAllFeedsPushEvents(
     fromBlock = this.config.deploymentBlockNumber || 0,
     toBlock = 'latest'
   ) {
@@ -140,12 +140,12 @@ export default class API {
    * @param ts UNIX millisecond timestamp of the read.
    * @return Promise resolving to the transaction receipt
    */
-  async signAndPush (next) {
+  async signAndPush(next) {
     assertBigNumberOrString(next.read)
-    const readBigNumber = toContractBigNumber(next.read, this.decimals).toFixed()
+    const readBigNumber = toContractBigNumber(next.read).toFixed()
     const marketId = this.marketIdStrToBytes(next.marketIdStr)
     return signAndSendTransaction(this.web3, this.config.daemonAccountAddr, this.privateKey, this.config.feedContractAddr,
-            this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, pushGasLimit);
+      this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, pushGasLimit);
   }
 
   /**
@@ -155,7 +155,7 @@ export default class API {
     var next = this.pushQueue.pop(), self = this;
     if (next != undefined) {
       console.log("[API-Infura] Start pushing " + next.read + " on " + next.marketIdStr + "...");
-      this.currentTx = {requesting: true};
+      this.currentTx = { requesting: true };
       this.signAndPush(next).then((receipt) => {
         // Done callback
         if (next.doneCallback != undefined)
@@ -182,18 +182,18 @@ export default class API {
    *        ]
    * @param onErrorCallback Callback that will receive any errors
    */
-  getMarkets (onSuccessCallback, onErrorCallback) {
+  getMarkets(onSuccessCallback, onErrorCallback) {
     const fromBlock = this.config.deploymentBlockNumber || 0, self = this;
     getAllEventsWithName("LogFeedsMarketAdded", this.feeds, fromBlock, 'latest').then((markets) => {
       Promise.all(
         markets.map(async market => {
           if (market == undefined || market.raw == undefined || market.raw.topics == undefined ||
-              market.raw.topics.length <= 1)
+            market.raw.topics.length <= 1)
             return undefined;
           const bytesId = market.raw.topics[1];
           const strId = await self.marketIdBytesToStr(bytesId);
           return this.feeds.methods.isMarketActive(bytesId).call().then(active => {
-            return {bytesId, strId, active}
+            return { bytesId, strId, active }
           })
         })
       ).then(onSuccessCallback);
@@ -207,7 +207,7 @@ export default class API {
    * @param marketIdStr eg. Poloniex_ETH_USD
    * @return bytes32 sha3 of the marketIdStr
    */
-  marketIdStrToBytes (marketIdStr) {
+  marketIdStrToBytes(marketIdStr) {
     return this.web3.utils.sha3(marketIdStr)
   }
 
@@ -217,7 +217,7 @@ export default class API {
    * @param marketId sha3 of the market id string
    * @return Market id string
    */
-  marketIdBytesToStr (marketId) {
+  marketIdBytesToStr(marketId) {
     return this.feeds.methods.marketNames(marketId).call()
   }
 
@@ -234,7 +234,7 @@ export default class API {
    * @param web3 Initiated web3 instance for the network to work with.
    * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
    */
-  constructor (config, web3, privateKey = undefined) {
+  constructor(config, web3, privateKey = undefined) {
     this.config = config
     this.web3 = web3
     this.privateKey = privateKey
@@ -258,14 +258,11 @@ export default class API {
    *
    * @return API instance
    */
-  async initialise () {
+  async initialise() {
     var self = this;
     this.feeds = await priceFeedsInternalInstanceDeployed(this.config, this.web3);
-    this.decimals = await this.feeds.methods.decimals().call();
-    // Specify another feed source for market Coinbase_ETH
-    this.specificFeeds['Coinbase_ETH'] = await feedsMakerEthUsdInstanceDeployed(this.config, this.web3);
     // Start our recurrent function to check and eventually start pushing on the blockchain
-    setInterval(function() {
+    setInterval(function () {
       // If no pending transaction, push the next value waiting in the queue
       if (self.currentTx == undefined)
         self.pushNextQueueValue();
