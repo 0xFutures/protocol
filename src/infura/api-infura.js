@@ -2,7 +2,7 @@ import Promise from 'bluebird'
 import has from 'lodash/has'
 
 import {
-  feedsInstanceDeployed,
+  priceFeedsInternalInstanceDeployed,
   feedsMakerEthUsdInstanceDeployed
 } from './contracts'
 import {
@@ -260,7 +260,7 @@ export default class API {
    */
   async initialise () {
     var self = this;
-    this.feeds = await feedsInstanceDeployed(this.config, this.web3);
+    this.feeds = await priceFeedsInternalInstanceDeployed(this.config, this.web3);
     this.decimals = await this.feeds.methods.decimals().call();
     // Specify another feed source for market Coinbase_ETH
     this.specificFeeds['Coinbase_ETH'] = await feedsMakerEthUsdInstanceDeployed(this.config, this.web3);

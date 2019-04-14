@@ -7,7 +7,8 @@ import { config as configBase, web3 } from './helpers/setup'
 const PRICE = '67.00239'
 
 describe('admin-api.js', function () {
-  let feeds
+  let priceFeedsInternal
+  let priceFeedsExternal
   let cfdFactory
   let cfdRegistry
 
@@ -24,15 +25,20 @@ describe('admin-api.js', function () {
       let registry
 
         // eslint-disable-next-line no-extra-semi
-        ; ({ feeds, cfdRegistry, cfdFactory, registry } = await deployAllForTest(
-          {
-            web3,
-            initialPrice: PRICE
-          }
-        ))
+        ; ({
+          priceFeedsInternal,
+          priceFeedsExternal,
+          cfdRegistry,
+          cfdFactory,
+          registry
+        } = await deployAllForTest({
+          web3,
+          initialPrice: PRICE
+        }))
 
       config = Object.assign({}, configBase)
-      config.feedContractAddr = feeds.options.address
+      config.priceFeedsInternalContractAddr = priceFeedsInternal.options.address
+      config.priceFeedsExternalContractAddr = priceFeedsExternal.options.address
       config.cfdFactoryContractAddr = cfdFactory.options.address
       config.cfdRegistryContractAddr = cfdRegistry.options.address
       config.registryAddr = registry.options.address
@@ -47,14 +53,14 @@ describe('admin-api.js', function () {
   })
 
   it('changeDaemonAccount', async () => {
-    assert.equal((await api.feeds.methods.daemonAccount().call()).toLowerCase(), config.daemonAccountAddr.toLowerCase())
+    assert.equal((await api.priceFeedsInternal.methods.daemonAccount().call()).toLowerCase(), config.daemonAccountAddr.toLowerCase())
     const newDaemonAddr = accounts[4]
     await api.changeDaemonAccount(newDaemonAddr)
-    assert.equal((await api.feeds.methods.daemonAccount().call()).toLowerCase(), newDaemonAddr.toLowerCase())
+    assert.equal((await api.priceFeedsInternal.methods.daemonAccount().call()).toLowerCase(), newDaemonAddr.toLowerCase())
   })
 
   describe('changeOwnerAccount', () => {
-    const OWNED_CONTRACTS = ['feeds', 'registry', 'cfdRegistry', 'cfdFactory']
+    const OWNED_CONTRACTS = ['priceFeedsInternal', 'priceFeedsExternal', 'registry', 'cfdRegistry', 'cfdFactory']
 
     const assertOwnerAll = (ownerAddr, owned = OWNED_CONTRACTS) => Promise.all(owned.map(
       async contract => assert.equal(

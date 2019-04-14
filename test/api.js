@@ -1,14 +1,14 @@
-import {assert} from 'chai'
+import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
 import * as Utils from 'web3-utils'
 
 import API from '../src/infura/api-infura'
-import {toContractBigNumber, fromContractBigNumber} from '../src/infura/utils'
+import { toContractBigNumber, fromContractBigNumber } from '../src/infura/utils'
 
-import {assertEqualBN} from './helpers/assert'
-import {deployAllForTest} from './helpers/deploy'
-import {config as configBase, web3} from './helpers/setup'
+import { assertEqualBN } from './helpers/assert'
+import { deployAllForTest } from './helpers/deploy'
+import { config as configBase, web3 } from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
 const marketId = Utils.sha3(marketStr)
@@ -18,7 +18,7 @@ const ts = Date.now()
 const marketStr2 = 'Poloniex_BTC_USD'
 const marketId2 = Utils.sha3(marketStr2)
 
-describe('api-infura.js', function () {
+describe.skip('api-infura.js', function () {
   let readBN
   let decimals
   let feeds
@@ -29,7 +29,7 @@ describe('api-infura.js', function () {
     web3.eth.getAccounts().then(async (accounts) => {
 
       // eslint-disable-next-line no-extra-semi
-      ; ({feeds, decimals} = await deployAllForTest(
+      ; ({ feeds, decimals } = await deployAllForTest(
         {
           web3,
           initialPrice: price,
@@ -45,7 +45,7 @@ describe('api-infura.js', function () {
 
       done()
     }).catch((err) => {
-    	console.log(err)
+      console.log(err)
       process.exit(-1)
     })
   })

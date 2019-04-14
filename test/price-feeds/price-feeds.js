@@ -34,7 +34,7 @@ const CoinbaseMarket = {
   id: Utils.sha3(CoinbaseMarketStr)
 }
 
-describe.only('PriceFeeds', function () {
+describe('PriceFeeds', function () {
   const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
   const PriceFeedsExternal = priceFeedsExternalInstance(web3.currentProvider, config)
   const PriceFeedsInternal = priceFeedsInternalInstance(web3.currentProvider, config)

@@ -40,12 +40,12 @@ describe('ContractForDifferenceFactory', function () {
   before(async () => {
     strikePrice = new BigNumber('800.0')
 
-    let feeds
+    let priceFeeds
       // eslint-disable-next-line no-extra-semi
-    ;({ feeds, registry, daiToken } = await deployAllForTest({
-      web3,
-      initialPrice: strikePrice
-    }))
+      ; ({ priceFeeds, registry, daiToken } = await deployAllForTest({
+        web3,
+        initialPrice: strikePrice
+      }))
 
     // create the CFD Factory
     const cfdRegistry = await ContractForDifferenceRegistry.deploy({}).send();
@@ -53,7 +53,12 @@ describe('ContractForDifferenceFactory', function () {
     const cfd = await ContractForDifference.deploy({}).send({ gas: 7000000 });
     const ff = await ForwardFactory.deploy({}).send();
     cfdFactory = await ContractForDifferenceFactory.deploy({
-      arguments: [registry.options.address,cfd.options.address,ff.options.address,feeds.options.address]
+      arguments: [
+        registry.options.address,
+        cfd.options.address,
+        ff.options.address,
+        priceFeeds.options.address
+      ]
     }).send({ gas: 3000000 });
 
     await Promise.all([
@@ -75,12 +80,11 @@ describe('ContractForDifferenceFactory', function () {
       strikePrice.toFixed(),
       notionalAmount.toFixed(),
       true,
-      initialValue.toFixed())
-    .send({
-        gas: 2500000,
-        from: OWNER_ACCOUNT
-      }
-    )
+      initialValue.toFixed()
+    ).send({
+      gas: 2500000,
+      from: OWNER_ACCOUNT
+    })
 
     const cfdAddrStr = txReceipt.events.LogCFDFactoryNew.raw.data
     const cfdAddr = '0x' + cfdAddrStr.substr(cfdAddrStr.length - 40);

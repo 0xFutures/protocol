@@ -5,13 +5,15 @@ import {
   cfdFactoryInstance,
   cfdRegistryInstance,
   daiTokenInstanceDeployed,
-  feedsInstance,
   forwardFactoryInstance,
+  priceFeedsInstance,
+  priceFeedsInstanceDeployed,
+  priceFeedsInternalInstance,
+  priceFeedsExternalInstance,
   registryInstance,
   registryInstanceDeployed,
-  feedsInstanceDeployed
 } from './contracts'
-import {isEthereumAddress} from './utils'
+import { isEthereumAddress } from './utils'
 
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
@@ -23,7 +25,7 @@ const linkBytecode = (bytecode, libraryName, libraryAddress) => {
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
- * @return registry Registry truffle-contract instance
+ * @return registry Registry contract instance
  * @return updatedConfig Config instance with updated registryAddr
  */
 const deployRegistry = async (web3, config, logFn) => {
@@ -57,34 +59,56 @@ const deployRegistry = async (web3, config, logFn) => {
 }
 
 /**
- * Deploy and configure Feeds.
+ * Deploy and configure PriceFeeds contracts.
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
- * @return feeds Feeds truffle-contract instance
+ * @return feeds Feeds contract instance
  * @return updatedConfig Config instance with updated feedContractAddr
  */
-const deployFeeds = async (web3, config, logFn) => {
+const deployPriceFeeds = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
 
-  const Feeds = feedsInstance(web3.currentProvider, config)
-  logFn('Deploying Feeds ...')
-  const feeds = await Feeds.deploy({}).send({
+  const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
+  const PriceFeedsInternal = priceFeedsInternalInstance(web3.currentProvider, config)
+  const PriceFeedsExternal = priceFeedsExternalInstance(web3.currentProvider, config)
+
+  const txOpts = {
     from: config.ownerAccountAddr,
     gas: config.gasDefault
-  })
-  logFn(`Feeds: ${feeds.options.address}`)
+  }
 
-  logFn('Calling feeds.setDaemonAccount ...')
-  await feeds.methods.setDaemonAccount(config.daemonAccountAddr).send()
+  logFn('Deploying PriceFeedsInternal ...')
+  const priceFeedsInternal = await PriceFeedsInternal.deploy({}).send(txOpts)
+  logFn(`PriceFeedsInternal: ${priceFeedsInternal.options.address}`)
+
+  logFn('Deploying PriceFeedsExternal ...')
+  const priceFeedsExternal = await PriceFeedsExternal.deploy({}).send(txOpts)
+  logFn(`PriceFeedsExternal: ${priceFeedsExternal.options.address}`)
+
+  logFn('Calling priceFeedsInternal.setDaemonAccount ...')
+  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send()
   logFn('done\n')
 
+  logFn('Deploying PriceFeeds ...')
+  const priceFeeds = await PriceFeeds.deploy({
+    arguments: [
+      priceFeedsInternal.options.address,
+      priceFeedsExternal.options.address
+    ]
+  }).send(txOpts)
+  logFn(`PriceFeeds: ${priceFeeds.options.address}`)
+
   const updatedConfig = Object.assign({}, config, {
-    feedContractAddr: feeds.options.address
+    priceFeedsContractAddr: priceFeeds.options.address,
+    priceFeedsInternalContractAddr: priceFeedsInternal.options.address,
+    priceFeedsExternalContractAddr: priceFeedsExternal.options.address,
   })
 
   return {
-    feeds,
+    priceFeeds,
+    priceFeedsInternal,
+    priceFeedsExternal,
     updatedConfig
   }
 }
@@ -94,27 +118,21 @@ const deployFeeds = async (web3, config, logFn) => {
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
- * @return cfd ContractForDifference truffle-contract instance
- * @return cfdFactory ContractForDifferenceFactory truffle-contract instance
- * @return cfdRegistry ContractForDifferenceRegistry truffle-contract instance
+ * @return cfd ContractForDifference contract instance
+ * @return cfdFactory ContractForDifferenceFactory contract instance
+ * @return cfdRegistry ContractForDifferenceRegistry contract instance
  * @return updatedConfig Config instance with addresses of newly deployed contracts added
  */
 const deployCFD = async (web3, config, logFn) => {
-  const {registryAddr} = config
+  const { registryAddr } = config
 
   web3.eth.defaultAccount = config.ownerAccountAddr
-
-  // web3.version.getNetworkAsync = Promise.promisify(web3.version.getNetwork)
-  // const networkId = await web3.version.getNetworkAsync()
-
-  const networkId = await web3.eth.net.getId();
 
   const ForwardFactory = forwardFactoryInstance(web3.currentProvider, config)
   const CFD = cfdInstance(web3.currentProvider, config)
   const CFDLibrary = cfdLibraryInstance(web3.currentProvider, config)
   const CFDFactory = cfdFactoryInstance(web3.currentProvider, config)
   const CFDRegistry = cfdRegistryInstance(web3.currentProvider, config)
-  const Feeds = feedsInstance(web3.currentProvider, config)
 
   logFn('Deploying ForwardFactory ...')
   const ff = await ForwardFactory.deploy({}).send({
@@ -152,11 +170,16 @@ const deployCFD = async (web3, config, logFn) => {
   })
   logFn(`ContractForDifferenceRegistry: ${cfdRegistry.options.address}`)
 
-  const feeds = await feedsInstanceDeployed(config, web3)
+  const priceFeeds = await priceFeedsInstanceDeployed(config, web3)
 
   logFn('Deploying ContractForDifferenceFactory ...')
   const cfdFactory = await CFDFactory.deploy({
-    arguments: [registryAddr, cfd.options.address, ff.options.address, feeds.options.address]
+    arguments: [
+      registryAddr,
+      cfd.options.address,
+      ff.options.address,
+      priceFeeds.options.address
+    ]
   }).send({
     from: config.ownerAccountAddr,
     gas: 3000000
@@ -199,7 +222,7 @@ const deployAll = async (
   let registry
   if (firstTime === true) {
     // create registry
-    const {registry: registryInstance, updatedConfig} = await deployRegistry(
+    const { registry: registryInstance, updatedConfig } = await deployRegistry(
       web3,
       config,
       log
@@ -222,12 +245,17 @@ const deployAll = async (
   if (!isEthereumAddress(config.daiTokenAddr)) {
     throw new Error(
       `DAI token address not set - it should be set in the config file ` +
-        `OR if this is a dev env a mock version should have been deployed`
+      `OR if this is a dev env a mock version should have been deployed`
     )
   }
   const daiToken = await daiTokenInstanceDeployed(config, web3)
 
-  const {updatedConfig: configAfterFeeds, feeds} = await deployFeeds(
+  const {
+    updatedConfig: configAfterFeeds,
+    priceFeeds,
+    priceFeedsInternal,
+    priceFeedsExternal
+  } = await deployPriceFeeds(
     web3,
     config,
     log
@@ -245,10 +273,12 @@ const deployAll = async (
     cfdFactory,
     cfdRegistry,
     daiToken,
-    feeds,
+    priceFeeds,
+    priceFeedsInternal,
+    priceFeedsExternal,
     registry,
     updatedConfig: config
   }
 }
 
-export {deployAll}
+export { deployAll }

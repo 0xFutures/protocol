@@ -1,12 +1,12 @@
-import {assert} from 'chai'
+import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
 import CFDAPI from '../src/infura/cfd-api-infura'
-import {registryInstanceDeployed} from '../src/infura/contracts'
-import {STATUS} from '../src/infura/utils'
+import { registryInstanceDeployed } from '../src/infura/contracts'
+import { STATUS } from '../src/infura/utils'
 
-import {deployAllForTest} from './helpers/deploy'
-import {config as configBase, web3} from './helpers/setup'
+import { deployAllForTest } from './helpers/deploy'
+import { config as configBase, web3 } from './helpers/setup'
 
 const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction: revert'
 
@@ -23,7 +23,7 @@ const ONE_DAI = new BigNumber('1e18')
 const marketStr = 'Poloniex_ETH_USD'
 const price = '67.00239'
 
-describe('deploy', function () {
+describe.only('deploy', function () {
   let daemon1, daemon2
   let owner1, owner2
 
@@ -38,31 +38,40 @@ describe('deploy', function () {
   const deployFullSet = async (config, firstTime = true) => {
     let cfdFactory
     let cfdRegistry
-    let feeds
+    let priceFeeds
+    let priceFeedsInternal
+    let priceFeedsExternal
     let registry
     let daiToken
+    let ethUsdMaker
 
       // eslint-disable-next-line no-extra-semi
-    ;({
-      feeds,
-      cfdRegistry,
-      cfdFactory,
-      registry,
-      daiToken
-    } = await deployAllForTest({
-      web3,
-      config,
-      initialPrice: price,
-      firstTime,
-      seedAccounts: [buyer, seller]
-    }))
+      ; ({
+        priceFeeds,
+        priceFeedsInternal,
+        priceFeedsExternal,
+        cfdRegistry,
+        cfdFactory,
+        registry,
+        daiToken,
+        ethUsdMaker
+      } = await deployAllForTest({
+        web3,
+        config,
+        initialPrice: price,
+        firstTime,
+        seedAccounts: [buyer, seller]
+      }))
 
     const updatedConfig = Object.assign({}, config, {
-      feedContractAddr: feeds.options.address,
+      priceFeedsContractAddr: priceFeeds.options.address,
+      priceFeedsInternalContractAddr: priceFeedsInternal.options.address,
+      priceFeedsExternalContractAddr: priceFeedsExternal.options.address,
       registryAddr: registry.options.address,
       cfdFactoryContractAddr: cfdFactory.options.address,
       cfdRegistryContractAddr: cfdRegistry.options.address,
-      daiTokenAddr: daiToken.options.address
+      daiTokenAddr: daiToken.options.address,
+      ethUsdMakerAddr: ethUsdMaker.options.address
     })
 
     return updatedConfig
@@ -84,7 +93,7 @@ describe('deploy', function () {
   before(done => {
     notionalAmount = ONE_DAI
     web3.eth.getAccounts().then(async (accounts) => {
-    	daemon1 = accounts[ACCOUNT_DAEMON_1]
+      daemon1 = accounts[ACCOUNT_DAEMON_1]
       daemon2 = accounts[ACCOUNT_DAEMON_2]
       owner1 = accounts[ACCOUNT_OWNER_1]
       owner2 = accounts[ACCOUNT_OWNER_2]
@@ -98,7 +107,7 @@ describe('deploy', function () {
   })
 
   it('deploy new set of contracts with new owner and daemon account', async () => {
-    const deploymentConfig = {v1: {}, v2: {}}
+    const deploymentConfig = { v1: {}, v2: {} }
 
     /*
      * Deploy first time - will create a new Registry and ALL others
@@ -111,7 +120,7 @@ describe('deploy', function () {
     deploymentConfig.v1 = await deployFullSet(config1, true)
 
     const registry = await registryInstanceDeployed(deploymentConfig.v1, web3)
-    await registry.methods.transferOwnership(owner2).send({from: owner1})
+    await registry.methods.transferOwnership(owner2).send({ from: owner1 })
     assert.equal(owner2, await registry.methods.owner().call(), 'owner updated')
 
     /*
@@ -122,7 +131,6 @@ describe('deploy', function () {
       daemonAccountAddr: daemon2
     })
     deploymentConfig.v2 = await deployFullSet(config2, false)
-
     assert.equal(
       deploymentConfig.v1.registryAddr,
       deploymentConfig.v2.registryAddr,

@@ -22,7 +22,7 @@ const ACCOUNT_PARTY = 7
 const ACCOUNT_COUNTERPARTY = 8
 const ACCOUNT_THIRDPARTY = 9
 
-describe('event-api.js', function () {
+describe.skip('event-api.js', function () {
 
   let feeds
   let cfdFactory
@@ -65,12 +65,12 @@ describe('event-api.js', function () {
       counterparty = accounts[ACCOUNT_COUNTERPARTY]
       thirdParty = accounts[ACCOUNT_THIRDPARTY]
 
-      // eslint-disable-next-line no-extra-semi
-      ;({cfdFactory, cfdRegistry, feeds, daiToken} = await deployAllForTest({
-        web3,
-        initialPrice: price,
-        seedAccounts: [buyer, seller, party, counterparty, thirdParty]
-      }))
+        // eslint-disable-next-line no-extra-semi
+        ; ({ cfdFactory, cfdRegistry, feeds, daiToken } = await deployAllForTest({
+          web3,
+          initialPrice: price,
+          seedAccounts: [buyer, seller, party, counterparty, thirdParty]
+        }))
 
       const config = Object.assign({}, configBase)
       config.feedContractAddr = feeds.options.address

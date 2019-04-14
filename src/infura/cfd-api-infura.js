@@ -7,7 +7,7 @@ import {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstanceDeployed,
   daiTokenInstanceDeployed,
-  feedsInstanceDeployed
+  priceFeedsInstanceDeployed
 } from './contracts'
 import {
   STATUS,
@@ -20,7 +20,7 @@ import {
   signAndSendTransaction
 } from './utils'
 
-import {creatorFee, joinerFee} from '../calc'
+import { creatorFee, joinerFee } from '../calc'
 
 // strip off any decimal component of a value as values must be whole numbers
 const safeValue = value => value.toFixed(0)
@@ -37,7 +37,7 @@ export default class CFDAPI {
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance (config, web3, privateKey) {
+  static async newInstance(config, web3, privateKey) {
     /*if (web3 == undefined || web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
@@ -61,10 +61,10 @@ export default class CFDAPI {
    * @param isBuyer Creator wants to be contract buyer or seller
    * @param creator Creator of this contract who will sign the transaction
    *
-   * @return Promise resolving to a new cfd truffle-contract instance on
+   * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
    */
-  async newCFD (
+  async newCFD(
     marketIdStr,
     strikePrice,
     notionalAmountDai,
@@ -76,7 +76,7 @@ export default class CFDAPI {
     assertBigNumberOrString(notionalAmountDai)
     assertBigNumberOrString(leverage)
 
-    const decimals = await this.feeds.methods.decimals().call()
+    const decimals = await this.priceFeeds.methods.decimals().call()
     const strikePriceBN = toContractBigNumber(strikePrice, decimals).toFixed()
     const marketId = this.marketIdStrToBytes(marketIdStr)
     const leverageValue = parseFloat(leverage)
@@ -89,14 +89,14 @@ export default class CFDAPI {
     const deposit = notionalBN.dividedBy(leverageValue)
     const value = safeValue(deposit.plus(creatorFee(notionalBN)))
 
-    await this.daiToken.methods.approve(this.cfdFactory.options.address, value).send({from: creator})
+    await this.daiToken.methods.approve(this.cfdFactory.options.address, value).send({ from: creator })
     const receipt = await this.cfdFactory.methods.createContract(
       marketId,
       strikePriceBN,
       notionalBN.toFixed(),
       isBuyer,
       value
-    ).send({from: creator, gas: 500000})
+    ).send({ from: creator, gas: 500000 })
 
     if (txFailed(receipt.status)) {
       return Promise.reject(
@@ -106,8 +106,13 @@ export default class CFDAPI {
       )
     }
     // If we cannot get the cfd address
-    if (receipt == undefined || receipt.events == undefined || receipt.events.LogCFDFactoryNew == undefined ||
-        receipt.events.LogCFDFactoryNew.raw == undefined || receipt.events.LogCFDFactoryNew.raw.data == undefined)
+    if (
+      receipt == undefined ||
+      receipt.events == undefined ||
+      receipt.events.LogCFDFactoryNew == undefined ||
+      receipt.events.LogCFDFactoryNew.raw == undefined ||
+      receipt.events.LogCFDFactoryNew.raw.data == undefined
+    )
       return undefined;
     const cfdAddressRaw = receipt.events.LogCFDFactoryNew.raw.data;
     const cfdAddress = '0x' + cfdAddressRaw.substr(cfdAddressRaw.length - 40);
@@ -123,25 +128,25 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async deposit (cfdAddress, depositAccount, amount) {
+  async deposit(cfdAddress, depositAccount, amount) {
     const cfd = getContract(cfdAddress, this.web3)
     const fee = await this.joinFee(cfd)
     const value = safeValue(amount.plus(fee))
-    await this.daiToken.methods.approve(cfd.options.address, value).send({from: depositAccount})
-    return cfd.methods.deposit(value).send({from: depositAccount, gas: 1000000})
+    await this.daiToken.methods.approve(cfd.options.address, value).send({ from: depositAccount })
+    return cfd.methods.deposit(value).send({ from: depositAccount, gas: 1000000 })
   }
 
   /**
    * Get details of a CFD given a deployment address.
    * @param cfdAddress Address of a deployed CFD
    */
-  async getCFD (cfdAddress) {
+  async getCFD(cfdAddress) {
     const self = this, cfd = getContract(cfdAddress, self.web3);
     return Promise.all([
       cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
       cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
       cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
-      self.feeds.methods.decimals().call(),
+      self.priceFeeds.methods.decimals().call(),
       cfd.methods.closed().call()
     ]).then(function (values) {
       // Got all the data, fetch the data that needed previous values
@@ -151,30 +156,32 @@ export default class CFDAPI {
         cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
       ]).then(function (values2) {
         // Got the rest of the data
-        return Object.assign(cfd, {details: {
-          address: cfdAddress.toLowerCase(),
-          closed: values[4],
-          status: parseInt(values[0][7]),
-          liquidated: values[2][0],
-          upgradeCalledBy: values[2][1].toLowerCase(),
-          buyer: values[0][0].toLowerCase(),
-          buyerIsSelling: values[0][5],
-          seller: values[0][1].toLowerCase(),
-          sellerIsSelling: values[0][6],
-          market: values2[0],
-          notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
-          buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
-          sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
-          strikePrice: fromContractBigNumber(values[0][3], values[3]),
-          buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
-          sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
-          buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
-          sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
-          buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
-          sellerInitialStrikePrice: fromContractBigNumber(values[1][7], values[3]),
-          buyerLiquidationPrice: fromContractBigNumber(values2[1], values[3]),
-          sellerLiquidationPrice: fromContractBigNumber(values2[2], values[3])
-        }})
+        return Object.assign(cfd, {
+          details: {
+            address: cfdAddress.toLowerCase(),
+            closed: values[4],
+            status: parseInt(values[0][7]),
+            liquidated: values[2][0],
+            upgradeCalledBy: values[2][1].toLowerCase(),
+            buyer: values[0][0].toLowerCase(),
+            buyerIsSelling: values[0][5],
+            seller: values[0][1].toLowerCase(),
+            sellerIsSelling: values[0][6],
+            market: values2[0],
+            notionalAmountDai: fromContractBigNumber(values[0][4], WEI_DECIMALS),
+            buyerInitialNotional: fromContractBigNumber(values[1][0], WEI_DECIMALS),
+            sellerInitialNotional: fromContractBigNumber(values[1][1], WEI_DECIMALS),
+            strikePrice: fromContractBigNumber(values[0][3], values[3]),
+            buyerSaleStrikePrice: fromContractBigNumber(values[1][4], values[3]),
+            sellerSaleStrikePrice: fromContractBigNumber(values[1][5], values[3]),
+            buyerDepositBalance: fromContractBigNumber(values[1][2], WEI_DECIMALS),
+            sellerDepositBalance: fromContractBigNumber(values[1][3], WEI_DECIMALS),
+            buyerInitialStrikePrice: fromContractBigNumber(values[1][6], values[3]),
+            sellerInitialStrikePrice: fromContractBigNumber(values[1][7], values[3]),
+            buyerLiquidationPrice: fromContractBigNumber(values2[1], values[3]),
+            sellerLiquidationPrice: fromContractBigNumber(values2[2], values[3])
+          }
+        })
       }).catch(error => {
         throw new Error(error);
       });
@@ -191,7 +198,7 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeStrikePriceCFD (cfdAddress, userAccount, desiredStrikePrice) {
+  async changeStrikePriceCFD(cfdAddress, userAccount, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if ((await cfd.methods.isContractParty(userAccount).call()) === false) {
@@ -200,13 +207,13 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.feeds.methods.decimals().call()
+    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
       desiredStrikePrice,
       decimals
     ).toFixed()
 
-    return cfd.methods.changeStrikePrice(desiredStrikePriceBN).send({from: userAccount})
+    return cfd.methods.changeStrikePrice(desiredStrikePriceBN).send({ from: userAccount })
   }
 
   /**
@@ -220,7 +227,7 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async sellCFD (cfdAddress, sellerAccount, desiredStrikePrice, timeLimit = 0) {
+  async sellCFD(cfdAddress, sellerAccount, desiredStrikePrice, timeLimit = 0) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
@@ -229,7 +236,7 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.feeds.methods.decimals().call()
+    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
       desiredStrikePrice,
       decimals
@@ -250,13 +257,13 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async buyCFD (cfdAddress, account, valueToBuy, isBuyerSide) {
+  async buyCFD(cfdAddress, account, valueToBuy, isBuyerSide) {
     const cfd = getContract(cfdAddress, this.web3)
     const fee = await this.joinFee(cfd)
     const valueToBuyBN = new BigNumber(valueToBuy)
     const value = safeValue(valueToBuyBN.plus(fee))
-    await this.daiToken.methods.approve(cfd.options.address, value).send({from: account})
-    return cfd.methods.buy(isBuyerSide, value).send({from: account, gas: 1000000})
+    await this.daiToken.methods.approve(cfd.options.address, value).send({ from: account })
+    return cfd.methods.buy(isBuyerSide, value).send({ from: account, gas: 1000000 })
   }
 
   /**
@@ -267,9 +274,9 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async transferPosition (cfdAddress, fromAccount, toAccount) {
+  async transferPosition(cfdAddress, fromAccount, toAccount) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.transferPosition(toAccount).send({from: fromAccount, gas: 50000})
+    return cfd.methods.transferPosition(toAccount).send({ from: fromAccount, gas: 50000 })
   }
 
   /**
@@ -279,9 +286,9 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async forceTerminate (cfdAddress, account) {
+  async forceTerminate(cfdAddress, account) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.forceTerminate().send({from: account, gas: 150000})
+    return cfd.methods.forceTerminate().send({ from: account, gas: 150000 })
   }
 
   /**
@@ -291,9 +298,9 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelNew (cfdAddress, account) {
+  async cancelNew(cfdAddress, account) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.cancelNew().send({from: account, gas: 150000})
+    return cfd.methods.cancelNew().send({ from: account, gas: 150000 })
   }
 
   /**
@@ -303,9 +310,9 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelSale (cfdAddress, account) {
+  async cancelSale(cfdAddress, account) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.sellCancel().send({from: account})
+    return cfd.methods.sellCancel().send({ from: account })
   }
 
   /**
@@ -315,9 +322,9 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async upgradeCFD (cfdAddress, account) {
+  async upgradeCFD(cfdAddress, account) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.upgrade().send({from: account})
+    return cfd.methods.upgrade().send({ from: account })
   }
 
   /**
@@ -325,14 +332,14 @@ export default class CFDAPI {
    * @param cfdAddress, Address of the contract
    * @param account, Account address of the user
    */
-  attemptContractLiquidation (cfdAddress, account) {
+  attemptContractLiquidation(cfdAddress, account) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
     ]).then(() => {
       // Contract address exists
       const cfd = getContract(cfdAddress, self.web3);
-      return cfd.methods.liquidate().send({from: account, gas: 200000});
+      return cfd.methods.liquidate().send({ from: account, gas: 200000 });
     }).catch(error => {
       throw new Error(error);
     });
@@ -342,7 +349,7 @@ export default class CFDAPI {
    * @param cfdAddress, Address of the contract
    * @param account, Account address of the user
    */
-  attemptContractLiquidationDaemon (cfdAddress, account) {
+  attemptContractLiquidationDaemon(cfdAddress, account) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
@@ -350,7 +357,7 @@ export default class CFDAPI {
       // Contract address exists
       const cfd = getContract(cfdAddress, self.web3);
       return signAndSendTransaction(self.web3, self.config.daemonAccountAddr, self.privateKey, self.config.feedContractAddr,
-            cfd.methods.liquidate().encodeABI(), self.config.gasPrice, 200000);
+        cfd.methods.liquidate().encodeABI(), self.config.gasPrice, 200000);
     }).catch(error => {
       throw new Error(error);
     });
@@ -364,8 +371,8 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeSaleCFD (cfdAddress, sellerAccount, desiredStrikePrice) {
-  	const cfd = getContract(cfdAddress, this.web3);
+  async changeSaleCFD(cfdAddress, sellerAccount, desiredStrikePrice) {
+    const cfd = getContract(cfdAddress, this.web3);
 
     if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
       return Promise.reject(
@@ -373,7 +380,7 @@ export default class CFDAPI {
       )
     }
 
-    const decimals = await this.feeds.methods.decimals().call()
+    const decimals = await this.priceFeeds.methods.decimals().call()
     const desiredStrikePriceBN = toContractBigNumber(
       desiredStrikePrice,
       decimals
@@ -390,7 +397,7 @@ export default class CFDAPI {
    * @param account, The address of the account who is topuping
    * @param valueToAdd, The amount the user wants to add (DAI)
    */
-  async topup (cfdAddress, account, valueToAdd) {
+  async topup(cfdAddress, account, valueToAdd) {
     const cfd = getContract(cfdAddress, this.web3);
 
     if ((await cfd.methods.isContractParty(account).call()) === false) {
@@ -400,8 +407,8 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToAdd)
-    await this.daiToken.methods.approve(cfdAddress, value).send({from: account})
-    return cfd.methods.topup(value).send({from: account})
+    await this.daiToken.methods.approve(cfdAddress, value).send({ from: account })
+    return cfd.methods.topup(value).send({ from: account })
   }
 
   /**
@@ -410,7 +417,7 @@ export default class CFDAPI {
    * @param account, The address of the account who is withdrawing
    * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
    */
-  async withdraw (cfdAddress, account, valueToWithdraw) {
+  async withdraw(cfdAddress, account, valueToWithdraw) {
     const cfd = getContract(cfdAddress, this.web3);
     if ((await cfd.methods.isContractParty(account).call()) === false) {
       return Promise.reject(
@@ -419,7 +426,7 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToWithdraw)
-    return cfd.methods.withdraw(value).send({from: account})
+    return cfd.methods.withdraw(value).send({ from: account })
   }
 
 
@@ -448,9 +455,9 @@ export default class CFDAPI {
    *                            (default=false)
    * @return a promise with the array of contracts
    */
-  contractsForMarket (
+  contractsForMarket(
     marketId,
-    {fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false}
+    { fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false }
   ) {
     const self = this;
     const market = this.marketIdStrToBytes(marketId);
@@ -474,7 +481,7 @@ export default class CFDAPI {
           return;
         }
         // For each event, find the cfd address and filter on the market ID
-        events = events.filter(function(ev) {
+        events = events.filter(function (ev) {
           if (ev.raw.data == undefined || ev.raw.topics.length <= 1)
             return false;
           ev.address = '0x' + ev.raw.data.substr(ev.raw.data.length - 40);
@@ -501,9 +508,9 @@ export default class CFDAPI {
    *                            (default=false)
    * @return a promise with the array of contracts
    */
-  contractsForParty (
+  contractsForParty(
     partyAddress,
-    {fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false}
+    { fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false }
   ) {
     const self = this;
     // Function to get one CFD details
@@ -531,20 +538,20 @@ export default class CFDAPI {
           return;
         }
         // For each event, find the cfd address
-        events = events.filter(function(ev) {
+        events = events.filter(function (ev) {
           if (ev.raw.topics.length <= 1)
             return false;
           ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
           return true;
         })
-        // And remove duplicates events (by checking cfd address)
-        .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
+          // And remove duplicates events (by checking cfd address)
+          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
           // Check if we want to exclude the liquidated
           if ((cfd.details.buyer.toLowerCase() == partyAddress.toLowerCase() ||
-              cfd.details.seller.toLowerCase() == partyAddress.toLowerCase()) &&
-              (includeLiquidated == true || cfd.details.closed == false))
+            cfd.details.seller.toLowerCase() == partyAddress.toLowerCase()) &&
+            (includeLiquidated == true || cfd.details.closed == false))
             return true;
           return false;
         })));
@@ -558,8 +565,8 @@ export default class CFDAPI {
    *          fromBlock Block to query events from (default=0)
    * @return a promise with the array of contracts
    */
-  contractsWaitingCounterparty (
-    {fromBlock = this.config.deploymentBlockNumber || 0}
+  contractsWaitingCounterparty(
+    { fromBlock = this.config.deploymentBlockNumber || 0 }
   ) {
     const self = this;
     // Function to get one CFD details
@@ -582,14 +589,14 @@ export default class CFDAPI {
           return;
         }
         // For each event, find the cfd address
-        events = events.filter(function(ev) {
+        events = events.filter(function (ev) {
           if (ev.raw.topics.length <= 1)
             return false;
           ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
           return true;
         })
-        // And remove duplicates events (by checking cfd address)
-        .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
+          // And remove duplicates events (by checking cfd address)
+          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
           // Get only the CFD that are not initialized and not closed
@@ -607,8 +614,8 @@ export default class CFDAPI {
    *          fromBlock Block to query events from (default=0)
    * @return a promise with the array of contracts
    */
-  contractsForSale (
-    {fromBlock = this.config.deploymentBlockNumber || 0}
+  contractsForSale(
+    { fromBlock = this.config.deploymentBlockNumber || 0 }
   ) {
     const self = this;
     // Function to get one CFD details
@@ -631,19 +638,19 @@ export default class CFDAPI {
           return;
         }
         // For each event, find the cfd address
-        events = events.filter(function(ev) {
+        events = events.filter(function (ev) {
           if (ev.raw.topics.length <= 1)
             return false;
           ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
           return true;
         })
-        // And remove duplicates events (by checking cfd address)
-        .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
+          // And remove duplicates events (by checking cfd address)
+          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
           // Get only the CFD that are not initialized and not closed
           if (cfd.details.status == STATUS.SALE && cfd.details.closed == false &&
-              (cfd.details.buyerIsSelling == true || cfd.details.sellerIsSelling == true))
+            (cfd.details.buyerIsSelling == true || cfd.details.sellerIsSelling == true))
             return true;
           return false;
         })));
@@ -678,7 +685,7 @@ export default class CFDAPI {
    * @param marketIdStr eg. Poloniex_ETH_USD
    * @return bytes32 sha3 of the marketIdStr
    */
-  marketIdStrToBytes (marketIdStr) {
+  marketIdStrToBytes(marketIdStr) {
     return this.web3.utils.sha3(marketIdStr)
   }
 
@@ -688,11 +695,11 @@ export default class CFDAPI {
    * @param marketId sha3 of the market id string
    * @return Market id string
    */
-  marketIdBytesToStr (marketId) {
-    return this.feeds.methods.marketNames(marketId).call()
+  marketIdBytesToStr(marketId) {
+    return this.priceFeeds.methods.marketNames(marketId).call()
   }
 
-  async joinFee (cfd) {
+  async joinFee(cfd) {
     const notionalAmount = await cfd.methods.notionalAmountDai().call()
     return joinerFee(new BigNumber(notionalAmount))
   }
@@ -709,7 +716,7 @@ export default class CFDAPI {
    * @param web3 Initiated web3 instance for the network to work with.
    * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
    */
-  constructor (config, web3, privateKey = undefined) {
+  constructor(config, web3, privateKey = undefined) {
     this.config = config
     this.web3 = web3
     this.privateKey = privateKey
@@ -727,7 +734,7 @@ export default class CFDAPI {
    *
    * @return api instance
    */
-  async initialise () {
+  async initialise() {
     this.cfd = cfdInstance(
       this.web3.currentProvider,
       this.config.ownerAccountAddr
@@ -735,7 +742,7 @@ export default class CFDAPI {
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
     this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
-    this.feeds = await feedsInstanceDeployed(this.config, this.web3)
+    this.priceFeeds = await priceFeedsInstanceDeployed(this.config, this.web3)
     return this
   }
 }

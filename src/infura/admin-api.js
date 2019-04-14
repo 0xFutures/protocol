@@ -2,7 +2,8 @@ import Promise from 'bluebird'
 import {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstanceDeployed,
-  feedsInstanceDeployed,
+  priceFeedsInternalInstanceDeployed,
+  priceFeedsExternalInstanceDeployed,
   registryInstanceDeployed
 } from './contracts'
 
@@ -17,7 +18,7 @@ export default class AdminAPI {
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance (config, web3) {
+  static async newInstance(config, web3) {
     /*if (web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
@@ -37,9 +38,9 @@ export default class AdminAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  changeDaemonAccount (newDaemonAddr) {
-    return this.feeds.methods.setDaemonAccount(newDaemonAddr).send(
-      {from: this.config.ownerAccountAddr}
+  changeDaemonAccount(newDaemonAddr) {
+    return this.priceFeedsInternal.methods.setDaemonAccount(newDaemonAddr).send(
+      { from: this.config.ownerAccountAddr }
     ).then(() => {
       this.config.daemonAccountAddr = newDaemonAddr
       console.log(`Daemon updated on chain.\n`)
@@ -57,14 +58,14 @@ export default class AdminAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  changeOwnerAccount (newOwnerAddr, options = {registryOnly: false}) {
+  changeOwnerAccount(newOwnerAddr, options = { registryOnly: false }) {
     const registryOnly = options.registryOnly === true
     const ownableContracts = registryOnly
       ? ['registry']
-      : ['feeds', 'registry', 'cfdRegistry', 'cfdFactory']
+      : ['priceFeedsInternal', 'priceFeedsExternal', 'registry', 'cfdRegistry', 'cfdFactory']
     return Promise.all(ownableContracts.map(contractKey =>
       this[contractKey].methods.transferOwnership(newOwnerAddr).send(
-        {from: this.config.ownerAccountAddr}
+        { from: this.config.ownerAccountAddr }
       )
     )).then(() => {
       this.config.ownerAccountAddr = newOwnerAddr
@@ -84,7 +85,7 @@ export default class AdminAPI {
    * @param config Configuration object with all properties as per config.json.template
    * @param web3 Initiated web3 instance for the network to work with.
    */
-  constructor (config, web3) {
+  constructor(config, web3) {
     this.config = config
     this.web3 = web3
     this.web3.eth.getCodeAsync = Promise.promisify(this.web3.eth.getCode)
@@ -100,10 +101,11 @@ export default class AdminAPI {
    *
    * @return api instance
    */
-  async initialise () {
+  async initialise() {
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
-    this.feeds = await feedsInstanceDeployed(this.config, this.web3)
+    this.priceFeedsInternal = await priceFeedsInternalInstanceDeployed(this.config, this.web3)
+    this.priceFeedsExternal = await priceFeedsExternalInstanceDeployed(this.config, this.web3)
     this.registry = await registryInstanceDeployed(this.config, this.web3)
     return this
   }
