@@ -23,7 +23,7 @@ const ACCOUNT_PARTY = 7
 const ACCOUNT_COUNTERPARTY = 8
 const ACCOUNT_THIRDPARTY = 9
 
-describe('cfd-api-infura.js', function () {
+describe('cfd-api.js', function () {
   let priceFeeds
   let cfdFactory
   let cfdRegistry

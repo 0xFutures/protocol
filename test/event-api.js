@@ -1,9 +1,6 @@
 import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
-import * as Utils from 'web3-utils'
-
-import API from '../src/infura/api-infura'
 import CFDAPI from '../src/infura/cfd-api-infura'
 import EVENTAPI from '../src/infura/event-api'
 
@@ -11,9 +8,7 @@ import { deployAllForTest } from './helpers/deploy'
 import { config as configBase, web3 } from './helpers/setup'
 
 const marketStr = 'Poloniex_ETH_USD'
-const marketId = Utils.sha3(marketStr)
 const price = '67.00239'
-const newPrice = '42.05832'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_BUYER = 5

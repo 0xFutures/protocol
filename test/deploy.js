@@ -23,7 +23,7 @@ const ONE_DAI = new BigNumber('1e18')
 const marketStr = 'Poloniex_ETH_USD'
 const price = '67.00239'
 
-describe('deploy', function () {
+describe('deploy.js', function () {
   let daemon1, daemon2
   let owner1, owner2
 

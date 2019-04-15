@@ -1,8 +1,8 @@
 pragma solidity ^0.5.0;
 
 /**
- * Mock version of the MakerDAO medianizer contract for the ETHUSD price for
- * testing.
+ * Mock version of the MakerDAO medianizer price feeds contract for getting the
+ * ETHUSD price in test and development.
  *
  * See also interface contracts/feeds/EthUsdMakerInterface.sol.
  */

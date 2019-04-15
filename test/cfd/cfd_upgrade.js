@@ -26,7 +26,7 @@ const price = '67.00239'
 const isBigNumber = num =>
   typeof num === 'object' && 'e' in num && 'c' in num && 's' in num
 
-describe.only('cfd upgrade', function () {
+describe('cfd upgrade', function () {
   let daemonAccountAddr
   let ownerAccountAddr
 
