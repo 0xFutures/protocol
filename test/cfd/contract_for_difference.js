@@ -17,7 +17,7 @@ import {
 import { cfdInstance } from '../../src/infura/contracts'
 
 import { assertEqualBN, assertLoggedParty, assertStatus } from '../helpers/assert'
-import { deployAllForTest } from '../helpers/deploy'
+import { deployAllForTest, mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
 const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction: revert'
@@ -38,18 +38,23 @@ describe('ContractForDifference', function () {
     const COUNTERPARTY_ACCOUNT = accounts[4]
     const FEES_ACCOUNT = accounts[8]
 
+    // some defaults for testing
     const strikePriceRaw = new BigNumber('800.0')
     const notionalAmount = ONE_DAI
+
+    // the following get set up in the before() block
+    let marketId
     let strikePriceAdjusted
 
     let registry
     let priceFeeds
     let priceFeedsInternal
+    let priceFeedsExternal
     let cfdRegistry
     let daiToken
+    let ethUsdMaker
     let markets
     let marketNames
-    let marketId
 
     let minimumCollateral
     let maximumCollateral
@@ -82,7 +87,8 @@ describe('ContractForDifference', function () {
       notionalAmount,
       isBuyer,
       daiValue = notionalAmount,
-      creator = CREATOR_ACCOUNT
+      creator = CREATOR_ACCOUNT,
+      market = marketId
     }) => {
 
       const cfd = await ContractForDifference.deploy({}).send({
@@ -93,13 +99,12 @@ describe('ContractForDifference', function () {
       const transferAmount = creatorFee().plus(daiValue)
       await daiToken.methods.transfer(cfd.options.address, transferAmount.toFixed()).send()
 
-      marketId = markets[marketNames.poloniexEthUsd]
       await cfd.methods.create(
         registry.options.address,
         cfdRegistry.options.address,
         priceFeeds.options.address,
         creator,
-        marketId,
+        market,
         new BigNumber(strikePrice).toFixed(),
         new BigNumber(notionalAmount).toFixed(),
         isBuyer
@@ -121,8 +126,10 @@ describe('ContractForDifference', function () {
         cfdRegistry,
         priceFeeds,
         priceFeedsInternal,
+        priceFeedsExternal,
         registry,
         daiToken,
+        ethUsdMaker,
         markets,
         marketNames
       } = await deployAllForTest({
@@ -131,6 +138,7 @@ describe('ContractForDifference', function () {
       })
       )
       strikePriceAdjusted = toContractBigNumber(strikePriceRaw)
+      marketId = markets[marketNames.poloniexEthUsd]
 
       // set factory to default account so we can manually call registerNew
       await cfdRegistry.methods.setFactory(config.ownerAccountAddr).send()
@@ -585,7 +593,7 @@ describe('ContractForDifference', function () {
         })
       })
 
-      describe('liquidation via threshold reached - call updateSubscriber()', async () => {
+      describe.only('liquidation via threshold reached - call liquidate()', async () => {
         // #11 ensures the contract does not disolve if the daemon is wrong for
         // some reason about the liquidate threshold being reached
         it('rejects the update if called and the threshold has not been reached', async () => {
@@ -608,7 +616,7 @@ describe('ContractForDifference', function () {
           }
         })
 
-        it('disolves the contract - 1x leverage both sides, price rise', async () => {
+        it('disolves the contract - 1x leverage both sides, price rise - INTERNAL price feed', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
 
@@ -617,6 +625,51 @@ describe('ContractForDifference', function () {
           await priceFeedsInternal.methods.push(marketId, newStrikePrice.toFixed(), nowSecs()).send({
             from: DAEMON_ACCOUNT
           })
+
+          const cfdBalance = await getBalance(cfd.options.address)
+          const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+          const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
+
+          await cfd.methods.liquidate().send({
+            from: DAEMON_ACCOUNT,
+            gas: 200000
+          })
+
+          await assertStatus(cfd, STATUS.CLOSED)
+          assert.isTrue(await cfd.methods.closed().call())
+          assert.isFalse(await cfd.methods.terminated().call())
+
+          // full cfd balance transferred
+          assertEqualBN(
+            await getBalance(CREATOR_ACCOUNT),
+            creatorBalBefore.plus(cfdBalance),
+            'buyer should have full balance transferred'
+          )
+          // unchanged
+          assertEqualBN(
+            await getBalance(COUNTERPARTY_ACCOUNT),
+            cpBalBefore,
+            'seller balance should be unchanged'
+          )
+        })
+
+        it('disolves the contract - 1x leverage both sides, price rise - EXTERNAL price feed', async () => {
+          // push price onto the mock maker price feed contract
+          const makerEthPrice = '211.99'
+          const makerEthPriceAdjusted = toContractBigNumber(makerEthPrice)
+          await mockMakerPut(ethUsdMaker, makerEthPrice)
+
+          const cfd = await newCFD({
+            notionalAmount,
+            isBuyer: true,
+            market: markets[marketNames.makerEthPrice],
+            strikePrice: makerEthPriceAdjusted
+          })
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+
+          // 5% threshold passed for seller
+          const newMarketPrice = makerEthPriceAdjusted.times(1.951)
+          await mockMakerPut(ethUsdMaker, newMarketPrice)
 
           const cfdBalance = await getBalance(cfd.options.address)
           const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
