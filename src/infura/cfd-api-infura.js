@@ -349,8 +349,15 @@ export default class CFDAPI {
     ]).then(() => {
       // Contract address exists
       const cfd = getContract(cfdAddress, self.web3);
-      return signAndSendTransaction(self.web3, self.config.daemonAccountAddr, self.privateKey, self.config.feedContractAddr,
-        cfd.methods.liquidate().encodeABI(), self.config.gasPrice, 200000);
+      return signAndSendTransaction(
+        self.web3,
+        self.config.daemonAccountAddr,
+        self.privateKey,
+        self.config.priceFeedsInternalContractAddr,
+        cfd.methods.liquidate().encodeABI(),
+        self.config.gasPrice,
+        200000
+      );
     }).catch(error => {
       throw new Error(error);
     });

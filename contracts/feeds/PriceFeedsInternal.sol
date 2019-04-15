@@ -20,16 +20,11 @@ contract PriceFeedsInternal is DBC, Ownable {
     string constant REASON_FALLBACK = "Can't call fallback function";
 
     /**
-     * As solidity doesn't support storing floats we'll store values as integers
-     * adjusted by a predetermined number of decimals.
+     * Prices are stored as uint shifted for 18 decimals places.
      *
-     * For example if decimals is 18 then:
-     *  1.23456789 is stored as 1234567890000000000.
-     *
-     * For now we have one fixed for all markets. Later we'll likely need to
-     * support a different number for some markets.
+     * For example 1.23456789 is stored as 1234567890000000000.
      */
-    uint public decimals = 30;
+    uint public decimals = 18;
 
 
     /**

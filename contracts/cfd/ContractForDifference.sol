@@ -119,7 +119,7 @@ contract ContractForDifference is DBC {
     uint public buyerInitialNotional;
     uint public sellerInitialNotional;
 
-    // format of strike prices as in Feeds contract - see Feeds.decimals()
+    // strike prices as prices stored in PriceFeeds
     uint public strikePrice;
     uint public buyerInitialStrikePrice;
     uint public sellerInitialStrikePrice;
@@ -217,8 +217,7 @@ contract ContractForDifference is DBC {
      * @param _feedsAddr Feeds address
      * @param _partyAddr Address of the party creating the contract
      * @param _marketId Contract is for prices on this market
-     * @param _strikePrice Agreed initial price for the contract (compatible
-                with Feeds stored price - see Feeds.decimals() adjustment)
+     * @param _strikePrice Strike price
      * @param _notionalAmountDai Contract amount
      * @param _isBuyer Flag indicating if the contract creator wants to take the
      *            buyer (true) or the seller side (false).

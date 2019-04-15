@@ -58,7 +58,7 @@ describe('deploy', function () {
       } = await deployAllForTest({
         web3,
         config,
-        initialPrice: price,
+        initialPriceInternal: price,
         firstTime,
         seedAccounts: [buyer, seller]
       }))

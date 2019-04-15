@@ -64,7 +64,7 @@ const deployRegistry = async (web3, config, logFn) => {
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
  * @return feeds Feeds contract instance
- * @return updatedConfig Config instance with updated feedContractAddr
+ * @return updatedConfig Config instance with updated priceFeeds addresses
  */
 const deployPriceFeeds = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr

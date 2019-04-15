@@ -11,11 +11,18 @@ import {
 import { deployAll } from '../../src/infura/deploy'
 import { nowSecs, toContractBigNumber } from '../../src/infura/utils'
 
-// default market for testing
-const MARKET_STR = 'Poloniex_ETH_USD'
-const MARKET_ID = Utils.sha3(MARKET_STR)
+// test testing
+const MARKET_NAMES = {
+  poloniexEthUsd: 'Poloniex_ETH_USD',
+  poloniexBtcUsd: 'Poloniex_BTC_USD',
+  makerEthUsd: 'Maker_ETH_USD'
+}
 
-const MARKET_STR_2 = 'Poloniex_BTC_USD'
+const MARKETS = {
+  [MARKET_NAMES.poloniexEthUsd]: Utils.sha3(MARKET_NAMES.poloniexEthUsd),
+  [MARKET_NAMES.poloniexBtcUsd]: Utils.sha3(MARKET_NAMES.poloniexBtcUsd),
+  [MARKET_NAMES.makerEthUsd]: Utils.sha3(MARKET_NAMES.makerEthUsd)
+}
 
 /**
  * Deploy mock contracts given the instance handle function
@@ -51,7 +58,8 @@ const deployAllForTest = async ({
   web3,
   config = configTest,
   firstTime = true,
-  initialPrice, // push this is as feed value for test market
+  initialPriceInternal, // push this is as feed value for internal test market
+  initialPriceExternal, // push this is as feed value for external test market
   seedAccounts = [] // array of accounts to seed with DAI
 }) => {
   // DAIToken
@@ -59,27 +67,40 @@ const deployAllForTest = async ({
     ? await deployMock(web3, config, daiTokenInstance)
     : await daiTokenInstanceDeployed(config, web3)
 
-  // External PriceFeeds
+  // External Contract - mock Maker price feed
   const ethUsdMaker = firstTime ?
     await deployMock(web3, config, ethUsdMakerInstance)
     : await ethUsdMakerInstanceDeployed(config, web3)
 
+  if (initialPriceExternal) {
+    await mockMakerPut(ethUsdMaker, initialPriceExternal)
+  }
+
+  // Deploy ALL
   const configUpdated = Object.assign({}, config, {
     daiTokenAddr: daiToken.options.address,
     ethUsdMakerAddr: ethUsdMaker.options.address
   })
-
   const deployment = await deployAll(web3, configUpdated, firstTime)
 
   // Internal PriceFeeds - add markets
-  const { priceFeedsInternal } = deployment
-  await priceFeedsInternal.methods.addMarket(MARKET_STR).send()
-  await priceFeedsInternal.methods.addMarket(MARKET_STR_2).send()
+  const { priceFeedsInternal, priceFeedsExternal } = deployment
+  await priceFeedsInternal.methods.addMarket(MARKET_NAMES.poloniexEthUsd).send()
+  await priceFeedsInternal.methods.addMarket(MARKET_NAMES.poloniexBtcUsd).send()
 
-  const initialPriceBN = toContractBigNumber(initialPrice)
-  await priceFeedsInternal.methods.push(MARKET_ID, initialPriceBN.toFixed(), nowSecs()).send({
-    from: configUpdated.daemonAccountAddr
-  })
+  if (initialPriceInternal) {
+    const initialPriceBN = toContractBigNumber(initialPriceInternal)
+    await priceFeedsInternal.methods.push(
+      MARKETS[MARKET_NAMES.poloniexEthUsd],
+      initialPriceBN.toFixed(),
+      nowSecs()
+    ).send({
+      from: configUpdated.daemonAccountAddr
+    })
+  }
+
+  // External PriceFeeds - add maker mock market
+  await addMarketExternal(priceFeedsExternal, ethUsdMaker, 'read', MARKET_NAMES.makerEthUsd)
 
   if (firstTime === true && seedAccounts.length > 0) {
     const tenDAI = new BigNumber('1e18').times(10)
@@ -93,9 +114,42 @@ const deployAllForTest = async ({
   }
 
   return Object.assign({}, deployment, {
-    marketId: MARKET_ID,
-    ethUsdMaker // not in deployment as it's a test only contract so add it here
+    // deployed test market details
+    markets: MARKETS,
+    marketNames: MARKET_NAMES,
+    // add ethUsdMaker as it's not in 'deployment' from deployAll
+    // only a test env mock contract
+    ethUsdMaker
   })
 }
 
-export { deployAllForTest, deployMockDAIToken }
+/**
+ * Add market to PriceFeedsExternal contract.
+ * @param {Web3.eth.Contract} priceFeedsExternal PriceFeedsExternal contract handle
+ * @param {Web3.eth.Contract} externalContract External contract handle (eg. MakerEthUsd) 
+ * @param {string} fnName Name of function on external contract that returns the price
+ * @param {string} marketStr String id of market
+ */
+const addMarketExternal = (priceFeedsExternal, externalContract, fnName, marketStr) => {
+  const callSig = externalContract._jsonInterface.find(
+    el => el.name === fnName
+  ).signature
+  return priceFeedsExternal.methods.addMarket(
+    marketStr,
+    externalContract.options.address,
+    callSig
+  ).send()
+}
+
+/**
+ * Push a given price into the maker mock contract.
+ * @param {Web3.eth.Contract} makerMock EthUsdMaker contract handle
+ * @param {BigNumber|string} price value in raw form (eg. '160.5' for 160.60 USD)
+ */
+const mockMakerPut = async (makerMock, price) => {
+  const valueAdjusted = toContractBigNumber(price)
+  const valueAsBytes32 = Utils.padLeft(Utils.numberToHex(valueAdjusted), 64)
+  await makerMock.methods.put(valueAsBytes32).send()
+}
+
+export { deployAllForTest, deployMockDAIToken, addMarketExternal, mockMakerPut }

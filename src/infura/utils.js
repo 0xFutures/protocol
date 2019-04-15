@@ -14,7 +14,7 @@ const NUMBER_DECIMALS = 18;
  * Functions expecting numbers should use this assertion to guarantee inputs.
  */
 const assertBigNumberOrString = number => {
-  if (number.isBigNumber === false && typeof number !== 'string') {
+  if (!number || (number.isBigNumber === false && typeof number !== 'string')) {
     throw new Error('number can only be a BigNumber or String')
   }
 }
@@ -124,9 +124,11 @@ const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data
  * (While waiting for web3 to be fixed...)
  */
 const EVENTS = {
-  '0xec0192f611133301ab5dd94a415ca4ed865668ca2f52cceee52eaa561044bafa': 'LogFeedsMarketAdded',
-  '0x1de4d777747a0fae0f827374bf2373391fee95df6f6fc3e24af9c7ca46ecd372': 'LogFeedsMarketRemoved',
-  '0x62a9ea16f13bd1758296411634390e5cfe2b3879cb368388a74714a03698cbd9': 'LogFeedsPush',
+  '0x841e82cad4a100e3997b0c3d76c329c2cee8720bf04af5e890bb904c1fa90e88': 'LogPriceFeedsInternalMarketAdded',
+  '0x4b9ff7c6404c1f870ba7a00b727dcfd9ae5af0299f39d19dc2e4b60622f04b3d': 'LogPriceFeedsInternalMarketRemoved',
+  '0xa9c24b8fa6727fcb2af1b00f75ac512750449a799a5725ec59c20cbcc9944d50': 'LogPriceFeedsInternalPush',
+  '0xba600a88fc714ebd6a38fe64f2b502e9c06a548e4a883a2b43ac0d344be0d212': 'LogPriceFeedsExternalMarketAdded',
+  '0x241027c30341da155be2f8d6bf3ae10bdf6083fd0ffcf36e848ae540041fff11': 'LogPriceFeedsExternalMarketRemoved',
   '0x2d0c41699a808fef3dcfaa411d95703031d69229e73f5f3299fd6045deb4f962': 'LogCFDFactoryNew',
   '0xe77178664194a5b1c28f6ee0f3fcb6d4404d796abfdf7edee18b68617768f48a': 'LogCFDFactoryNewByUpgrade',
   '0x5180589a8efb07c77a3318d1c34775bb649df9d3e93ac2a75a8e9747e3aaccd4': 'LogCFDRegistryParty',

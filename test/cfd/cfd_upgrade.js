@@ -54,7 +54,7 @@ describe.skip('cfd upgrade', function () {
         daiToken
       } = await deployAllForTest({
         web3,
-        initialPrice: price,
+        initialPriceInternal: price,
         firstTime,
         config,
         seedAccounts: [buyer, seller]

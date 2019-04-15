@@ -44,7 +44,7 @@ describe('ContractForDifferenceFactory', function () {
       // eslint-disable-next-line no-extra-semi
       ; ({ priceFeeds, registry, daiToken } = await deployAllForTest({
         web3,
-        initialPrice: strikePrice
+        initialPriceInternal: strikePrice
       }))
 
     // create the CFD Factory

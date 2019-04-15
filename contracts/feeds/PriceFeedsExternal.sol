@@ -19,7 +19,6 @@ contract PriceFeedsExternal is DBC, Ownable {
     struct Market {
         address priceContract;
         bytes32 callSig;
-        uint decimals;
     }
     mapping(bytes32 => Market) markets;
     mapping(bytes32 => string) public marketNames;
@@ -30,21 +29,23 @@ contract PriceFeedsExternal is DBC, Ownable {
 
     /**
      * Add a new market
-     * @param _marketStrId String id of market something like "Poloniex_BTC_ETH"
+     * @param _marketStrId String id of market. eg. "Poloniex_BTC_ETH"
+     * @param _priceContract Address of contract to fetch price from
+     * @param _callSig Call signature hash of the contract function to fetch 
+     *                  the price from
      * @return marketId bytes32 keccak256 of the _marketStrId
      */
     function addMarket(
         string calldata _marketStrId, 
         address _priceContract, 
-        bytes32 _callSig,
-        uint _decimals
+        bytes32 _callSig
     )
         external
         onlyOwner
         returns (bytes32 marketId)
     {
         marketId = keccak256(abi.encodePacked(_marketStrId));
-        markets[marketId] = Market(_priceContract, _callSig, _decimals);
+        markets[marketId] = Market(_priceContract, _callSig);
         marketNames[marketId] = _marketStrId;
         emit LogPriceFeedsExternalMarketAdded(marketId, _marketStrId);
     }
@@ -54,7 +55,7 @@ contract PriceFeedsExternal is DBC, Ownable {
         onlyOwner
         pre_cond(isMarketActive(_marketId), REASON_MUST_BE_ACTIVE_MARKET)
     {
-        markets[_marketId] = Market(address(0x0), 0, 0);
+        markets[_marketId] = Market(address(0x0), 0);
         emit LogPriceFeedsExternalMarketRemoved(_marketId);
     }
 

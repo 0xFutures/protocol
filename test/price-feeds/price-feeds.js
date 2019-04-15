@@ -9,6 +9,7 @@ import {
 } from '../../src/infura/contracts'
 import { toContractBigNumber } from '../../src/infura/utils'
 import { assertEqualBN } from '../helpers/assert'
+import { mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
 const EthUsdMakerABI = require('../../build/contracts/EthUsdMakerInterface.json').abi
@@ -83,8 +84,7 @@ describe('PriceFeeds', function () {
       MakerMarket.callSig
     ).send();
 
-    const valueAsBytes32 = Utils.padLeft(Utils.numberToHex(makerValueContract), 64)
-    await ethUsdMakerContract.methods.put(valueAsBytes32).send()
+    await mockMakerPut(ethUsdMakerContract, makerValueStr)
 
     // PriceFeeds contract
     pfContract = await PriceFeeds.deploy({
@@ -103,7 +103,7 @@ describe('PriceFeeds', function () {
   const assertReverts = async (feedContract, fnName, marketId, expectedMsg) => {
     try {
       await feedContract.methods[fnName](marketId).call()
-      assert.fail('expected reject')
+      assert.fail(`expected reject - ${expectedMsg}`)
     } catch (err) {
       assert.equal(
         err.message,
@@ -161,6 +161,7 @@ describe('PriceFeeds', function () {
         'marketName() value internal market wrong'
       )
     })
+
     it('external ok', async () => {
       assert.equal(
         await pfContract.methods.marketName(CoinbaseMarket.id).call(),
@@ -175,6 +176,31 @@ describe('PriceFeeds', function () {
         'marketName',
         Utils.sha3('not_an_active_market'),
         INACTIVE_MARKET_MESSAGE
+      )
+    })
+  })
+
+  describe('isMarketActive', () => {
+    it('internal active', async () => {
+      assert(
+        await pfContract.methods.isMarketActive(MakerMarket.id).call(),
+        'isMarketActive() should return true for internal market'
+      )
+    })
+
+    it('external active', async () => {
+      assert(
+        await pfContract.methods.isMarketActive(CoinbaseMarket.id).call(),
+        'isMarketActive() should return true for external market'
+      )
+    })
+
+    it('market not active', async () => {
+      assert.isFalse(
+        await pfContract.methods.isMarketActive(
+          Utils.sha3('not_an_active_market'),
+        ).call(),
+        'isMarketActive() should return false'
       )
     })
   })

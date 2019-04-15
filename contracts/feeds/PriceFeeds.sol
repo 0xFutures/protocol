@@ -7,7 +7,7 @@ import "./PriceFeedsExternal.sol";
  * Interface to market prices for the CFD contract.
  * Abstracts away the logic of reading from various market sources.
  */
-contract PriceFeeds is Ownable {
+contract PriceFeeds {
     string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
     string constant REASON_MARKET_VALUE_ZERO = "Market price is zero";
 
@@ -48,6 +48,19 @@ contract PriceFeeds is Ownable {
             name = feedExternal.marketNames(_marketId);
         } else {
             revert(REASON_MARKET_INACTIVE_OR_UNKNOWN);
+        }
+    }
+
+    function isMarketActive(bytes32 _marketId) 
+        public 
+        view 
+        returns (bool active) 
+    {
+        active = false;
+        if (feedInternal.isMarketActive(_marketId)) {
+            active = true;
+        } else if (feedExternal.isMarketActive(_marketId)) {
+            active = true;
         }
     }
 

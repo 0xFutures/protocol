@@ -67,7 +67,7 @@ describe.skip('cfd-api-infura.js', function () {
         // eslint-disable-next-line no-extra-semi
         ; ({ cfdFactory, cfdRegistry, priceFeeds, daiToken } = await deployAllForTest({
           web3,
-          initialPrice: price,
+          initialPriceInternal: price,
           seedAccounts: [buyer, seller, party, counterparty, thirdParty]
         }))
 

@@ -1,8 +1,9 @@
 import Promise from 'bluebird'
-import has from 'lodash/has'
 
 import {
+  priceFeedsInstanceDeployed,
   priceFeedsInternalInstanceDeployed,
+  priceFeedsExternalInstanceDeployed,
 } from './contracts'
 import {
   assertBigNumberOrString,
@@ -16,6 +17,32 @@ const pushGasLimit = 700000
 const addMarketGasLimit = 700000
 // Number of milliseconds between each check for pushing a new value
 const delayBetweenPush = 5000
+
+const getMarketsFromEventLogs = (
+  api,
+  eventName,
+  contractInstance,
+  onSuccessCallback,
+  onErrorCallback
+) => {
+  const fromBlock = api.config.deploymentBlockNumber || 0, self = api;
+  getAllEventsWithName(eventName, contractInstance, fromBlock, 'latest').then((markets) => {
+    Promise.all(
+      markets.map(async market => {
+        if (market == undefined || market.raw == undefined || market.raw.topics == undefined ||
+          market.raw.topics.length <= 1)
+          return undefined;
+        const bytesId = market.raw.topics[1];
+        const strId = await self.marketIdBytesToStr(bytesId);
+        return self.priceFeeds.methods.isMarketActive(bytesId).call().then(active => {
+          return { bytesId, strId, active }
+        })
+      })
+    ).then(onSuccessCallback);
+  }, (err) => {
+    onErrorCallback(err);
+  });
+}
 
 export default class API {
 
@@ -31,11 +58,6 @@ export default class API {
    * @return Constructed and initialised instance of this class
    */
   static async newInstance(config, web3, privateKey) {
-    /*if (web3 == undefined || web3.isConnected() !== true) {
-      return Promise.reject(
-        new Error('web3 is not connected - check the endpoint')
-      )
-    }*/
     const api = new API(config, web3, privateKey)
     await api.initialise()
     return api
@@ -65,26 +87,15 @@ export default class API {
   }
 
   /**
-   * Read latest value from the contract.
+   * Read latest value from the feeds.
    *
-   * @param marketIdStr Read value for this market (eg. "Poloniex_ETH_USD")
-   * @return {value: <read value>, timestamp: <epoch milliseconds timestamp>}
+   * @param {string} marketIdStr Read value for this market (eg. "Poloniex_ETH_USD")
+   * @return {BigNumber} price
    */
   async read(marketIdStr) {
-    // Find which feed source to use
-    // If no feed found for this market, use the default one (daemon feed)
-    if (this.specificFeeds[marketIdStr] != undefined) {
-      // Use the specific source feed
-      const res = await this.specificFeeds[marketIdStr].methods.read().call();
-      const numberStr = this.web3.utils.hexToNumberString(res);
-      return { value: this.web3.utils.fromWei(numberStr) };
-    }
-    else {
-      // Else, use the default source feed
-      const marketId = this.marketIdStrToBytes(marketIdStr)
-      const res = await this.feeds.methods.read(marketId).call();
-      return { value: fromContractBigNumber(res.value), timestamp: res.timestamp };
-    }
+    const marketId = this.marketIdStrToBytes(marketIdStr)
+    const price = await this.priceFeeds.methods.read(marketId).call();
+    return fromContractBigNumber(price)
   }
 
   /**
@@ -92,10 +103,11 @@ export default class API {
    * @param marketIdStr Market ID for new market (eg. "Poloniex_ETH_USD")
    * @return Promise resolving to the transaction receipt
    */
-  async addMarket(marketIdStr) {
+  async addMarketInternal(marketIdStr) {
+    const self = this
     return new Promise(function (resolve, reject) {
-      this.feeds.methods.addMarket(marketIdStr).send({
-        from: this.config.ownerAccountAddr,
+      self.priceFeedsInternal.methods.addMarket(marketIdStr).send({
+        from: self.config.ownerAccountAddr,
         gas: addMarketGasLimit
       }).once('receipt', function (receipt) {
         // Transaction has been mined
@@ -108,13 +120,40 @@ export default class API {
   }
 
   /**
-   * Register callback for LogFeedsPush events - whenever a Feeds.push() call
+   * Add a new market feed.
+   * @param marketIdStr Market ID for new market (eg. "Poloniex_ETH_USD")
+   * @param contractAddr External contract to pull prices from
+   * @param callSig Call signature of function to call on contract, Look it up
+   *    using contract handle. eg: 
+   *      const MakerReadCallSig = EthUsdMakerContract._jsonInterface.find(
+   *        el => el.name === 'read'
+   *      ).signature
+   * @return Promise resolving to the transaction receipt
+   */
+  async addMarketExternal(marketIdStr, contractAddr, callSig) {
+    const self = this
+    return new Promise(function (resolve, reject) {
+      self.priceFeedsExternal.methods.addMarket(marketIdStr, contractAddr, callSig).send({
+        from: self.config.ownerAccountAddr,
+        gas: addMarketGasLimit
+      }).once('receipt', function (receipt) {
+        // Transaction has been mined
+        resolve(receipt);
+      }).on('error', function (error) {
+        // Error
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * Register callback for LogPriceFeedsInternalPush events - whenever a Feeds.push() call
    * completes.
    * @param Callback expecting error as the first param and an object with
    *        event arguments as the second param.
    */
   watchPushEvents(onEventCallback) {
-    this.feeds.events.allEvents({ fromBlock: 0 }, (error, event) => {
+    this.priceFeedsInternal.events.allEvents({ fromBlock: 0 }, (error, event) => {
       if (event != undefined)
         onEventCallback(event);
     });
@@ -130,7 +169,7 @@ export default class API {
     fromBlock = this.config.deploymentBlockNumber || 0,
     toBlock = 'latest'
   ) {
-    return getAllEventsWithName("LogFeedsPush", this.feeds, fromBlock, toBlock);
+    return getAllEventsWithName("LogPriceFeedsInternalPush", this.priceFeedsInternal, fromBlock, toBlock);
   }
 
   /**
@@ -144,8 +183,15 @@ export default class API {
     assertBigNumberOrString(next.read)
     const readBigNumber = toContractBigNumber(next.read).toFixed()
     const marketId = this.marketIdStrToBytes(next.marketIdStr)
-    return signAndSendTransaction(this.web3, this.config.daemonAccountAddr, this.privateKey, this.config.feedContractAddr,
-      this.feeds.methods.push(marketId, readBigNumber, next.ts).encodeABI(), this.config.gasPrice, pushGasLimit);
+    return signAndSendTransaction(
+      this.web3,
+      this.config.daemonAccountAddr,
+      this.privateKey,
+      this.config.priceFeedsInternalContractAddr,
+      this.priceFeedsInternal.methods.push(marketId, readBigNumber, next.ts).encodeABI(),
+      this.config.gasPrice,
+      pushGasLimit
+    );
   }
 
   /**
@@ -173,7 +219,7 @@ export default class API {
   }
 
   /**
-   * Get all markets in the feeds contract with a mapping to isActive.
+   * Get all markets in the PriceFeedsInternal contract with a mapping to isActive.
    * @param onSuccessCallback Callback that will receive a list like:
    *        [
    *          {bytesId: "0xabc...", strId: "Poloniex_BTC_ETH", active: true},
@@ -182,24 +228,34 @@ export default class API {
    *        ]
    * @param onErrorCallback Callback that will receive any errors
    */
-  getMarkets(onSuccessCallback, onErrorCallback) {
-    const fromBlock = this.config.deploymentBlockNumber || 0, self = this;
-    getAllEventsWithName("LogFeedsMarketAdded", this.feeds, fromBlock, 'latest').then((markets) => {
-      Promise.all(
-        markets.map(async market => {
-          if (market == undefined || market.raw == undefined || market.raw.topics == undefined ||
-            market.raw.topics.length <= 1)
-            return undefined;
-          const bytesId = market.raw.topics[1];
-          const strId = await self.marketIdBytesToStr(bytesId);
-          return this.feeds.methods.isMarketActive(bytesId).call().then(active => {
-            return { bytesId, strId, active }
-          })
-        })
-      ).then(onSuccessCallback);
-    }, (err) => {
-      onErrorCallback(err);
-    });
+  getMarketsInternal(onSuccessCallback, onErrorCallback) {
+    getMarketsFromEventLogs(
+      this,
+      "LogPriceFeedsInternalMarketAdded",
+      this.priceFeedsInternal,
+      onSuccessCallback,
+      onErrorCallback
+    )
+  }
+
+  /**
+   * Get all markets in the PriceFeedsExternal contract with a mapping to isActive.
+   * @param onSuccessCallback Callback that will receive a list like:
+   *        [
+   *          {bytesId: "0xabc...", strId: "Maker_USD_ETH", active: true},
+   *          {bytesId: "0x123...", strId: "Etherex_XLM_MKR", active: false},
+   *          ...
+   *        ]
+   * @param onErrorCallback Callback that will receive any errors
+   */
+  getMarketsExternal(onSuccessCallback, onErrorCallback) {
+    getMarketsFromEventLogs(
+      this,
+      "LogPriceFeedsExternalMarketAdded",
+      this.priceFeedsExternal,
+      onSuccessCallback,
+      onErrorCallback
+    )
   }
 
   /**
@@ -218,7 +274,7 @@ export default class API {
    * @return Market id string
    */
   marketIdBytesToStr(marketId) {
-    return this.feeds.methods.marketNames(marketId).call()
+    return this.priceFeeds.methods.marketName(marketId).call()
   }
 
   /**
@@ -242,10 +298,6 @@ export default class API {
     this.pushQueue = [];
     // When a transaction is pending, that variable will hold the transaction hash
     this.currentTx = undefined;
-    // Specify another feed source for some markets
-    // If the market is not listed in this object, it means we will use the default daemon feed
-    // Else, we use the specified feed
-    this.specificFeeds = {};
   }
 
   /**
@@ -260,7 +312,9 @@ export default class API {
    */
   async initialise() {
     var self = this;
-    this.feeds = await priceFeedsInternalInstanceDeployed(this.config, this.web3);
+    this.priceFeeds = await priceFeedsInstanceDeployed(this.config, this.web3);
+    this.priceFeedsInternal = await priceFeedsInternalInstanceDeployed(this.config, this.web3);
+    this.priceFeedsExternal = await priceFeedsExternalInstanceDeployed(this.config, this.web3);
     // Start our recurrent function to check and eventually start pushing on the blockchain
     setInterval(function () {
       // If no pending transaction, push the next value waiting in the queue

@@ -33,7 +33,7 @@ describe('admin-api.js', function () {
           registry
         } = await deployAllForTest({
           web3,
-          initialPrice: PRICE
+          initialPriceInternal: PRICE
         }))
 
       config = Object.assign({}, configBase)

@@ -66,14 +66,14 @@ describe.skip('event-api.js', function () {
       thirdParty = accounts[ACCOUNT_THIRDPARTY]
 
         // eslint-disable-next-line no-extra-semi
-        ; ({ cfdFactory, cfdRegistry, feeds, daiToken } = await deployAllForTest({
+        ; ({ cfdFactory, cfdRegistry, priceFeeds, daiToken } = await deployAllForTest({
           web3,
-          initialPrice: price,
+          initialPriceInternal: price,
           seedAccounts: [buyer, seller, party, counterparty, thirdParty]
         }))
 
       const config = Object.assign({}, configBase)
-      config.feedContractAddr = feeds.options.address
+      config.priceFeedsContractAddr = priceFeeds.options.address
       config.cfdFactoryContractAddr = cfdFactory.options.address
       config.cfdRegistryContractAddr = cfdRegistry.options.address
       config.daiTokenAddr = daiToken.options.address

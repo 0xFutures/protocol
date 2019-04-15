@@ -1,10 +1,10 @@
-import BigNumber from 'bignumber.js'
 import { assert } from 'chai'
 import * as Utils from 'web3-utils'
 
 import { ethUsdMakerInstance, priceFeedsExternalInstance } from '../../src/infura/contracts'
 import { toContractBigNumber } from '../../src/infura/utils'
 import { assertEqualBN } from '../helpers/assert'
+import { mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
 const EthUsdMakerABI = require('../../build/contracts/EthUsdMakerInterface.json').abi
@@ -57,8 +57,7 @@ describe('PriceFeedsExternal', function () {
     ethUsdMakerContract = await EthUsdMakerMock.deploy({}).send(txOpts)
     MakerMarket.address = ethUsdMakerContract.options.address
     // push a price on
-    const valueAsBytes32 = Utils.padLeft(Utils.numberToHex(makerValueContract), 64)
-    await ethUsdMakerContract.methods.put(valueAsBytes32).send()
+    await mockMakerPut(ethUsdMakerContract, makerValueStr)
   })
 
   describe('read', () => {
@@ -89,7 +88,7 @@ describe('PriceFeedsExternal', function () {
       assertReadReverts(feedContract, MakerMarket.id))
 
     it('market zero value reverts', async () => {
-      await ethUsdMakerContract.methods.put('0x0').send()
+      await mockMakerPut(ethUsdMakerContract, '0')
       assertReadReverts(feedContract, MakerMarket.id)
     })
   })
