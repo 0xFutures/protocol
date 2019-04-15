@@ -694,7 +694,7 @@ export default class CFDAPI {
    * @return Market id string
    */
   marketIdBytesToStr(marketId) {
-    return this.priceFeeds.methods.marketNames(marketId).call()
+    return this.priceFeeds.methods.marketName(marketId).call()
   }
 
   async joinFee(cfd) {

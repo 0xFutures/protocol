@@ -8,14 +8,15 @@ rm -rf build/
 truffle compile
 
 copyABI 'Registry'
-copyABI 'Feeds'
+copyABI 'PriceFeeds'
+copyABI 'PriceFeedsInternal'
+copyABI 'PriceFeedsExternal'
 copyABI 'ForwardFactory'
 copyABI 'ContractForDifference'
 copyABI 'ContractForDifferenceFactory'
 copyABI 'ContractForDifferenceLibrary'
 copyABI 'ContractForDifferenceRegistry'
 copyABI 'DAIToken'
-# Copy the Maker ABI file
-babel-node bin/filterABI.js contracts/FeedsMakerEthUsd.json abi/FeedsMakerEthUsd.json
+copyABI 'EthUsdMaker'
 
 cd -

@@ -9,7 +9,7 @@ import { config as configBase, web3 } from './helpers/setup'
 const priceInternal = '77.00239'
 const priceExternal = '456.99'
 
-describe.only('api-infura.js', function () {
+describe('api-infura.js', function () {
   let priceFeeds
   let priceFeedsInternal
   let priceFeedsExternal

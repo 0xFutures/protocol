@@ -1,8 +1,8 @@
 import program from 'commander'
-import {readFileSync} from 'fs'
+import { readFileSync } from 'fs'
 import HDWalletProvider from 'truffle-hdwallet-provider'
 import Web3 from 'web3'
-import {deployMockDAIToken} from '../test/helpers/deploy'
+import { deployMockDAIToken } from '../test/helpers/deploy'
 
 const isInfura = addr => addr.indexOf('infura.io/') !== -1
 const hdWalletProvider = config =>

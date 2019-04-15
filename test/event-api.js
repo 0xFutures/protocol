@@ -22,9 +22,9 @@ const ACCOUNT_PARTY = 7
 const ACCOUNT_COUNTERPARTY = 8
 const ACCOUNT_THIRDPARTY = 9
 
-describe.skip('event-api.js', function () {
+describe('event-api.js', function () {
 
-  let feeds
+  let priceFeeds
   let cfdFactory
   let cfdRegistry
   let daiToken

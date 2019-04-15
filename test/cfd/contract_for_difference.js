@@ -47,6 +47,8 @@ describe('ContractForDifference', function () {
     let priceFeedsInternal
     let cfdRegistry
     let daiToken
+    let markets
+    let marketNames
     let marketId
 
     let minimumCollateral
@@ -91,6 +93,7 @@ describe('ContractForDifference', function () {
       const transferAmount = creatorFee().plus(daiValue)
       await daiToken.methods.transfer(cfd.options.address, transferAmount.toFixed()).send()
 
+      marketId = markets[marketNames.poloniexEthUsd]
       await cfd.methods.create(
         registry.options.address,
         cfdRegistry.options.address,
@@ -99,11 +102,11 @@ describe('ContractForDifference', function () {
         marketId,
         new BigNumber(strikePrice).toFixed(),
         new BigNumber(notionalAmount).toFixed(),
-        isBuyer)
-        .send({
-          gas: 1000000,
-          from: creator
-        })
+        isBuyer
+      ).send({
+        gas: 1000000,
+        from: creator
+      })
 
       // from default web3 account masquerading as a factory (see setFactory call in setup)
       await cfdRegistry.methods.registerNew(cfd.options.address, CREATOR_ACCOUNT).send()
@@ -120,7 +123,8 @@ describe('ContractForDifference', function () {
         priceFeedsInternal,
         registry,
         daiToken,
-        marketId
+        markets,
+        marketNames
       } = await deployAllForTest({
         web3,
         initialPrice: strikePriceRaw

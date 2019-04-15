@@ -97,7 +97,7 @@ const daiTokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)
 
 const ethUsdMakerInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'ethUsdMakerAddr', MockDAITokenJSON)
+  deployedInstance(config, web3, 'ethUsdMakerAddr', MockEthUsdMakerJSON)
 
 const ethUsdMakerInstance = (web3Provider, config) =>
   contractInstance(MockEthUsdMakerJSON, web3Provider, config)

@@ -1,7 +1,9 @@
 #!/bin/sh
+TEST_SERVER_NAME=0xfutures-test-server
+
 cd `dirname $0`/..
-$(npm bin)/pm2 delete test_server
-$(npm bin)/pm2 start bin/test_server --interpreter=sh
+
+$(npm bin)/pm2 start bin/test_server --name=${TEST_SERVER_NAME} --interpreter=sh
 
 sleep 2
 
@@ -12,7 +14,7 @@ else
   RET=1
 fi
 
-$(npm bin)/pm2 stop bin/test_server --interpreter=sh
+$(npm bin)/pm2 delete ${TEST_SERVER_NAME}
 cd -
 
 exit $RET
