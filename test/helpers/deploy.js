@@ -9,7 +9,7 @@ import {
   ethUsdMakerInstanceDeployed
 } from '../../src/infura/contracts'
 import { deployAll } from '../../src/infura/deploy'
-import { nowSecs, toContractBigNumber } from '../../src/infura/utils'
+import { getFunctionSignature, nowSecs, toContractBigNumber } from '../../src/infura/utils'
 
 // test testing
 const MARKET_NAMES = {
@@ -47,8 +47,12 @@ const deployMock = async (web3, config, instanceFn) => {
  * @param config Config instance (see config.<env>.json)
  * @return contract instance
  */
-const deployMockDAIToken = async (web3, config) =>
-  deployMock(web3, config, daiTokenInstance)
+const deployMocks = async (web3, config) => {
+  return {
+    daiToken: await deployMock(web3, config, daiTokenInstance),
+    ethUsdMaker: await deployMock(web3, config, ethUsdMakerInstance)
+  }
+}
 
 /**
  * Deploy full set of contracts for testing.
@@ -62,15 +66,18 @@ const deployAllForTest = async ({
   initialPriceExternal, // push this is as feed value for external test market
   seedAccounts = [] // array of accounts to seed with DAI
 }) => {
-  // DAIToken
-  const daiToken = firstTime
-    ? await deployMock(web3, config, daiTokenInstance)
-    : await daiTokenInstanceDeployed(config, web3)
+  let daiToken
+  let ethUsdMaker
 
-  // External Contract - mock Maker price feed
-  const ethUsdMaker = firstTime ?
-    await deployMock(web3, config, ethUsdMakerInstance)
-    : await ethUsdMakerInstanceDeployed(config, web3)
+  // Mock contracts
+  if (firstTime) {
+    const mocks = await deployMocks(web3, config)
+    daiToken = mocks.daiToken
+    ethUsdMaker = mocks.ethUsdMaker
+  } else {
+    daiToken = await daiTokenInstanceDeployed(config, web3)
+    ethUsdMaker = await ethUsdMakerInstanceDeployed(config, web3)
+  }
 
   if (initialPriceExternal) {
     await mockMakerPut(ethUsdMaker, initialPriceExternal)
@@ -131,9 +138,7 @@ const deployAllForTest = async ({
  * @param {string} marketStr String id of market
  */
 const addMarketExternal = (priceFeedsExternal, externalContract, fnName, marketStr) => {
-  const callSig = externalContract._jsonInterface.find(
-    el => el.name === fnName
-  ).signature
+  const callSig = getFunctionSignature(externalContract, fnName)
   return priceFeedsExternal.methods.addMarket(
     marketStr,
     externalContract.options.address,
@@ -152,4 +157,4 @@ const mockMakerPut = async (makerMock, price) => {
   await makerMock.methods.put(valueAsBytes32).send()
 }
 
-export { deployAllForTest, deployMockDAIToken, addMarketExternal, mockMakerPut }
+export { deployAllForTest, deployMocks, addMarketExternal, mockMakerPut }

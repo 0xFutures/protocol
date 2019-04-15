@@ -7,7 +7,7 @@ import {
   priceFeedsExternalInstance,
   priceFeedsInternalInstance
 } from '../../src/infura/contracts'
-import { toContractBigNumber } from '../../src/infura/utils'
+import { getFunctionSignature, toContractBigNumber } from '../../src/infura/utils'
 import { assertEqualBN } from '../helpers/assert'
 import { mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
@@ -18,15 +18,11 @@ const EthUsdMakerContract = new web3.eth.Contract(EthUsdMakerABI)
 const MakerMarketStr = 'MakerDAO_USD_ETH'
 const CoinbaseMarketStr = 'Coinbase_USD_BTC'
 
-const MakerReadCallSig = EthUsdMakerContract._jsonInterface.find(
-  el => el.name === 'read'
-).signature
-
 const MakerMarket = {
   name: MakerMarketStr,
   id: Utils.sha3(MakerMarketStr),
   address: undefined, // added when deployed below
-  callSig: MakerReadCallSig
+  callSig: getFunctionSignature(EthUsdMakerContract, 'read')
 }
 
 const CoinbaseMarket = {

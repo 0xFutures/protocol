@@ -2,7 +2,7 @@ import program from 'commander'
 import { readFileSync } from 'fs'
 import HDWalletProvider from 'truffle-hdwallet-provider'
 import Web3 from 'web3'
-import { deployMockDAIToken } from '../test/helpers/deploy'
+import { deployMocks } from '../test/helpers/deploy'
 
 const isInfura = addr => addr.indexOf('infura.io/') !== -1
 const hdWalletProvider = config =>
@@ -29,9 +29,11 @@ const web3 = new Web3(
 )
 
 const deploy = async () => {
-  console.log(`Deploying mock DAIToken ...`)
-  const daiToken = await deployMockDAIToken(web3, config)
-  console.log(`DAIToken: ${daiToken.address}\ndone\n`)
+  console.log(`Deploying mock contracts ...`)
+  const mockContracts = await deployMocks(web3, config)
+  Object.keys(mockContracts).forEach(contract =>
+    console.log(`${contract}: ${mockContracts[contract].options.address}`))
+  console.log(`done\n`)
 }
 
 deploy()

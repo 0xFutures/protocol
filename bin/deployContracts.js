@@ -1,8 +1,10 @@
 import program from 'commander'
-import {readFileSync} from 'fs'
+import { readFileSync } from 'fs'
 import HDWalletProvider from 'truffle-hdwallet-provider'
 import Web3 from 'web3'
-import {deployAll} from '../src/infura/deploy'
+
+import { deployAll } from '../src/infura/deploy'
+import { getFunctionSignature } from '../src/infura/utils'
 
 const isInfura = addr => addr.indexOf('infura.io/') !== -1
 const hdWalletProvider = config =>
@@ -10,8 +12,6 @@ const hdWalletProvider = config =>
 const httpProvider = config => new Web3.providers.HttpProvider(config.rpcAddr)
 
 const logProgress = true
-
-const markets = ['Coinbase_BTC', 'Coinbase_ETH']
 
 let configFile
 
@@ -39,10 +39,29 @@ const deploy = async () => {
     logProgress
   )
 
-  console.log(`Adding markets to Feeds ...`)
+  console.log(`Adding markets to PriceFeedsInternal ...`)
   // run in sequence (in parallel has a nonce issue with hdwaller provider)
-  for (const market of markets) {
-    await deployment.feeds.methods.addMarket(market).send()
+  for (const market of config.markets.internal) {
+    console.log(market)
+    await deployment.priceFeedsInternal.methods.addMarket(market).send()
+  }
+  console.log(`done\n`)
+
+  console.log(`Adding markets to PriceFeedsExternal ...`)
+  // run in sequence (in parallel has a nonce issue with hdwaller provider)
+  for (const marketKey of Object.keys(config.markets.external)) {
+    console.log(marketKey)
+    const market = config.markets.external[marketKey]
+
+    const abi = require(`../build/contracts/${market.interface}.json`).abi
+    const contractHandle = new web3.eth.Contract(abi)
+    const callSignature = getFunctionSignature(contractHandle, market.priceFn)
+
+    await deployment.priceFeedsExternal.methods.addMarket(
+      marketKey,
+      market.address,
+      callSignature
+    ).send()
   }
   console.log(`done\n`)
 

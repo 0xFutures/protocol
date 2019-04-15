@@ -161,6 +161,11 @@ const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBloc
   });
 }
 
+const getFunctionSignature = (contract, fnName) =>
+  contract._jsonInterface.find(
+    el => el.name === fnName
+  ).signature
+
 module.exports = {
   assertBigNumberOrString,
   fromContractBigNumber,
@@ -174,5 +179,6 @@ module.exports = {
   EMPTY_ACCOUNT,
   STATUS,
   getAllEventsWithName,
+  getFunctionSignature,
   signAndSendTransaction
 }

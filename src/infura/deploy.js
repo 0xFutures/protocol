@@ -1,4 +1,3 @@
-import Promise from 'bluebird'
 import {
   cfdInstance,
   cfdLibraryInstance,
@@ -134,15 +133,12 @@ const deployCFD = async (web3, config, logFn) => {
   const CFDFactory = cfdFactoryInstance(web3.currentProvider, config)
   const CFDRegistry = cfdRegistryInstance(web3.currentProvider, config)
 
-  logFn('Deploying ForwardFactory ...')
+  logFn('\nDeploying ForwardFactory ...')
   const ff = await ForwardFactory.deploy({}).send({
     from: config.ownerAccountAddr,
     gas: config.gasDefault
   })
   logFn(`ForwardFactory: ${ff.options.address}`)
-
-  /*CFD.setNetwork(networkId)
-  CFDLibrary.setNetwork(networkId)*/
 
   logFn('Deploying ContractForDifferenceLibrary ...')
   const cfdLib = await CFDLibrary.deploy({}).send({
