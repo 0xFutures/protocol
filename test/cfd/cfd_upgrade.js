@@ -26,7 +26,7 @@ const price = '67.00239'
 const isBigNumber = num =>
   typeof num === 'object' && 'e' in num && 'c' in num && 's' in num
 
-describe.skip('cfd upgrade', function () {
+describe.only('cfd upgrade', function () {
   let daemonAccountAddr
   let ownerAccountAddr
 
@@ -44,6 +44,7 @@ describe.skip('cfd upgrade', function () {
     let cfdFactory
     let cfdRegistry
     let daiToken
+    let ethUsdMaker
 
       // eslint-disable-next-line no-extra-semi
       ; ({
@@ -51,7 +52,8 @@ describe.skip('cfd upgrade', function () {
         cfdRegistry,
         cfdFactory,
         registry,
-        daiToken
+        daiToken,
+        ethUsdMaker
       } = await deployAllForTest({
         web3,
         initialPriceInternal: price,
@@ -67,7 +69,8 @@ describe.skip('cfd upgrade', function () {
       registryAddr: registry.options.address,
       cfdFactoryContractAddr: cfdFactory.options.address,
       cfdRegistryContractAddr: cfdRegistry.options.address,
-      daiTokenAddr: daiToken.options.address
+      daiTokenAddr: daiToken.options.address,
+      ethUsdMakerAddr: ethUsdMaker.options.address
     })
 
     return updatedConfig
