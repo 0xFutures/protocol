@@ -4,7 +4,7 @@ import HDWalletProvider from 'truffle-hdwallet-provider'
 import Web3 from 'web3'
 
 import { deployAll } from '../src/infura/deploy'
-import { getFunctionSignature } from '../src/infura/utils'
+import { getFunctionSignature, isEthereumAddress } from '../src/infura/utils'
 
 const isInfura = addr => addr.indexOf('infura.io/') !== -1
 const hdWalletProvider = config =>
@@ -65,8 +65,14 @@ const deploy = async () => {
   }
   console.log(`done\n`)
 
+  const newConfig = deployment.updatedConfig
+  for (const key in Object.keys(newConfig)) {
+    if (isEthereumAddress(newConfig[key])) {
+      newConfig[key] = newConfig[key].toLowerCase()
+    }
+  }
   console.log(
-    `New config:\n${JSON.stringify(deployment.updatedConfig, null, 2)}\n`
+    `New config:\n${JSON.stringify(newConfig, null, 2)}\n`
   )
 }
 
