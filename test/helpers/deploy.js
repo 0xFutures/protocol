@@ -42,7 +42,7 @@ const deployMock = async (web3, config, instanceFn) => {
 }
 
 /**
- * Deploy mock DAIToken.
+ * Deploy mock tokens for testing.
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @return contract instance

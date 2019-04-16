@@ -1,9 +1,8 @@
 .env
 *.swp
 build/
-config.json
-config.*.infura.json
-infura.json
+config.kovan.json
+config.live.json
 lib/
 node_modules/
 .vscode

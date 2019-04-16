@@ -593,7 +593,7 @@ describe('ContractForDifference', function () {
         })
       })
 
-      describe.only('liquidation via threshold reached - call liquidate()', async () => {
+      describe('liquidation via threshold reached - call liquidate()', async () => {
         // #11 ensures the contract does not disolve if the daemon is wrong for
         // some reason about the liquidate threshold being reached
         it('rejects the update if called and the threshold has not been reached', async () => {
