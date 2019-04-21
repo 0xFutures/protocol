@@ -14,7 +14,8 @@
 
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
 
-  "registryAddr": "0xfb9bad0ae97e7a4b3bd3c923325cc829dcbb8062",
+  "registryAddr": "0x6adda96526557b70538839747cde8e82d654995e",
+  
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
   "cfdRegistryContractAddr": "0x68b91734b994abb54acc6a2cddcb2314ab2df94f",
   "cfdFactoryContractAddr": "0xa217f8559ecae53a886b799fc9e4a027ba506130",
