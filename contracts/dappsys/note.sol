@@ -30,6 +30,7 @@ contract DSNote {
         bytes32 bar;
         uint256 wad;
 
+        /* solium-disable security/no-inline-assembly */
         assembly {
             foo := calldataload(4)
             bar := calldataload(36)

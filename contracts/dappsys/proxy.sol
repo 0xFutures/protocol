@@ -63,6 +63,7 @@ contract DSProxy is DSAuth, DSNote {
         require(_target != address(0), "ds-proxy-target-address-required");
 
         // call contract in current context
+        /* solium-disable security/no-inline-assembly */
         assembly {
             let succeeded := delegatecall(sub(gas, 5000), _target, add(_data, 0x20), mload(_data), 0, 0)
             let size := returndatasize
@@ -139,6 +140,7 @@ contract DSProxyCache {
     }
 
     function write(bytes memory _code) public returns (address target) {
+        /* solium-disable security/no-inline-assembly */
         assembly {
             target := create(0, add(_code, 0x20), mload(_code))
             switch iszero(extcodesize(target))
