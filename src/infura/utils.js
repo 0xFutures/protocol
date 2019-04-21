@@ -50,7 +50,7 @@ const isValidMarketId = id => /^[A-Za-z]+_[A-Z]+_[A-Z]+$/i.test(id)
 
 const isEthereumAddress = addr => /0x[a-f0-9]{40,}/i.test(addr)
 
-const logGasOn = true
+const logGasOn = false
 const logGas = (title, txReceipt) => {
   if (logGasOn)
     console.log(`${title}: ${txReceipt.gasUsed}`)

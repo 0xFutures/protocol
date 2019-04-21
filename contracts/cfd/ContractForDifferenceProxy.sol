@@ -60,4 +60,70 @@ contract ContractForDifferenceProxy {
         _cfd.deposit(_value);
     }
 
+    /**
+     * ContractForDifference.sellPrepare
+     */
+    function sellPrepare(
+        ContractForDifference _cfd,
+        uint _desiredStrikePrice,
+        uint _timeLimit
+    )
+        external
+    {
+        _cfd.sellPrepare(_desiredStrikePrice, _timeLimit);
+    }
+
+    /**
+     * ContractForDifference.buy
+     */
+    function buy(
+        ContractForDifference _cfd,
+        ERC20 _daiToken,
+        bool _buyBuyerSide,
+        uint _value
+    )
+        external
+    {
+        require(
+            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            REASON_PROXY_NEEDS_FUNDS
+        );
+        if (_daiToken.allowance(address(this), address(_cfd)) < _value) {
+            _daiToken.approve(address(_cfd), uint(-1));
+        }
+        _cfd.buy(_buyBuyerSide, _value);
+    }
+
+    /**
+     * ContractForDifference.topup
+     */
+    function topup(
+        ContractForDifference _cfd,
+        ERC20 _daiToken,
+        uint _value
+    )
+        external
+    {
+        require(
+            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            REASON_PROXY_NEEDS_FUNDS
+        );
+        if (_daiToken.allowance(address(this), address(_cfd)) < _value) {
+            _daiToken.approve(address(_cfd), uint(-1));
+        }
+        _cfd.topup(_value);
+    }
+
+    /**
+     * ContractForDifference.withdraw
+     */
+    function withdraw(
+        ContractForDifference _cfd,
+        uint _value
+    )
+        external
+    {
+        _cfd.withdraw(_value);
+    }
+
 }
