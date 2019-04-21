@@ -8,11 +8,11 @@
   "hdWalletMnemonic": "<insert wallet here deployContracts deployment script>",
   "daemonPrivateKey": "<insert daemon private key here for daemon pushes>",
 
-  "ownerAccountAddr": "0x8f18dc8a6b7c0f0bb872baa9a4c8d0262212dc34",
-  "daemonAccountAddr": "0x8ce5bdb66eeeb54b5a038786ea0adac367f14fe0",
-  "feesAccountAddr": "0x0e2c2048469b6e1efe1dfb6c82392ed142c9c7b7",
+  "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
+  "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
+  "feesAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
 
-  "daiTokenAddr": "0xc4375b7de8af5a38a93548eb8453a498222c4ff2",
+  "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
 
   "registryAddr": "0xfb9bad0ae97e7a4b3bd3c923325cc829dcbb8062",
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
