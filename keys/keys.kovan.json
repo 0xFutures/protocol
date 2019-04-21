@@ -17,5 +17,18 @@
   "cfdFactoryContractAddr": "0x487280a2b904AfcC94437fE99F3FE91E008116c6",
   "priceFeedsContractAddr": "0x356C63D490eB7f9046116dd5Bc8468A7f483F0f1",
   "priceFeedsInternalContractAddr": "0x99B8875949be8E6B18e1305A8Eb0c5350C0f31Ee",
-  "priceFeedsExternalContractAddr": "0x7cFf030bb9E5484130C24298c7C1A38d094746BB"
+  "priceFeedsExternalContractAddr": "0x7cFf030bb9E5484130C24298c7C1A38d094746BB",
+
+  "markets": {
+    "internal": [
+      "Coinbase_BTC"
+    ],
+    "external": {
+      "Maker_ETH_USD": {
+        "priceFn": "read",
+        "interface": "EthUsdMakerInterface",
+        "address": "0xa5aa4e07f5255e14f02b385b1f04b35cc50bdb66"
+      }
+    }
+  }
 }
