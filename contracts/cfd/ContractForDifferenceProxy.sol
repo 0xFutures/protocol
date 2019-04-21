@@ -6,12 +6,11 @@ import "./ContractForDifferenceFactory.sol";
 
 
 contract ContractForDifferenceProxy {
-    event LogBlah();
 
     string constant REASON_PROXY_NEEDS_FUNDS = "Proxy needs to obtain amount from the sender";
 
     /**
-     * Proxy to ContractForDifferenceFactory.createContract
+     * ContractForDifferenceFactory.createContract
      */
     function createContract(
         ContractForDifferenceFactory _cfdf,
@@ -41,8 +40,24 @@ contract ContractForDifferenceProxy {
         );
     }
 
-    function justLog() external {
-        emit LogBlah();
+    /**
+     * ContractForDifference.deposit
+     */
+    function deposit(
+        ContractForDifference _cfd,
+        ERC20 _daiToken,
+        uint _value
+    )
+        external
+    {
+        require(
+            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            REASON_PROXY_NEEDS_FUNDS
+        );
+        if (_daiToken.allowance(address(this), address(_cfd)) < _value) {
+            _daiToken.approve(address(_cfd), uint(-1));
+        }
+        _cfd.deposit(_value);
     }
 
 }

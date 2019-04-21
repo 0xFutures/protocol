@@ -5,13 +5,14 @@ import {
   cfdInstance,
   dsProxyInstanceDeployed
 } from '../../src/infura/contracts'
+import { joinerFee } from '../../src/calc'
 import {
   logGas,
   toContractBigNumber
 } from '../../src/infura/utils'
 
-import { assertEqualBN } from '../helpers/assert'
-import { deployAllForTest } from '../helpers/deploy'
+import { assertEqualAddress, assertEqualBN } from '../helpers/assert'
+import { deployAllForTest, mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
 const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction'
@@ -34,13 +35,75 @@ const notionalAmountDai = new BigNumber('1e18') // 1 DAI
 // convert from 64 digit long to 40 digit long
 const unpackAddress = packed => packed.replace(/x0{24}/, 'x')
 
+const proxySendTransaction = async (proxy, cfdProxy, msgData) =>
+  proxy.methods[
+    'execute(address,bytes)'
+  ](
+    cfdProxy.options.address,
+    msgData
+  )
+    .send({
+      from: await proxy.methods.owner().call(),
+      gas: 1750000
+    })
+
+const proxyNew = async (user, { dsProxyFactory, daiToken }) => {
+  const buildTx = await dsProxyFactory.methods.build(user).send()
+  const proxyAddr = buildTx.events.Created.returnValues.proxy
+  const proxy = await dsProxyInstanceDeployed(config, web3, proxyAddr, user)
+  await daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+  return proxy
+}
+
+const proxyCreateCFD = async ({
+  proxy,
+  deployment: { cfdFactory, cfdProxy, daiToken },
+  marketId,
+  strikePrice,
+  notional,
+  value
+}) => {
+  // see web3.js #2077 - BigNumbers below converted to string due to bug
+  const msgData = cfdProxy.methods.createContract(
+    cfdFactory.options.address,
+    daiToken.options.address,
+    marketId,
+    strikePrice.toString(),
+    notional.toString(),
+    true, // isBuyer
+    value.toString()
+  ).encodeABI()
+
+  const txRsp = await proxySendTransaction(proxy, cfdProxy, msgData)
+  logGas(`CFD create (through proxy)`, txRsp)
+
+  const cfdPartyEventTopics = txRsp.events[10].raw.topics
+  assert.equal(cfdPartyEventTopics[0], EVENT_LogCFDRegistryParty)
+  assertEqualAddress(unpackAddress(cfdPartyEventTopics[2]), proxy.options.address)
+
+  const cfd = cfdInstance(web3, config)
+  cfd.options.address = unpackAddress(cfdPartyEventTopics[1])
+  return cfd
+}
+
+const proxyDeposit = async (
+  proxy,
+  cfd,
+  { cfdProxy, daiToken },
+  value
+) => {
+  const msgData = cfdProxy.methods.deposit(
+    cfd.options.address,
+    daiToken.options.address,
+    value.toString()
+  ).encodeABI()
+  const txRsp = await proxySendTransaction(proxy, cfdProxy, msgData)
+  logGas(`CFD deposit (through proxy)`, txRsp)
+}
+
+
 describe('ContractForDifferenceProxy', function () {
-
   let deployment
-
-  let cfd
-  let cfdProxy
-  let cfdProxyAddr
 
   let buyer
   let seller
@@ -57,85 +120,86 @@ describe('ContractForDifferenceProxy', function () {
       config,
       seedAccounts: [buyer, seller]
     })
-
-    // console.log(Object.keys(deployment))
-
-    cfd = cfdInstance(web3, config)
-    cfdProxy = deployment.cfdProxy
-    cfdProxyAddr = cfdProxy.options.address.toLowerCase()
   })
 
-  it('creates proxy for user', async () => {
-    const { dsProxyFactory } = deployment
-    const user = buyer
-
-    const buildProxyReceipt = await dsProxyFactory.methods.build(user).send()
-
-    const proxyAddr = buildProxyReceipt.events.Created.returnValues.proxy.toLowerCase()
-    const userProxy = await dsProxyInstanceDeployed(config, web3, proxyAddr, user)
-
-    assert.equal(await userProxy.methods.owner().call(), user)
-    assert(await dsProxyFactory.methods.isProxy(proxyAddr).call())
-  })
 
   it.only('create CFD through user proxy', async () => {
-    const { daiToken, dsProxyFactory } = deployment
+    const { daiToken } = deployment
 
-    const buildProxyReceipt = await dsProxyFactory.methods.build(buyer).send()
-    logGas(`Proxy create`, buildProxyReceipt)
-
-    const buyerProxyAddr = buildProxyReceipt.events.Created.returnValues.proxy.toLowerCase()
-    const buyerProxy = await dsProxyInstanceDeployed(config, web3, buyerProxyAddr, buyer)
-
-    const approveTx = await daiToken.methods.approve(buyerProxyAddr, '-1').send({ from: buyer })
-    logGas(`DAI approve`, approveTx)
-
+    const buyerProxy = await proxyNew(buyer, deployment)
+    const buyerProxyAddr = buyerProxy.options.address
+    await daiToken.methods.approve(buyerProxyAddr, '-1').send({ from: buyer })
     assertEqualBN(
       await daiToken.methods.allowance(buyer, buyerProxyAddr).call(),
       MAX_UINT256
     )
 
-    // see web3.js #2077 - BigNumber below converted to string due to bug
-    const msgData = cfdProxy.methods.createContract(
-      deployment.cfdFactory.options.address.toLowerCase(), // TODO: wire into contract
-      deployment.daiToken.options.address.toLowerCase(), // TODO: wire into contract
+    const cfd = await proxyCreateCFD({
+      proxy: buyerProxy,
+      deployment,
       marketId,
-      ethDaiPriceAdjusted.toString(),
-      notionalAmountDai.toString(),
-      true, // isBuyer
-      notionalAmountDai.toString() // value: 1x leverage - same as notional
-    ).encodeABI()
-
-    // console.log(`dsproxy: ${buyerProxyAddr}`)
-    // console.log(`cfdProxy: ${cfdProxyAddr}`)
-    // console.log(`buyer: ${buyer}`)
-    // console.log(`proxyowner: ${await buyerProxy.methods.owner().call()}`)
-    // console.log(`cfdFactory: ${deployment.cfdFactory.options.address.toLowerCase()}`)
-    // console.log(`daiToken: ${deployment.daiToken.options.address.toLowerCase()}`)
-
-    const txRsp = await buyerProxy.methods[
-      //'execute(bytes,bytes)'
-      'execute(address,bytes)'
-    ](
-      // cfdProxy.options.data, // code
-      cfdProxyAddr.toLowerCase(),
-      msgData
-    )
-      .send({
-        from: buyer,
-        gas: 5123456
-      })
-    logGas(`CFD create (through proxy)`, txRsp)
-
-    const cfdPartyEventTopics = txRsp.events[10].raw.topics
-    assert.equal(cfdPartyEventTopics[0], EVENT_LogCFDRegistryParty)
-    assert.equal(unpackAddress(cfdPartyEventTopics[2]), buyerProxyAddr)
-
-    cfd.options.address = unpackAddress(cfdPartyEventTopics[1])
-
-    assert.equal((await cfd.methods.buyer().call()).toLowerCase(), buyerProxyAddr)
+      strikePrice: ethDaiPriceAdjusted,
+      notional: notionalAmountDai,
+      value: notionalAmountDai
+    })
+    assertEqualAddress(await cfd.methods.buyer().call(), buyerProxyAddr)
     assertEqualBN(await cfd.methods.notionalAmountDai().call(), notionalAmountDai)
     assertEqualBN(await cfd.methods.strikePrice().call(), ethDaiPriceAdjusted)
     assert.equal(await cfd.methods.market().call(), marketId)
+  })
+
+
+  it.only('main lifecycle - create to liquidation', async () => {
+    const { daiToken } = deployment
+
+    const buyerProxy = await proxyNew(buyer, deployment)
+    const sellerProxy = await proxyNew(seller, deployment)
+
+    const cfd = await proxyCreateCFD({
+      proxy: buyerProxy,
+      deployment,
+      marketId,
+      strikePrice: ethDaiPriceAdjusted,
+      notional: notionalAmountDai,
+      value: notionalAmountDai
+    })
+
+    await proxyDeposit(
+      sellerProxy,
+      cfd,
+      deployment,
+      notionalAmountDai.plus(joinerFee(notionalAmountDai))
+    )
+
+    // // 5% threshold passed for seller
+    // const newMarketPrice = makerEthPriceAdjusted.times(1.951)
+    // await mockMakerPut(ethUsdMaker, newMarketPrice)
+
+    // const cfdBalance = await getBalance(cfd.options.address)
+    // const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
+    // const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
+
+    // await cfd.methods.liquidate().send({
+    //   from: DAEMON_ACCOUNT,
+    //   gas: 200000
+    // })
+
+    // await assertStatus(cfd, STATUS.CLOSED)
+    // assert.isTrue(await cfd.methods.closed().call())
+    // assert.isFalse(await cfd.methods.terminated().call())
+
+    // // full cfd balance transferred
+    // assertEqualBN(
+    //   await getBalance(CREATOR_ACCOUNT),
+    //   creatorBalBefore.plus(cfdBalance),
+    //   'buyer should have full balance transferred'
+    // )
+    // // unchanged
+    // assertEqualBN(
+    //   await getBalance(COUNTERPARTY_ACCOUNT),
+    //   cpBalBefore,
+    //   'seller balance should be unchanged'
+    // )
+
   })
 })
