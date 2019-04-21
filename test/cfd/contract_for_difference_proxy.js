@@ -6,6 +6,7 @@ import {
   dsProxyInstanceDeployed
 } from '../../src/infura/contracts'
 import {
+  logGas,
   toContractBigNumber
 } from '../../src/infura/utils'
 
@@ -81,10 +82,14 @@ describe('ContractForDifferenceProxy', function () {
     const { daiToken, dsProxyFactory } = deployment
 
     const buildProxyReceipt = await dsProxyFactory.methods.build(buyer).send()
+    logGas(`Proxy create`, buildProxyReceipt)
+
     const buyerProxyAddr = buildProxyReceipt.events.Created.returnValues.proxy.toLowerCase()
     const buyerProxy = await dsProxyInstanceDeployed(config, web3, buyerProxyAddr, buyer)
 
-    await daiToken.methods.approve(buyerProxyAddr, '-1').send({ from: buyer })
+    const approveTx = await daiToken.methods.approve(buyerProxyAddr, '-1').send({ from: buyer })
+    logGas(`DAI approve`, approveTx)
+
     assertEqualBN(
       await daiToken.methods.allowance(buyer, buyerProxyAddr).call(),
       MAX_UINT256
@@ -120,6 +125,7 @@ describe('ContractForDifferenceProxy', function () {
         from: buyer,
         gas: 5123456
       })
+    logGas(`CFD create (through proxy)`, txRsp)
 
     const cfdPartyEventTopics = txRsp.events[10].raw.topics
     assert.equal(cfdPartyEventTopics[0], EVENT_LogCFDRegistryParty)
