@@ -140,6 +140,9 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         newCfd = ContractForDifference(
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
+
+        // Register in the CFD registry before calling createByUpgrade as
+        // createByUpgrade requires this to registerParty().
         ContractForDifferenceRegistry(cfdRegistry).registerNew(
             address(newCfd),
             existingCfd.buyer()
@@ -151,6 +154,8 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             cfdRegistry,
             feeds
         );
+
+        // Put the CFD in the main Registry
         registry.addCFD(address(newCfd));
 
         // replicate logging for an ordinary create so queries will get this to

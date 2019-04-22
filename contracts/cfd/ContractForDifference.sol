@@ -288,6 +288,13 @@ contract ContractForDifference is DBC {
         address _cfdRegistryAddr,
         address _feedsAddr
     )
+        // NOTE on security: any address can call this however if the CFD 
+        // instance has not yet been added to the ContractForDifferentRegistry
+        // (which only ContractForDifferenceFactory can do) then this
+        // function will fail at registerParty() below.
+        // Of course someone can call this with a fake 
+        // ContractForDifferenceRegistry but then nothing will touch
+        // or change the state of the 0xfutures set of deployed contracts.
         public
     {
         ContractForDifference oldCfd = ContractForDifference(_cfdAddr);

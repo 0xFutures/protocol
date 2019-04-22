@@ -50,6 +50,9 @@ const isValidMarketId = id => /^[A-Za-z]+_[A-Z]+_[A-Z]+$/i.test(id)
 
 const isEthereumAddress = addr => /0x[a-f0-9]{40,}/i.test(addr)
 
+// convert from 64 digit long to 40 digit long
+const unpackAddress = packed => packed.replace(/x0{24}/, 'x')
+
 const logGasOn = false
 const logGas = (title, txReceipt) => {
   if (logGasOn)
@@ -176,5 +179,6 @@ module.exports = {
   STATUS,
   getAllEventsWithName,
   getFunctionSignature,
-  signAndSendTransaction
+  signAndSendTransaction,
+  unpackAddress,
 }

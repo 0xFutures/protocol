@@ -3,11 +3,20 @@ import {
   dsProxyInstanceDeployed,
   dsProxyFactoryInstanceDeployed
 } from './contracts'
-import { logGas } from './utils'
+import { logGas, unpackAddress } from './utils'
 
-// convert from 64 digit long to 40 digit long
-const unpackAddress = packed => packed.replace(/x0{24}/, 'x')
-
+/**
+ * A Proxy is created for each user in the 0xfutures system. This enables 
+ * bundling multiple steps into a single transaction. For example instead
+ * of one transaction for DAIToken approve followed by one transaction for
+ * CFD create, both of these can be bundled in some byte code that is and 
+ * executed (deletecall'd) in one transaction (see dappsys/proxy.sol
+ * for details of the mechanism).
+ * 
+ * NOTE: TESTING - routines in this api are tested in the and used by the
+ *        contract_for_difference_proxy.js test. For this reason there is
+ *        no seperate test file for proxy.js.
+ */
 export default class Proxy {
 
   /**
@@ -26,6 +35,12 @@ export default class Proxy {
     return proxy
   }
 
+  /**
+   * Create a new DSProxy for the given user.
+   * Later can query proxies by getUserProxy in this class.
+   * @param {address} user User of the system - a CFD party
+   * @param {object} deployment Contract handles 
+   */
   async proxyNew(user, { dsProxyFactory, daiToken }) {
     const buildTx = await dsProxyFactory.methods.build(user).send()
     const proxyAddr = buildTx.events.Created.returnValues.proxy
@@ -33,6 +48,30 @@ export default class Proxy {
     await daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
     return proxy
   }
+
+  /**
+   * Get Proxy address for a given user address.
+   * @param fromBlock, The beginning of the block interval
+   * @param toBlock, The end of the block interval
+   * @param userAddress, Look up proxy for this address
+   * @return Promise<string|undefined> Proxy address string or undefined 
+   *          if none exists
+   */
+  async getUserProxy(
+    fromBlock = this.config.deploymentBlockNumber || 0,
+    toBlock = 'latest',
+    userAddress
+  ) {
+    return this.dsProxyFactory.getPastEvents(
+      'Created',
+      {
+        filter: { owner: userAddress },
+        fromBlock,
+        toBlock
+      }
+    ).then(results => results.length > 0 ? results[0] : undefined)
+  }
+
 
   async proxyCreateCFD({
     proxy,

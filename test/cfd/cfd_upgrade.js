@@ -6,7 +6,7 @@ import {
   registryInstanceDeployed,
   daiTokenInstanceDeployed
 } from '../../src/infura/contracts'
-import { STATUS } from '../../src/infura/utils'
+import { unpackAddress, STATUS } from '../../src/infura/utils'
 
 import { assertStatus, assertEqualBN } from '../helpers/assert'
 import { deployAllForTest } from '../helpers/deploy'
@@ -181,8 +181,7 @@ describe('cfd upgrade', function () {
     //
     // Check the new contract
     //
-    const newCFDAddrStr = txUpgrade.events.LogCFDUpgraded.raw.data
-    const newCFDAddr = '0x' + newCFDAddrStr.substr(newCFDAddrStr.length - 40);
+    const newCFDAddr = unpackAddress(txUpgrade.events.LogCFDUpgraded.raw.data)
     assertEqualBN(
       cfdBalanceBefore,
       await daiToken.methods.balanceOf(newCFDAddr).call(),
@@ -236,4 +235,5 @@ describe('cfd upgrade', function () {
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))
     }
   })
+
 })
