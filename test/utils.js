@@ -4,7 +4,6 @@ const {
   fromContractBigNumber,
   toContractBigNumber,
   isValidMarketId,
-  txGas
 } = require('../src/infura/utils')
 const { assertEqualBN } = require('./helpers/assert')
 
@@ -27,10 +26,6 @@ describe('utils.js', () => {
       toContractBigNumber(acutalValue),
       contractAdjustedValue
     )
-  })
-
-  it('txGas() should pull the gasUsed amount out of a transaction receipt', () => {
-    assert.equal(txGas({ receipt: { gasUsed: 66000 } }), 66000)
   })
 
   it('isValidMarketId() should correctly validate market id strings', () => {

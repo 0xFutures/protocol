@@ -74,6 +74,20 @@ contract ContractForDifferenceProxy {
     }
 
     /**
+     * ContractForDifference.sellUpdate
+     */
+    function sellUpdate(ContractForDifference _cfd, uint _newPrice) external {
+        _cfd.sellUpdate(_newPrice);
+    }
+
+    /**
+     * ContractForDifference.sellCancel
+     */
+    function sellCancel(ContractForDifference _cfd) external {
+        _cfd.sellCancel();
+    }
+
+    /**
      * ContractForDifference.buy
      */
     function buy(
@@ -117,13 +131,36 @@ contract ContractForDifferenceProxy {
     /**
      * ContractForDifference.withdraw
      */
-    function withdraw(
-        ContractForDifference _cfd,
-        uint _value
-    )
-        external
-    {
+    function withdraw(ContractForDifference _cfd, uint _value) external {
         _cfd.withdraw(_value);
+    }
+
+    /**
+     * ContractForDifference.upgrade
+     */
+    function upgrade(ContractForDifference _cfd) external {
+        _cfd.upgrade();
+    }
+
+    /**
+     * ContractForDifference.transferPosition
+     */
+    function transferPosition(ContractForDifference _cfd, address _newAddress) external {
+        _cfd.transferPosition(_newAddress);
+    }
+
+    /**
+     * ContractForDifference.forceTerminate
+     */
+    function forceTerminate(ContractForDifference _cfd) external {
+        _cfd.forceTerminate();
+    }
+
+    /**
+     * ContractForDifference.cancelNew
+     */
+    function cancelNew(ContractForDifference _cfd) external {
+        _cfd.cancelNew();
     }
 
 }
