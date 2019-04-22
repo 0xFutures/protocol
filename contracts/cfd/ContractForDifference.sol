@@ -790,13 +790,15 @@ contract ContractForDifference is DBC {
     }
 
     /**
-     * @dev Daemons will call this routine when the market price has moved
-     *      enough that the closeRatio for this contract has been reached.
-     *      It can actually be called by anyone who is willing to pay the gas
-     *      for the liquidate. But if the market has moved past the liquidate
-     *      threshold the call will be rejected.
+     * Daemons will call this routine when the market price has moved enough
+     * that the closeRatio for this contract has been reached. It can 
+     * actually be called by anyone who is willing to pay the gas for the
+     * liquidate. 
      *
-     * This will disolve the contract and return each parties balance of
+     * If the market has not moved past the liquidate threshold the call
+     * will be rejected.
+     *
+     * @dev This will disolve the contract and return each parties balance of
      * collateral.
      */
     function liquidate()
