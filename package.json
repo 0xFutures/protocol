@@ -39,6 +39,8 @@
     "deploy-kovan-infura-first-time": "npm run prepare && babel-node bin/deployContracts config.kovan.infura.json --first-time",
     "deploy-live": "npm run prepare && babel-node bin/deployContracts config.live.json",
     "deploy-live-first-time": "npm run prepare && babel-node bin/deployContracts config.live.json --first-time",
+    "deploy-live-infura": "npm run prepare && babel-node bin/deployContracts config.live.infura.json",
+    "deploy-live-infura-first-time": "npm run prepare && babel-node bin/deployContracts config.live.infura.json --first-time",
     "develop-console": "truffle console --network develop",
     "develop-server": "bin/develop_server",
     "lint": "solium -d contracts",
