@@ -71,10 +71,10 @@
     "eslint-plugin-promise": "^3.6.0",
     "eslint-plugin-standard": "^3.0.1",
     "ganache-cli": "^6.4.3",
-    "mocha": "^6.0.2",
-    "pm2": "^3.2.2",
-    "solium": "^1.1.8",
-    "truffle": "^5.0.5",
+    "mocha": "^6.1.4",
+    "pm2": "^3.5.0",
+    "solium": "^1.2.4",
+    "truffle": "^5.0.14",
     "truffle-hdwallet-provider": "^1.0.4"
   }
 }
