@@ -14,11 +14,11 @@ import {
   assertBigNumberOrString,
   fromContractBigNumber,
   toContractBigNumber,
-  txFailed,
   getAllEventsWithName,
   signAndSendTransaction
 } from './utils'
 
+import ProxyAPI from './proxy'
 import { creatorFee, joinerFee } from '../calc'
 
 // strip off any decimal component of a value as values must be whole numbers
@@ -37,11 +37,6 @@ export default class CFDAPI {
    * @return Constructed and initialised instance of this class
    */
   static async newInstance(config, web3, privateKey) {
-    /*if (web3 == undefined || web3.isConnected() !== true) {
-      return Promise.reject(
-        new Error('web3 is not connected - check the endpoint')
-      )
-    }*/
     const api = new CFDAPI(config, web3, privateKey)
     await api.initialise()
     return api
@@ -58,7 +53,7 @@ export default class CFDAPI {
    * @param notionalAmountDai Contract amount
    * @param leverage The leverage (between 0.01 and 5.00)
    * @param isBuyer Creator wants to be contract buyer or seller
-   * @param creator Creator of this contract who will sign the transaction
+   * @param creatorProxy Proxy of creator of the new CFD 
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -69,7 +64,7 @@ export default class CFDAPI {
     notionalAmountDai,
     leverage,
     isBuyer,
-    creator
+    creatorProxy
   ) {
     assertBigNumberOrString(strikePrice)
     assertBigNumberOrString(notionalAmountDai)
@@ -87,34 +82,14 @@ export default class CFDAPI {
     const deposit = notionalBN.dividedBy(leverageValue)
     const value = safeValue(deposit.plus(creatorFee(notionalBN)))
 
-    await this.daiToken.methods.approve(this.cfdFactory.options.address, value).send({ from: creator })
-    const receipt = await this.cfdFactory.methods.createContract(
+    return await this.proxyApi.proxyCreateCFD({
+      proxy: creatorProxy,
       marketId,
-      strikePriceBN,
-      notionalBN.toFixed(),
+      strikePrice: strikePriceBN,
+      notional: notionalBN.toFixed(),
       isBuyer,
       value
-    ).send({ from: creator, gas: 500000 })
-
-    if (txFailed(receipt.status)) {
-      return Promise.reject(
-        new Error(
-          `transaction status != 1. tx:[${JSON.stringify(receipt, null, 2)}]`
-        )
-      )
-    }
-    // If we cannot get the cfd address
-    if (
-      receipt == undefined ||
-      receipt.events == undefined ||
-      receipt.events.LogCFDFactoryNew == undefined ||
-      receipt.events.LogCFDFactoryNew.raw == undefined ||
-      receipt.events.LogCFDFactoryNew.raw.data == undefined
-    )
-      return undefined;
-    const cfdAddressRaw = receipt.events.LogCFDFactoryNew.raw.data;
-    const cfdAddress = '0x' + cfdAddressRaw.substr(cfdAddressRaw.length - 40);
-    return this.getCFD(cfdAddress)
+    })
   }
 
   /**
@@ -126,12 +101,16 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async deposit(cfdAddress, depositAccount, amount) {
+  async deposit(cfdAddress, depositAccountProxy, amount) {
     const cfd = getContract(cfdAddress, this.web3)
     const fee = await this.joinFee(cfd)
     const value = safeValue(amount.plus(fee))
-    await this.daiToken.methods.approve(cfd.options.address, value).send({ from: depositAccount })
-    return cfd.methods.deposit(value).send({ from: depositAccount, gas: 1000000 })
+
+    await this.proxyApi.proxyDeposit(
+      depositAccountProxy,
+      cfd,
+      value
+    )
   }
 
   /**
@@ -190,17 +169,17 @@ export default class CFDAPI {
   /**
    * Fulfill a request to update the strike price for a non-initialized CFD
    * @param cfdAddress Address of a deployed CFD
-   * @param userAccount User's account making the request
+   * @param accountProxy Proxy account making the request
    * @param desiredStrikePrice User wants this strike price value for his CFD
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeStrikePriceCFD(cfdAddress, userAccount, desiredStrikePrice) {
+  async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(userAccount).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
       return Promise.reject(
-        new Error(`${userAccount} is not a party to CFD ${cfdAddress}`)
+        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
     }
 
@@ -208,7 +187,7 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return cfd.methods.changeStrikePrice(desiredStrikePriceBN).send({ from: userAccount })
+    return this.proxyApi.proxyChangeStrikePrice(accountProxy, cfd, desiredStrikePriceBN)
   }
 
   /**
@@ -222,7 +201,7 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async sellCFD(cfdAddress, sellerAccount, desiredStrikePrice, timeLimit = 0) {
+  async sellCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, timeLimit = 0) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
@@ -235,104 +214,100 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return cfd.methods.sellPrepare(desiredStrikePriceBN, timeLimit).send({
-      from: sellerAccount,
-      gas: 100000
-    })
+    this.proxyApi.proxySellPrepare(sellerAccountProxy, cfd, desiredStrikePriceBN, timeLimit)
   }
 
   /**
    * Buy a contract for sale
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is buying
+   * @param buyerAccountProxy, The proxy address of the account who is buying
    * @param valueToBuy, The amount the user has to pay (DAI)
    * @param isBuyerSide, Boolean if the user is buyer or seller
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async buyCFD(cfdAddress, account, valueToBuy, isBuyerSide) {
+  async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide) {
     const cfd = getContract(cfdAddress, this.web3)
     const fee = await this.joinFee(cfd)
     const valueToBuyBN = new BigNumber(valueToBuy)
     const value = safeValue(valueToBuyBN.plus(fee))
-    await this.daiToken.methods.approve(cfd.options.address, value).send({ from: account })
-    return cfd.methods.buy(isBuyerSide, value).send({ from: account, gas: 1000000 })
+    return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value)
   }
 
   /**
    * Tansfer the position in a contract to another account.
    * @param cfdAddress, Address of the deployed CFD
-   * @param fromAccount, Account who is transferring the position
+   * @param fromAccountProxy, Account who is transferring the position
    * @param toAccount, Account who the position gets transferred too
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async transferPosition(cfdAddress, fromAccount, toAccount) {
+  async transferPosition(cfdAddress, fromAccountProxy, toAccount) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.transferPosition(toAccount).send({ from: fromAccount, gas: 50000 })
+    return this.proxyApi.proxyTransferPosition(fromAccountProxy, cfd, toAccount)
   }
 
   /**
    * Force liquidation a contract
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is terminating
+   * @param accountProxy, The proxy address of the account who is terminating
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async forceTerminate(cfdAddress, account) {
+  async forceTerminate(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.forceTerminate().send({ from: account, gas: 150000 })
+    return this.proxycfd.methods.forceTerminate(accountProxy, cfd)
   }
 
   /**
    * Cancel a newly created contract (must be non initialized)
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is canceling
+   * @param accountProxy, The address of the proxy account who is canceling
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelNew(cfdAddress, account) {
+  async cancelNew(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.cancelNew().send({ from: account, gas: 150000 })
+    return this.proxyApi.proxyCancelNew(accountProxy, cfd)
   }
 
   /**
    * Cancel a contract for sale (must be for sale)
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is canceling
+   * @param accountProxy, The address of the account who is canceling
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelSale(cfdAddress, account) {
+  async cancelSale(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.sellCancel().send({ from: account })
+    return this.proxyApi.proxyCancel(accountProxy, cfd)
   }
 
   /**
    * Upgrade a contract to the latest deployed version
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is upgrading
+   * @param accountProxy, The address of the account who is upgrading
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async upgradeCFD(cfdAddress, account) {
+  async upgradeCFD(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return cfd.methods.upgrade().send({ from: account })
+    return this.proxyApi.proxyUpgrade(accountProxy, cfd)
   }
 
   /**
    * Check for liquidation
    * @param cfdAddress, Address of the contract
-   * @param account, Account address of the user
+   * @param accountProxy, Account address of the user
    */
-  attemptContractLiquidation(cfdAddress, account) {
+  attemptContractLiquidation(cfdAddress, accountProxy) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
     ]).then(() => {
       // Contract address exists
       const cfd = getContract(cfdAddress, self.web3);
-      return cfd.methods.liquidate().send({ from: account, gas: 200000 });
+      return this.proxyApi.proxyliquidate(accountProxy, cfd)
     }).catch(error => {
       throw new Error(error);
     });
@@ -340,9 +315,9 @@ export default class CFDAPI {
   /**
    * Check for liquidation with a signed transaction (for the daemon)
    * @param cfdAddress, Address of the contract
-   * @param account, Account address of the user
+   * @param accountProxy, Account address of the user
    */
-  attemptContractLiquidationDaemon(cfdAddress, account) {
+  attemptContractLiquidationDaemon(cfdAddress, accountProxy) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
@@ -366,17 +341,17 @@ export default class CFDAPI {
   /**
    * Fulfill a request to change the sale price for a CFD for sale
    * @param cfdAddress Address of a deployed CFD
-   * @param sellerAccount Account settling the position.
+   * @param selleraccountProxy Account settling the position.
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeSaleCFD(cfdAddress, sellerAccount, desiredStrikePrice) {
+  async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3);
 
-    if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
+    if ((await cfd.methods.isContractParty(sellerAccountProxy).call()) === false) {
       return Promise.reject(
-        new Error(`${sellerAccount} is not a party to CFD ${cfdAddress}`)
+        new Error(`${sellerAccountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
     }
 
@@ -384,47 +359,44 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return cfd.methods.sellUpdate(desiredStrikePriceBN).send({
-      from: sellerAccount
-    })
+    return this.proxyApi.proxySellUpdate(sellerAccountProxy, cfd, desiredStrikePriceBN)
   }
 
   /**
    * Topup a CFD by the amount sent by the user
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is topuping
+   * @param accountProxy, The address of the account who is topuping
    * @param valueToAdd, The amount the user wants to add (DAI)
    */
-  async topup(cfdAddress, account, valueToAdd) {
+  async topup(cfdAddress, accountProxy, valueToAdd) {
     const cfd = getContract(cfdAddress, this.web3);
 
-    if ((await cfd.methods.isContractParty(account).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
       return Promise.reject(
-        new Error(`${account} is not a party to CFD ${cfdAddress}`)
+        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
     }
 
     const value = safeValue(valueToAdd)
-    await this.daiToken.methods.approve(cfdAddress, value).send({ from: account })
-    return cfd.methods.topup(value).send({ from: account })
+    return this.proxyApi.proxyTopup(accountProxy, cfd, value)
   }
 
   /**
    * Withdraw the amount from a CFD
    * @param cfdAddress, Address of the deployed CFD
-   * @param account, The address of the account who is withdrawing
+   * @param accountProxy, The address of the account who is withdrawing
    * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
    */
-  async withdraw(cfdAddress, account, valueToWithdraw) {
+  async withdraw(cfdAddress, accountProxy, valueToWithdraw) {
     const cfd = getContract(cfdAddress, this.web3);
-    if ((await cfd.methods.isContractParty(account).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
       return Promise.reject(
-        new Error(`${account} is not a party to CFD ${cfdAddress}`)
+        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
     }
 
     const value = safeValue(valueToWithdraw)
-    return cfd.methods.withdraw(value).send({ from: account })
+    return this.proxyApi.proxyWithdraw(accountProxy, cfd, value)
   }
 
 
@@ -741,6 +713,7 @@ export default class CFDAPI {
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
     this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
     this.priceFeeds = await priceFeedsInstanceDeployed(this.config, this.web3)
+    this.proxyApi = await ProxyAPI.newInstance(this.config, this.web3)
     return this
   }
 }

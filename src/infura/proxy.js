@@ -1,5 +1,8 @@
 import {
   cfdInstance,
+  cfdProxyInstanceDeployed,
+  cfdFactoryInstanceDeployed,
+  daiTokenInstanceDeployed,
   dsProxyInstanceDeployed,
   dsProxyFactoryInstanceDeployed
 } from './contracts'
@@ -41,11 +44,23 @@ export default class Proxy {
    * @param {address} user User of the system - a CFD party
    * @param {object} deployment Contract handles 
    */
-  async proxyNew(user, { dsProxyFactory, daiToken }) {
-    const buildTx = await dsProxyFactory.methods.build(user).send()
+  async proxyNew(user) {
+    // Tx1: create proxy contract
+    const buildTx = await this.dsProxyFactory.methods.build(user).send({
+      from: user,
+      gas: 1000000
+    })
     const proxyAddr = buildTx.events.Created.returnValues.proxy
-    const proxy = await dsProxyInstanceDeployed(this.config, this.web3, proxyAddr, user)
-    await daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+    const proxy = await dsProxyInstanceDeployed(
+      this.config,
+      this.web3,
+      proxyAddr,
+      user
+    )
+
+    // Tx2: approve proxy contract transfers of DAI Token
+    await this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+
     return proxy
   }
 
@@ -75,48 +90,59 @@ export default class Proxy {
 
   async proxyCreateCFD({
     proxy,
-    deployment: { cfdFactory, cfdProxy, daiToken },
     marketId,
     strikePrice,
     notional,
+    isBuyer,
     value
   }) {
-    const txRsp = await this.proxyTx(proxy, cfdProxy, 'createContract', [
-      cfdFactory.options.address,
-      daiToken.options.address,
+    const txRsp = await this.proxyTx(proxy, 'createContract', [
+      this.cfdFactory.options.address,
+      this.daiToken.options.address,
       marketId,
       strikePrice.toString(),
       notional.toString(),
-      true, // isBuyer
+      isBuyer,
       value.toString()
     ])
 
-    const cfdPartyEventTopics = txRsp.events[10].raw.topics
+    const cfdPartyEvent = Object.entries(txRsp.events).find(
+      e => e[1].raw.topics[0] === this.eventHashLogCFDRegistryParty
+    )[1]
+    const cfdAddr = unpackAddress(cfdPartyEvent.raw.topics[1])
 
     const cfd = cfdInstance(this.web3, this.config)
-    cfd.options.address = unpackAddress(cfdPartyEventTopics[1])
+    cfd.options.address = cfdAddr
     return cfd
   }
 
   proxyDeposit(
     proxy,
     cfd,
-    { cfdProxy, daiToken },
     value
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'deposit', [
-      cfd.options.address, daiToken.options.address, value.toString()
+    return this.proxyTx(proxy, 'deposit', [
+      cfd.options.address, this.daiToken.options.address, value.toString()
+    ])
+  }
+
+  proxyChangeStrikePrice(
+    proxy,
+    cfd,
+    newPrice
+  ) {
+    return this.proxyTx(proxy, 'changeStrikePrice', [
+      cfd.options.address, newPrice.toString()
     ])
   }
 
   async proxySellPrepare(
     proxy,
     cfd,
-    { cfdProxy },
     desiredStrikePrice,
     timeLimit
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'sellPrepare', [
+    return this.proxyTx(proxy, 'sellPrepare', [
       cfd.options.address, desiredStrikePrice.toString(), timeLimit
     ])
   }
@@ -124,10 +150,9 @@ export default class Proxy {
   async proxySellUpdate(
     proxy,
     cfd,
-    { cfdProxy },
     newPrice
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'sellUpdate', [
+    return this.proxyTx(proxy, 'sellUpdate', [
       cfd.options.address, newPrice.toString()
     ])
   }
@@ -135,9 +160,8 @@ export default class Proxy {
   async proxySellCancel(
     proxy,
     cfd,
-    { cfdProxy },
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'sellCancel', [
+    return this.proxyTx(proxy, 'sellCancel', [
       cfd.options.address
     ])
   }
@@ -145,35 +169,33 @@ export default class Proxy {
   async proxyBuy(
     proxy,
     cfd,
-    { cfdProxy, daiToken },
     buyBuyerSide,
     buyValue
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'buy', [
+    return this.proxyTx(proxy, 'buy', [
       cfd.options.address,
-      daiToken.options.address,
+      this.daiToken.options.address,
       buyBuyerSide,
       buyValue.toString()
     ])
   }
+
   async proxyTopup(
     proxy,
     cfd,
-    { cfdProxy, daiToken },
     value
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'topup', [
-      cfd.options.address, daiToken.options.address, value.toString()
+    return this.proxyTx(proxy, 'topup', [
+      cfd.options.address, this.daiToken.options.address, value.toString()
     ])
   }
 
   async proxyWithdraw(
     proxy,
     cfd,
-    { cfdProxy },
     value
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'withdraw', [
+    return this.proxyTx(proxy, 'withdraw', [
       cfd.options.address, value.toString()
     ])
   }
@@ -181,9 +203,8 @@ export default class Proxy {
   async proxyCancelNew(
     proxy,
     cfd,
-    { cfdProxy },
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'cancelNew', [
+    return this.proxyTx(proxy, 'cancelNew', [
       cfd.options.address
     ])
   }
@@ -191,9 +212,8 @@ export default class Proxy {
   async proxyForceTerminate(
     proxy,
     cfd,
-    { cfdProxy },
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'forceTerminate', [
+    return this.proxyTx(proxy, 'forceTerminate', [
       cfd.options.address
     ])
   }
@@ -201,9 +221,8 @@ export default class Proxy {
   async proxyUpgrade(
     proxy,
     cfd,
-    { cfdProxy },
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'upgrade', [
+    return this.proxyTx(proxy, 'upgrade', [
       cfd.options.address
     ])
   }
@@ -211,10 +230,9 @@ export default class Proxy {
   async proxyTransferPosition(
     proxy,
     cfd,
-    { cfdProxy },
     newAddress
   ) {
-    return this.proxyTx(proxy, cfdProxy, 'transferPosition', [
+    return this.proxyTx(proxy, 'transferPosition', [
       cfd.options.address,
       newAddress.toString()
     ])
@@ -226,9 +244,9 @@ export default class Proxy {
    * @param {ContractForDifferenceProxy} cfdProxy 
    * @param {string} msgData Transaction msg.data to send
    */
-  async proxySendTransaction(proxy, cfdProxy, msgData) {
+  async proxySendTransaction(proxy, msgData) {
     return proxy.methods['execute(address,bytes)'](
-      cfdProxy.options.address,
+      this.cfdProxy.options.address,
       msgData
     ).send({
       from: await proxy.methods.owner().call(),
@@ -241,16 +259,14 @@ export default class Proxy {
    * @param {DSProxy} proxy
    * @param {ContractForDifferenceProxy} cfdProxy 
    * @param {string} method Signature/name of method to call on proxy
-   * @param {Array} methodArgs Arguments to method
    */
   async proxyTx(
     proxy,
-    cfdProxy,
     method,
     methodArgs
   ) {
-    const msgData = cfdProxy.methods[method](...methodArgs).encodeABI()
-    const txRsp = await this.proxySendTransaction(proxy, cfdProxy, msgData)
+    const msgData = this.cfdProxy.methods[method](...methodArgs).encodeABI()
+    const txRsp = await this.proxySendTransaction(proxy, msgData)
     logGas(`CFD ${method} (through proxy)`, txRsp)
     return txRsp
   }
@@ -277,8 +293,11 @@ export default class Proxy {
    * @return Proxy instance
    */
   async initialise() {
-    this.dsProxyFactory = await dsProxyFactoryInstanceDeployed(this.config, this.web3);
-    // this.EVENT_LogCFDRegistryParty = this.web3.utils.sha3('LogCFDRegistryParty(address,address)')
+    this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
+    this.dsProxyFactory = await dsProxyFactoryInstanceDeployed(this.config, this.web3)
+    this.cfdProxy = await cfdProxyInstanceDeployed(this.config, this.web3)
+    this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
+    this.eventHashLogCFDRegistryParty = this.web3.utils.sha3(`LogCFDRegistryParty(address,address)`)
     return this
   }
 }

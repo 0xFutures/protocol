@@ -163,4 +163,12 @@ contract ContractForDifferenceProxy {
         _cfd.cancelNew();
     }
 
+
+    /**
+     * ContractForDifference.changeStrikePrice
+     */
+    function changeStrikePrice(ContractForDifference _cfd, uint _newPrice) external {
+        _cfd.changeStrikePrice(_newPrice);
+    }
+
 }

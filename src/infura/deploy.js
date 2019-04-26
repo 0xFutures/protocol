@@ -249,7 +249,7 @@ const deployProxy = async (web3, config, logFn, registry) => {
   logFn(`done`)
 
   const updatedConfig = Object.assign({}, config, {
-    dsProxyFactoryAddr: dsProxyFactory.options.address
+    dsProxyFactoryContractAddr: dsProxyFactory.options.address
   })
 
   return {
