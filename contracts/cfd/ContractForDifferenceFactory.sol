@@ -96,7 +96,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             registry.getDAI().transferFrom(creator, address(cfd), _value),
             REASON_DAI_TRANSFER_FAILED
         );
-        cfd.create(
+        cfd.createNew(
             address(registry),
             cfdRegistry,
             feeds,

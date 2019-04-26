@@ -25,17 +25,17 @@ contract ContractForDifferenceProxy {
         returns (ContractForDifference cfd)
     {
         require(
-            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            _daiToken.transferFrom(msg.sender, address(this), _value),
             REASON_PROXY_NEEDS_FUNDS
         );
         if (_daiToken.allowance(address(this), address(_cfdf)) < _value) {
             _daiToken.approve(address(_cfdf), uint(-1));
         }
         cfd = _cfdf.createContract(
-            _marketId, 
-            _strikePrice, 
-            _notionalAmountDai, 
-            _isBuyer, 
+            _marketId,
+            _strikePrice,
+            _notionalAmountDai,
+            _isBuyer,
             _value
         );
     }
@@ -51,7 +51,7 @@ contract ContractForDifferenceProxy {
         external
     {
         require(
-            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            _daiToken.transferFrom(msg.sender, address(this), _value),
             REASON_PROXY_NEEDS_FUNDS
         );
         if (_daiToken.allowance(address(this), address(_cfd)) < _value) {
@@ -99,7 +99,7 @@ contract ContractForDifferenceProxy {
         external
     {
         require(
-            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            _daiToken.transferFrom(msg.sender, address(this), _value),
             REASON_PROXY_NEEDS_FUNDS
         );
         if (_daiToken.allowance(address(this), address(_cfd)) < _value) {
@@ -119,7 +119,7 @@ contract ContractForDifferenceProxy {
         external
     {
         require(
-            _daiToken.transferFrom(msg.sender, address(this), _value), 
+            _daiToken.transferFrom(msg.sender, address(this), _value),
             REASON_PROXY_NEEDS_FUNDS
         );
         if (_daiToken.allowance(address(this), address(_cfd)) < _value) {

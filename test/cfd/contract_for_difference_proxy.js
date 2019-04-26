@@ -122,7 +122,7 @@ describe('ContractForDifferenceProxy', function () {
     await mockMakerPut(deployment.ethUsdMaker, newMarketPrice)
 
     const cfdBalance = await getBalance(daiToken, cfd.options.address)
-    const buyerProxyBalBefore = await getBalance(daiToken, buyerProxy.options.address)
+    const buyerBalBefore = await getBalance(daiToken, buyer)
     const sellerProxyBalBefore = await getBalance(daiToken, sellerProxy.options.address)
 
     await cfd.methods.liquidate().send({
@@ -136,8 +136,8 @@ describe('ContractForDifferenceProxy', function () {
 
     // full cfd balance transferred
     assertEqualBN(
-      await getBalance(daiToken, buyerProxy.options.address),
-      buyerProxyBalBefore.plus(cfdBalance),
+      await getBalance(daiToken, buyer),
+      buyerBalBefore.plus(cfdBalance),
       'buyer should have full balance transferred'
     )
     // unchanged
@@ -150,6 +150,7 @@ describe('ContractForDifferenceProxy', function () {
 
   it('sale lifecycle - sellPrepare and buy', async () => {
     const { cfd, buyerProxy } = await createCFD()
+    const { daiToken } = deployment
 
     // put buyer side on sale
     const salePricePercent = 1.2
@@ -164,6 +165,8 @@ describe('ContractForDifferenceProxy', function () {
     const thirdPartyProxy = await proxyApi.proxyNew(thirdParty, deployment)
     const buyBuyerSide = true
     const buyValue = notionalAmountDai.plus(joinerFee(notionalAmountDai)).toFixed()
+
+    const buyerBalBefore = await getBalance(daiToken, buyer)
     await proxyApi.proxyBuy(thirdPartyProxy, cfd, deployment, buyBuyerSide, buyValue)
 
     // thirdParty now owns the buy side
@@ -173,10 +176,9 @@ describe('ContractForDifferenceProxy', function () {
     )
 
     // exiting party recieves funds from sale
-    const { daiToken } = deployment
     assertEqualBN(
-      await getBalance(daiToken, buyerProxy.options.address),
-      notionalAmountDai.times(salePricePercent),
+      await getBalance(daiToken, buyer),
+      buyerBalBefore.plus(notionalAmountDai.times(salePricePercent)),
       'buyer should have full balance transferred'
     )
 
@@ -276,7 +278,7 @@ describe('ContractForDifferenceProxy', function () {
     )
 
     // withdraw and check balances
-    const buyerProxyBalBeforeWithdraw = await getBalance(daiToken, buyerProxy.options.address)
+    const buyerBalBeforeWithdraw = await getBalance(daiToken, buyer)
     const withdrawAmount = topupAmount
     await proxyApi.proxyWithdraw(
       buyerProxy,
@@ -291,8 +293,8 @@ describe('ContractForDifferenceProxy', function () {
       'buyerDepositBalance after withdraw'
     )
     assertEqualBN(
-      await getBalance(daiToken, buyerProxy.options.address),
-      buyerProxyBalBeforeWithdraw.plus(withdrawAmount),
+      await getBalance(daiToken, buyer),
+      buyerBalBeforeWithdraw.plus(withdrawAmount),
       'buyer address gets the withdrawn amount'
     )
 

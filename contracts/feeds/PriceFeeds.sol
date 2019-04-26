@@ -20,9 +20,9 @@ contract PriceFeeds {
     }
 
     function read(bytes32 _marketId)
-        public 
-        view 
-        returns (uint value) 
+        public
+        view
+        returns (uint value)
     {
         if (feedInternal.isMarketActive(_marketId)) {
             (value, ) = feedInternal.read(_marketId);
@@ -37,10 +37,10 @@ contract PriceFeeds {
         }
     }
 
-    function marketName(bytes32 _marketId) 
-        public 
-        view 
-        returns (string memory name) 
+    function marketName(bytes32 _marketId)
+        public
+        view
+        returns (string memory name)
     {
         if (feedInternal.isMarketActive(_marketId)) {
             name = feedInternal.marketNames(_marketId);
@@ -51,10 +51,10 @@ contract PriceFeeds {
         }
     }
 
-    function isMarketActive(bytes32 _marketId) 
-        public 
-        view 
-        returns (bool active) 
+    function isMarketActive(bytes32 _marketId)
+        public
+        view
+        returns (bool active)
     {
         active = false;
         if (feedInternal.isMarketActive(_marketId)) {

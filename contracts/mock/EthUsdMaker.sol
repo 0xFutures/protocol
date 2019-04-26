@@ -16,5 +16,5 @@ contract EthUsdMaker {
     function put(bytes32 _price) external {
         price = _price;
     }
-    
+
 }

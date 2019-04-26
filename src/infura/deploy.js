@@ -16,6 +16,11 @@ import {
 } from './contracts'
 import { isEthereumAddress } from './utils'
 
+const dsProxyByteCode = () => {
+  const proxyJSON = require('../../abi/DSProxy.json')
+  return proxyJSON.deployedBytecode
+}
+
 const linkBytecode = (bytecode, libraryName, libraryAddress) => {
   const regex = new RegExp('__' + libraryName + '_+', 'g')
   return bytecode.replace(regex, libraryAddress.replace('0x', ''))
@@ -222,10 +227,11 @@ const deployCFD = async (web3, config, logFn) => {
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @param logFn Log progress with this function
+ * @param registry Registry contract instance
  * @return proxy Proxy contract instance
  * @return updatedConfig Config instance with updated proxyAddr
  */
-const deployProxy = async (web3, config, logFn) => {
+const deployProxy = async (web3, config, logFn, registry) => {
   web3.eth.defaultAccount = config.ownerAccountAddr // sometimes case is an issue: eg. truffle-hdwallet-provider
 
   const DSProxyFactory = dsProxyFactoryInstance(web3.currentProvider, config)
@@ -236,6 +242,11 @@ const deployProxy = async (web3, config, logFn) => {
     gas: config.gasDefault
   })
   logFn(`DSProxyFactory: ${dsProxyFactory.options.address}`)
+
+  logFn('setProxyCodeHash ...')
+  const codeHash = web3.utils.keccak256(dsProxyByteCode())
+  await registry.methods.setProxyCodeHash(codeHash).send()
+  logFn(`done`)
 
   const updatedConfig = Object.assign({}, config, {
     dsProxyFactoryAddr: dsProxyFactory.options.address
@@ -312,7 +323,7 @@ const deployAll = async (
   const {
     updatedConfig: configAfterProxy,
     dsProxyFactory
-  } = await deployProxy(web3, config, log)
+  } = await deployProxy(web3, config, log, registry)
   config = configAfterProxy
 
   return {

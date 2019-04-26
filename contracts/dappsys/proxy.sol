@@ -20,7 +20,14 @@ pragma solidity >=0.5.0 <0.6.0;
 import "./auth.sol";
 import "./note.sol";
 
-// DSProxy
+// DSProxy - 0xFutures modifications:
+
+// - removed all payable keywords and the payable fallback as our proxies
+//   don't take or send ETH at all. Additionally solidity would enforce address
+//   instances in the CFD to be payable which we don't want.
+
+// DSProxy - original from dappsys:
+
 // Allows code execution using a persistant identity This can be very
 // useful to execute a sequence of atomic actions. Since the owner of
 // the proxy can be changed, this allows for dynamic ownership models
@@ -34,13 +41,9 @@ contract DSProxy is DSAuth, DSNote {
         setCache(_cacheAddr);
     }
 
-    function() external payable {
-    }
-
     // use the proxy to execute calldata _data on contract _code
     function execute(bytes memory _code, bytes memory _data)
         public
-        payable
         returns (address target, bytes memory response)
     {
         target = cache.read(_code);
@@ -56,7 +59,6 @@ contract DSProxy is DSAuth, DSNote {
         public
         auth
         note
-        payable
         returns (bytes memory response)
     {
         // emit LogParams(_target, _data);
@@ -108,13 +110,13 @@ contract DSProxyFactory {
 
     // deploys a new proxy instance
     // sets owner of proxy to caller
-    function build() public returns (address payable proxy) {
+    function build() public returns (address proxy) {
         proxy = build(msg.sender);
     }
 
     // deploys a new proxy instance
     // sets custom owner of proxy
-    function build(address owner) public returns (address payable proxy) {
+    function build(address owner) public returns (address proxy) {
         proxy = address(new DSProxy(address(cache)));
         emit Created(msg.sender, owner, address(proxy), address(cache));
         DSProxy(proxy).setOwner(owner);

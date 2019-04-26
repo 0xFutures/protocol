@@ -40,7 +40,7 @@ contract ForwardFactory {
         /*
          * SOLIUM DISABLE no-inline-assembly error. How else to cheaply do this?
          */
-         
+
         /* solium-disable security/no-inline-assembly */
         assembly {
             let contractCode := mload(0x40)                 // Find empty storage location using "free memory pointer"
