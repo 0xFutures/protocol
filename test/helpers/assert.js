@@ -36,11 +36,11 @@ const assertLoggedParty = (logRec, expectedCFD, expectedParty) => {
   )
 }
 
-const assertStatus = async (cfd, expected) =>
+const assertStatus = async (cfd, expected, msg = `status incorrect`) =>
   assert.equal(
     await cfd.methods.status().call(),
     expected,
-    `status incorrect`
+    msg
   )
 
 export { assertEqualAddress, assertEqualBN, assertLoggedParty, assertStatus }

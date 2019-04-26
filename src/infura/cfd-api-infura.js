@@ -177,7 +177,7 @@ export default class CFDAPI {
   async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
       return Promise.reject(
         new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
@@ -194,7 +194,7 @@ export default class CFDAPI {
    * Fulfill a request to mark a CFD for sale by calling sellPrepare on the CFD
    * and sending the fee for a single market price read.
    * @param cfdAddress Address of a deployed CFD
-   * @param sellerAccount Account settling the position.
+   * @param sellerAccountProxy Proxy account settling the position.
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
    * @param timeLimit Sale expired after this time (UNIX epoch seconds).
    *          Defaults to 0 for no limit.
@@ -204,9 +204,9 @@ export default class CFDAPI {
   async sellCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, timeLimit = 0) {
     const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(sellerAccount).call()) === false) {
+    if ((await cfd.methods.isContractParty(sellerAccountProxy.options.address).call()) === false) {
       return Promise.reject(
-        new Error(`${sellerAccount} is not a party to CFD ${cfdAddress}`)
+        new Error(`${sellerAccountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
     }
 
@@ -214,7 +214,7 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    this.proxyApi.proxySellPrepare(sellerAccountProxy, cfd, desiredStrikePriceBN, timeLimit)
+    return this.proxyApi.proxySellPrepare(sellerAccountProxy, cfd, desiredStrikePriceBN, timeLimit)
   }
 
   /**
@@ -256,7 +256,7 @@ export default class CFDAPI {
    */
   async forceTerminate(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxycfd.methods.forceTerminate(accountProxy, cfd)
+    return this.proxyApi.proxyForceTerminate(accountProxy, cfd)
   }
 
   /**
@@ -280,7 +280,7 @@ export default class CFDAPI {
    */
   async cancelSale(cfdAddress, accountProxy) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyCancel(accountProxy, cfd)
+    return this.proxyApi.proxySellCancel(accountProxy, cfd)
   }
 
   /**
@@ -349,7 +349,7 @@ export default class CFDAPI {
   async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3);
 
-    if ((await cfd.methods.isContractParty(sellerAccountProxy).call()) === false) {
+    if ((await cfd.methods.isContractParty(sellerAccountProxy.options.address).call()) === false) {
       return Promise.reject(
         new Error(`${sellerAccountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
@@ -371,7 +371,7 @@ export default class CFDAPI {
   async topup(cfdAddress, accountProxy, valueToAdd) {
     const cfd = getContract(cfdAddress, this.web3);
 
-    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
       return Promise.reject(
         new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )
@@ -389,7 +389,7 @@ export default class CFDAPI {
    */
   async withdraw(cfdAddress, accountProxy, valueToWithdraw) {
     const cfd = getContract(cfdAddress, this.web3);
-    if ((await cfd.methods.isContractParty(accountProxy).call()) === false) {
+    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
       return Promise.reject(
         new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
       )

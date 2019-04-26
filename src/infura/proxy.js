@@ -42,7 +42,6 @@ export default class Proxy {
    * Create a new DSProxy for the given user.
    * Later can query proxies by getUserProxy in this class.
    * @param {address} user User of the system - a CFD party
-   * @param {object} deployment Contract handles 
    */
   async proxyNew(user) {
     // Tx1: create proxy contract

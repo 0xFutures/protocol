@@ -2,21 +2,20 @@ import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
 import CFDAPI from '../../src/infura/cfd-api-infura'
+import ProxyAPI from '../../src/infura/proxy'
 import {
   registryInstanceDeployed,
   daiTokenInstanceDeployed
 } from '../../src/infura/contracts'
 import { unpackAddress, STATUS } from '../../src/infura/utils'
 
-import { assertStatus, assertEqualBN } from '../helpers/assert'
+import { assertStatus, assertEqualAddress, assertEqualBN } from '../helpers/assert'
 import { deployAllForTest } from '../helpers/deploy'
 import { config as configBase, web3 } from '../helpers/setup'
 
 const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
-const ACCOUNT_OWNER = 0
-const ACCOUNT_DAEMON = 3
 const ACCOUNT_BUYER = 5
 const ACCOUNT_SELLER = 6
 
@@ -27,9 +26,6 @@ const isBigNumber = num =>
   typeof num === 'object' && 'e' in num && 'c' in num && 's' in num
 
 describe('cfd upgrade', function () {
-  let daemonAccountAddr
-  let ownerAccountAddr
-
   let buyer
   let seller
   let notionalAmountDai
@@ -39,61 +35,41 @@ describe('cfd upgrade', function () {
   const leverage = 1 // most tests using leverage 1
 
   const deployFullSet = async ({ config = configBase, firstTime }) => {
-    let priceFeeds
-    let registry
-    let cfdFactory
-    let cfdRegistry
-    let daiToken
-    let ethUsdMaker
-
+    let updatedConfig
       // eslint-disable-next-line no-extra-semi
-      ; ({
-        priceFeeds,
-        cfdRegistry,
-        cfdFactory,
-        registry,
-        daiToken,
-        ethUsdMaker
-      } = await deployAllForTest({
+      ; ({ updatedConfig } = await deployAllForTest({
         web3,
         initialPriceInternal: price,
         firstTime,
         config,
         seedAccounts: [buyer, seller]
       }))
-
-    const updatedConfig = Object.assign({}, configBase, {
-      daemonAccountAddr,
-      ownerAccountAddr,
-      priceFeedsContractAddr: priceFeeds.options.address,
-      registryAddr: registry.options.address,
-      cfdFactoryContractAddr: cfdFactory.options.address,
-      cfdRegistryContractAddr: cfdRegistry.options.address,
-      daiTokenAddr: daiToken.options.address,
-      ethUsdMakerAddr: ethUsdMaker.options.address
-    })
-
     return updatedConfig
   }
 
-  const newCFDInitiated = async (party, counterparty, partyIsBuyer) => {
+  const newCFDInitiated = async (partyProxy, counterpartyProxy, partyIsBuyer) => {
     const cfd = await cfdAPI.newCFD(
       marketStr,
       price,
       notionalAmountDai,
       leverage,
       partyIsBuyer,
-      party
+      partyProxy
     )
-    await cfdAPI.deposit(cfd.options.address, counterparty, notionalAmountDai)
+    await cfdAPI.deposit(cfd.options.address, counterpartyProxy, notionalAmountDai)
     return cfd
+  }
+
+  const createProxies = async (config, buyer, seller) => {
+    const proxyApi = await ProxyAPI.newInstance(config, web3)
+    const buyerProxy = await proxyApi.proxyNew(buyer)
+    const sellerProxy = await proxyApi.proxyNew(seller)
+    return { buyerProxy, sellerProxy }
   }
 
   before(done => {
     notionalAmountDai = new BigNumber('1e18') // 1 DAI
     web3.eth.getAccounts().then(async (accounts) => {
-      daemonAccountAddr = accounts[ACCOUNT_DAEMON]
-      ownerAccountAddr = accounts[ACCOUNT_OWNER]
       buyer = accounts[ACCOUNT_BUYER]
       seller = accounts[ACCOUNT_SELLER]
       done()
@@ -110,12 +86,13 @@ describe('cfd upgrade', function () {
     // Deploy 1st set of contracts and create a CFD
     //
     deploymentConfig.v1 = await deployFullSet({ firstTime: true })
+    const { buyerProxy, sellerProxy } = await createProxies(deploymentConfig.v1, buyer, seller)
 
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)
     const registry = await registryInstanceDeployed(deploymentConfig.v1, web3)
     const daiToken = await daiTokenInstanceDeployed(deploymentConfig.v1, web3)
 
-    const cfd = await newCFDInitiated(buyer, seller, true)
+    const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
 
     await assertStatus(cfd, STATUS.INITIATED)
     assert.equal(
@@ -156,9 +133,9 @@ describe('cfd upgrade', function () {
     // Upgrade the contract - requires an upgrade call each party, upgrade
     // happens on the second call
     //
-    await cfd.methods.upgrade().send({ from: buyer })
-    assert.equal(
-      buyer,
+    await cfdAPI.upgradeCFD(cfd.options.address, buyerProxy)
+    assertEqualAddress(
+      buyerProxy.options.address,
       await cfd.methods.upgradeCalledBy().call(),
       'upgrade caller marked'
     )
@@ -166,7 +143,7 @@ describe('cfd upgrade', function () {
     assert.isFalse(await cfd.methods.upgradeable().call(), 'upgradeable not set yet')
 
     const cfdBalanceBefore = await daiToken.methods.balanceOf(cfd.options.address).call()
-    const txUpgrade = await cfd.methods.upgrade().send({ from: seller, gas: 700000 })
+    const txUpgrade = await cfdAPI.upgradeCFD(cfd.options.address, sellerProxy)
 
     //
     // Check the old contract
@@ -181,7 +158,7 @@ describe('cfd upgrade', function () {
     //
     // Check the new contract
     //
-    const newCFDAddr = unpackAddress(txUpgrade.events.LogCFDUpgraded.raw.data)
+    const newCFDAddr = unpackAddress(txUpgrade.events[8].raw.data)
     assertEqualBN(
       cfdBalanceBefore,
       await daiToken.methods.balanceOf(newCFDAddr).call(),
@@ -225,11 +202,12 @@ describe('cfd upgrade', function () {
 
   it('upgrade rejected for contract already at latest version', async () => {
     const deploymentConfig = await deployFullSet({ firstTime: true })
+    const { buyerProxy, sellerProxy } = await createProxies(deploymentConfig, buyer, seller)
 
     cfdAPI = await CFDAPI.newInstance(deploymentConfig, web3)
-    const cfd = await newCFDInitiated(buyer, seller, true)
+    const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
     try {
-      await cfd.methods.upgrade().send({ from: buyer })
+      await cfdAPI.upgradeCFD(cfd.options.address, buyerProxy)
       assert.fail(`expected upgrade failure`)
     } catch (err) {
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))
