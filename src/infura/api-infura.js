@@ -4,6 +4,7 @@ import {
   priceFeedsInstanceDeployed,
   priceFeedsInternalInstanceDeployed,
   priceFeedsExternalInstanceDeployed,
+  daiTokenInstanceDeployed
 } from './contracts'
 import {
   assertBigNumberOrString,
@@ -96,6 +97,14 @@ export default class API {
     const marketId = this.marketIdStrToBytes(marketIdStr)
     const price = await this.priceFeeds.methods.read(marketId).call();
     return fromContractBigNumber(price)
+  }
+
+  /**
+   * Get the DAI balance for this address
+   */
+  async getDaiBalance(address) {
+  	const balance = await this.daiToken.methods.balanceOf(address).call();
+  	return fromContractBigNumber(balance);
   }
 
   /**
@@ -315,6 +324,7 @@ export default class API {
     this.priceFeeds = await priceFeedsInstanceDeployed(this.config, this.web3);
     this.priceFeedsInternal = await priceFeedsInternalInstanceDeployed(this.config, this.web3);
     this.priceFeedsExternal = await priceFeedsExternalInstanceDeployed(this.config, this.web3);
+    this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3);
     // Start our recurrent function to check and eventually start pushing on the blockchain
     setInterval(function () {
       // If no pending transaction, push the next value waiting in the queue
