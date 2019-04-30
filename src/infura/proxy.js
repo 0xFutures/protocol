@@ -89,12 +89,12 @@ export default class Proxy {
 			}
 	    ).then(async (results) => {
 	    	// Proxy address exists
-	    	if (results && results.length > 0) {
+	    	if (results && results.length > 0 && results[0].address != undefined) {
 	    		// Get the deployed instance of the proxy
 	    		const proxy = await dsProxyInstanceDeployed(
 			      self.config,
 			      self.web3,
-			      results[0],
+			      results[0].address,
 			      userAddress
 			    )
 	    		resolve(proxy);
