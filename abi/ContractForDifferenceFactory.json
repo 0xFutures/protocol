@@ -334,7 +334,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-04-30T19:36:55.726Z",
+  "updatedAt": "2019-04-30T19:52:11.751Z",
   "devdoc": {
     "methods": {
       "createByUpgrade()": {
