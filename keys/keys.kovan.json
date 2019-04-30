@@ -10,14 +10,14 @@
 
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
 
-  "registryAddr": "0x784bCC3cDb8D80F53151118E2Ef60ad994857651",
+  "registryAddr": "0xb88908b97b787796C8C39b433DF2421D3e383296",
 
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xC71DbC8B445Ad41c303aBab862A57A9B5a031ed6",
-  "cfdFactoryContractAddr": "0x08151658955B8dc44a4879292dE16E3bC5b14cbA",
-  "priceFeedsContractAddr": "0x63F0eBf4eD204416Df543DcEA00DE48Fab8f00dF",
-  "priceFeedsInternalContractAddr": "0xb498044d4572076a51f683C4AB4082E65389F0Cc",
-  "priceFeedsExternalContractAddr": "0x4c533ba5002cCA28b5D49608e1e764FD9F6C0497",
+  "cfdRegistryContractAddr": "0xcb2c0263639b6165F39aE812b5252fFAcBcCfDD8",
+  "cfdFactoryContractAddr": "0x1D7e336f23E60d3021CBdd76271f8fFFcD02c094",
+  "priceFeedsContractAddr": "0xfbA00DCE45F8ae2d825C6ab15bd3395601949dee",
+  "priceFeedsInternalContractAddr": "0x2833f5732608a3755F133dE62cBA8d5DD0FEAd6E",
+  "priceFeedsExternalContractAddr": "0xf18e78A2f6408Fa479a2B9A8CA7B6597320ae189",
 
   "markets": {
     "internal": [
@@ -30,5 +30,8 @@
         "address": "0xa5aa4e07f5255e14f02b385b1f04b35cc50bdb66"
       }
     }
-  }
+  },
+
+  "cfdProxyContractAddr": "0x9253D3fcF046302Ce55472f1eFeCaE4cE5e95312",
+  "dsProxyFactoryContractAddr": "0xC5Dd83b71ace7977377580385da4EF1EafC1d104"
 }
