@@ -22,6 +22,9 @@
       "email": "julien.regnier10@gmail.com"
     }
   ],
+  "engines": {
+    "node": ">=0.10.15 <0.12"
+  },
   "directories": {
     "test": "test"
   },
