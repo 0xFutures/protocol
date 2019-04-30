@@ -7,6 +7,7 @@ import {
   dsProxyFactoryInstanceDeployed
 } from './contracts'
 import { logGas, unpackAddress } from './utils'
+import Promise from 'bluebird'
 
 /**
  * A Proxy is created for each user in the 0xfutures system. This enables 
@@ -76,14 +77,32 @@ export default class Proxy {
     toBlock = 'latest',
     userAddress
   ) {
-    return this.dsProxyFactory.getPastEvents(
-      'Created',
-      {
-        filter: { owner: userAddress },
-        fromBlock,
-        toBlock
-      }
-    ).then(results => results.length > 0 ? results[0] : undefined)
+    return new Promise(function(resolve, reject) {
+    	// Find the proxy address
+    	this.dsProxyFactory.getPastEvents(
+			'Created',
+			{
+				filter: { owner: userAddress },
+				fromBlock,
+				toBlock
+			}
+	    ).then(async (results) => {
+	    	// Proxy address exists
+	    	if (results && results.length > 0) {
+	    		// Get the deployed instance of the proxy
+	    		const proxy = await dsProxyInstanceDeployed(
+			      this.config,
+			      this.web3,
+			      results[0],
+			      userAddress
+			    )
+	    		resolve(proxy);
+	    	}
+	    	// Proxy does not exist, return undefined
+	    	else
+	    		resolve(undefined);
+	    });
+    });
   }
 
 
