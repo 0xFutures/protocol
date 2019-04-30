@@ -77,9 +77,10 @@ export default class Proxy {
     toBlock = 'latest',
     userAddress
   ) {
+  	var self = this;
     return new Promise(function(resolve, reject) {
     	// Find the proxy address
-    	this.dsProxyFactory.getPastEvents(
+    	self.dsProxyFactory.getPastEvents(
 			'Created',
 			{
 				filter: { owner: userAddress },
@@ -91,8 +92,8 @@ export default class Proxy {
 	    	if (results && results.length > 0) {
 	    		// Get the deployed instance of the proxy
 	    		const proxy = await dsProxyInstanceDeployed(
-			      this.config,
-			      this.web3,
+			      self.config,
+			      self.web3,
 			      results[0],
 			      userAddress
 			    )
