@@ -1412,7 +1412,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-04-30T19:52:11.731Z",
+  "updatedAt": "2019-04-30T20:40:36.485Z",
   "devdoc": {
     "methods": {
       "buy(bool,uint256)": {
