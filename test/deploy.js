@@ -2,6 +2,7 @@ import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
 import CFDAPI from '../src/infura/cfd-api-infura'
+import ProxyAPI from '../src/infura/proxy'
 import { registryInstanceDeployed } from '../src/infura/contracts'
 import { STATUS } from '../src/infura/utils'
 
@@ -36,57 +37,28 @@ describe('deploy.js', function () {
   const leverage = 1 // most tests using leverage 1
 
   const deployFullSet = async (config, firstTime = true) => {
-    let cfdFactory
-    let cfdRegistry
-    let priceFeeds
-    let priceFeedsInternal
-    let priceFeedsExternal
-    let registry
-    let daiToken
-    let ethUsdMaker
-
+    let updatedConfig
       // eslint-disable-next-line no-extra-semi
-      ; ({
-        priceFeeds,
-        priceFeedsInternal,
-        priceFeedsExternal,
-        cfdRegistry,
-        cfdFactory,
-        registry,
-        daiToken,
-        ethUsdMaker
-      } = await deployAllForTest({
+      ; ({ updatedConfig } = await deployAllForTest({
         web3,
         config,
         initialPriceInternal: price,
         firstTime,
         seedAccounts: [buyer, seller]
       }))
-
-    const updatedConfig = Object.assign({}, config, {
-      priceFeedsContractAddr: priceFeeds.options.address,
-      priceFeedsInternalContractAddr: priceFeedsInternal.options.address,
-      priceFeedsExternalContractAddr: priceFeedsExternal.options.address,
-      registryAddr: registry.options.address,
-      cfdFactoryContractAddr: cfdFactory.options.address,
-      cfdRegistryContractAddr: cfdRegistry.options.address,
-      daiTokenAddr: daiToken.options.address,
-      ethUsdMakerAddr: ethUsdMaker.options.address
-    })
-
     return updatedConfig
   }
 
-  const newCFDInitiated = async (party, counterparty, partyIsBuyer) => {
+  const newCFDInitiated = async (partyProxy, counterpartyProxy, partyIsBuyer) => {
     const cfd = await cfdAPI.newCFD(
       marketStr,
       price,
       notionalAmount,
       leverage,
       partyIsBuyer,
-      party
+      partyProxy
     )
-    await cfdAPI.deposit(cfd.options.address, counterparty, notionalAmount)
+    await cfdAPI.deposit(cfd.options.address, counterpartyProxy, notionalAmount)
     return cfd
   }
 
@@ -137,15 +109,21 @@ describe('deploy.js', function () {
       'registry is unchanged'
     )
 
+    //
     // check can create CFDs on the new set of contracts
+    //
+    const proxyApi = await ProxyAPI.newInstance(deploymentConfig.v2, web3)
+    const buyerProxy = await proxyApi.proxyNew(buyer)
+    const sellerProxy = await proxyApi.proxyNew(seller)
+
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v2, web3)
-    const cfd = await newCFDInitiated(buyer, seller, true)
+    const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
     assert.equal(STATUS.INITIATED, await cfd.methods.status().call(), 'new cfd initiated')
 
     // check cannot create CFD on the old set
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)
     try {
-      await newCFDInitiated(buyer, seller, true)
+      await newCFDInitiated(buyerProxy, sellerProxy, true)
       assert.fail(`expected create failure`)
     } catch (err) {
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))

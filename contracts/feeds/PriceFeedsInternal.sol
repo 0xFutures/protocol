@@ -4,7 +4,7 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../DBC.sol";
 
 /**
- * Market prices feeds coming from 0xfutures managed price feeds. 
+ * Market prices feeds coming from 0xfutures managed price feeds.
  * These are centralised feeds pushed on to the blockchain.
  * Example: Coinbase BTCUSD price feed
  */

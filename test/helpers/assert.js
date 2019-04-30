@@ -1,6 +1,6 @@
-import {assert} from 'chai'
-import {web3} from './setup'
-import {BigNumber} from 'bignumber.js'
+import { assert } from 'chai'
+import { web3 } from './setup'
+import { BigNumber } from 'bignumber.js'
 
 const assertEqualBN = (actual, expected, msg = 'numbers not equal') => {
   actual = new BigNumber(actual)
@@ -13,6 +13,12 @@ const assertEqualBN = (actual, expected, msg = 'numbers not equal') => {
 `
   )
 }
+
+/**
+ * A case insensitve compare of 2 ethereum addresses.
+ */
+const assertEqualAddress = (actual, expected, msg = 'addresses not equal') =>
+  assert.equal(actual.toLowerCase(), expected.toLowerCase(), msg)
 
 // check log record correctly logged cfd/party in a LogCFDRegistryParty
 const assertLoggedParty = (logRec, expectedCFD, expectedParty) => {
@@ -30,11 +36,11 @@ const assertLoggedParty = (logRec, expectedCFD, expectedParty) => {
   )
 }
 
-const assertStatus = async (cfd, expected) =>
+const assertStatus = async (cfd, expected, msg = `status incorrect`) =>
   assert.equal(
     await cfd.methods.status().call(),
     expected,
-    `status incorrect`
+    msg
   )
 
-export {assertEqualBN, assertLoggedParty, assertStatus}
+export { assertEqualAddress, assertEqualBN, assertLoggedParty, assertStatus }

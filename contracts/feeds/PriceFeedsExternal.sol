@@ -5,7 +5,7 @@ import "../DBC.sol";
 
 
 /**
- * Market prices feeds coming from external sources. 
+ * Market prices feeds coming from external sources.
  * External here means any contract outside the 0xfutures protocol contracts.
  * Examples: MakerDAO price feed, EtherDelta DEX price, etc.
  */
@@ -31,13 +31,13 @@ contract PriceFeedsExternal is DBC, Ownable {
      * Add a new market
      * @param _marketStrId String id of market. eg. "Poloniex_BTC_ETH"
      * @param _priceContract Address of contract to fetch price from
-     * @param _callSig Call signature hash of the contract function to fetch 
+     * @param _callSig Call signature hash of the contract function to fetch
      *                  the price from
      * @return marketId bytes32 keccak256 of the _marketStrId
      */
     function addMarket(
-        string calldata _marketStrId, 
-        address _priceContract, 
+        string calldata _marketStrId,
+        address _priceContract,
         bytes32 _callSig
     )
         external
@@ -71,7 +71,7 @@ contract PriceFeedsExternal is DBC, Ownable {
         if (!success) {
             revert(REASON_EXTERNAL_PRICE_CALL_FAILED);
         }
-        
+
         // TODO: assuming a bytes32 return convertable to uint here
         //   but shouldn't - generic unpack mechanism for other feeds workable?
         priceValue = abi.decode(rspData, (uint));

@@ -10,6 +10,8 @@ contract Registry is DBC, Ownable {
 
     mapping(bytes32 => address) contracts;
 
+    bytes32 proxyCodeHash;
+
     function getCFDFactoryLatest() public view returns (address) {
         return get("CFDFactoryLatest");
     }
@@ -32,6 +34,14 @@ contract Registry is DBC, Ownable {
 
     function setDAI(address _addr) public onlyOwner {
         set("DAI", _addr);
+    }
+
+    function getProxyCodeHash() public view returns (bytes32) {
+        return proxyCodeHash;
+    }
+
+    function setProxyCodeHash(bytes32 _hash) public onlyOwner {
+        proxyCodeHash = _hash;
     }
 
     function set(string memory _name, address _addr) private onlyOwner {

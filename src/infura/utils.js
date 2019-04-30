@@ -50,13 +50,13 @@ const isValidMarketId = id => /^[A-Za-z]+_[A-Z]+_[A-Z]+$/i.test(id)
 
 const isEthereumAddress = addr => /0x[a-f0-9]{40,}/i.test(addr)
 
-const txGas = txReceipt => txReceipt.receipt.gasUsed
+// convert from 64 digit long to 40 digit long
+const unpackAddress = packed => packed.replace(/x0{24}/, 'x')
 
-// extract the gas cost in wei for a given transaction
-const txGasCost = (txHash, web3) => {
-  const { gasPrice } = web3.eth.getTransaction(txHash)
-  const { gasUsed } = web3.eth.getTransactionReceipt(txHash)
-  return gasPrice.times(gasUsed)
+const logGasOn = false
+const logGas = (title, txReceipt) => {
+  if (logGasOn)
+    console.log(`${title}: ${txReceipt.gasUsed}`)
 }
 
 /**
@@ -173,12 +173,12 @@ module.exports = {
   isValidMarketId,
   nowSecs,
   toContractBigNumber,
-  txGas,
-  txGasCost,
+  logGas,
   txFailed,
   EMPTY_ACCOUNT,
   STATUS,
   getAllEventsWithName,
   getFunctionSignature,
-  signAndSendTransaction
+  signAndSendTransaction,
+  unpackAddress,
 }

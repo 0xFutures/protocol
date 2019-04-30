@@ -48,11 +48,17 @@ if (fs.existsSync(configFileKovan)) {
 }
 
 module.exports = {
-  solc: {
-    optimizer: {
-      // enable the optimizer - ContractForDifference too big
-      enabled: true,
-      runs: 200
+  compilers: {
+    solc: {
+      version: '0.5.6',
+      settings: {
+        optimizer: {
+          // enable the optimizer - ContractForDifference too big
+          enabled: true,
+          runs: 200
+        },
+        evmVersion: 'constantinople'
+      }
     }
   },
   networks

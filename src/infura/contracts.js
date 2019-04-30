@@ -4,6 +4,9 @@ import CFDJSON from '../../abi/ContractForDifference.json'
 import CFDLibraryJSON from '../../abi/ContractForDifferenceLibrary.json'
 import CFDFactoryJSON from '../../abi/ContractForDifferenceFactory.json'
 import CFDRegistryJSON from '../../abi/ContractForDifferenceRegistry.json'
+import CFDProxyJSON from '../../abi/ContractForDifferenceProxy.json'
+import DSProxyFactoryJSON from '../../abi/DSProxyFactory.json'
+import DSProxyJSON from '../../abi/DSProxy.json'
 import PriceFeedsJSON from '../../abi/PriceFeeds.json'
 import PriceFeedsInternalJSON from '../../abi/PriceFeedsInternal.json'
 import PriceFeedsExternalJSON from '../../abi/PriceFeedsExternal.json'
@@ -22,6 +25,9 @@ const cfdFactoryInstanceDeployed = async (config, web3) =>
 
 const cfdRegistryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'cfdRegistryContractAddr', CFDRegistryJSON)
+
+const cfdProxyInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, 'cfdProxyContractAddr', CFDProxyJSON)
 
 const priceFeedsInstanceDeployed = async (config, web3) =>
   deployedInstance(
@@ -52,6 +58,19 @@ const priceFeedsExternalInstanceDeployed = async (config, web3) =>
 
 const registryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'registryAddr', RegistryJSON)
+
+const dsProxyFactoryInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, 'dsProxyFactoryContractAddr', DSProxyFactoryJSON)
+
+const dsProxyInstanceDeployed = async (config, web3, proxyAddr, defaultFromAddr) =>
+  deployedContractInstance(
+    proxyAddr,
+    DSProxyJSON,
+    defaultFromAddr,
+    config.gasPrice,
+    config.gasLimit,
+    web3
+  )
 
 
 /**********************************************************
@@ -85,6 +104,15 @@ const cfdFactoryInstance = (web3Provider, config) =>
 
 const cfdRegistryInstance = (web3Provider, config) =>
   contractInstance(CFDRegistryJSON, web3Provider, config)
+
+const cfdProxyInstance = (web3Provider, config) =>
+  contractInstance(CFDProxyJSON, web3Provider, config)
+
+const dsProxyFactoryInstance = (web3Provider, config) =>
+  contractInstance(DSProxyFactoryJSON, web3Provider, config)
+
+const dsProxyInstance = (web3Provider, config) =>
+  contractInstance(DSProxyJSON, web3Provider, config)
 
 /**********************************************************
 *  Contract handles to mock and test only contracts. 
@@ -180,9 +208,15 @@ module.exports = {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstance,
   cfdRegistryInstanceDeployed,
+  cfdProxyInstance,
+  cfdProxyInstanceDeployed,
   contractInstance,
   daiTokenInstance,
   daiTokenInstanceDeployed,
+  dsProxyInstance,
+  dsProxyInstanceDeployed,
+  dsProxyFactoryInstance,
+  dsProxyFactoryInstanceDeployed,
   ethUsdMakerInstance,
   ethUsdMakerInstanceDeployed,
   forwardFactoryInstance,

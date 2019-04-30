@@ -99,7 +99,7 @@ describe('ContractForDifference', function () {
       const transferAmount = creatorFee().plus(daiValue)
       await daiToken.methods.transfer(cfd.options.address, transferAmount.toFixed()).send()
 
-      await cfd.methods.create(
+      await cfd.methods.createNew(
         registry.options.address,
         cfdRegistry.options.address,
         priceFeeds.options.address,

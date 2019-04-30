@@ -9,7 +9,7 @@ const {
   cfdRegistryInstance,
   forwardFactoryInstance
 } = require('../../src/infura/contracts')
-const { EMPTY_ACCOUNT } = require('../../src/infura/utils')
+const { EMPTY_ACCOUNT, logGas } = require('../../src/infura/utils')
 
 const { assertEqualBN } = require('../helpers/assert')
 const { deployAllForTest } = require('../helpers/deploy')
@@ -85,6 +85,7 @@ describe('ContractForDifferenceFactory', function () {
       gas: 2500000,
       from: OWNER_ACCOUNT
     })
+    logGas(`CFDFactory.createContract`, txReceipt)
 
     const cfdAddrStr = txReceipt.events.LogCFDFactoryNew.raw.data
     const cfdAddr = '0x' + cfdAddrStr.substr(cfdAddrStr.length - 40);

@@ -1,7 +1,8 @@
-pragma solidity ^0.5.0;
+pragma solidity >=0.5.6 <0.6.0;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "../DBC.sol";
+import "../dappsys/proxy.sol";
 import "../feeds/PriceFeeds.sol";
 import "../Registry.sol";
 import "./ContractForDifferenceFactory.sol";
@@ -10,9 +11,9 @@ import "./ContractForDifferenceLibrary.sol";
 
 
 /*
- * SOLIUM DISABLE: 
+ * SOLIUM DISABLE:
  *
- *   security/no-block-members - we need to use 'now' in order to set a time 
+ *   security/no-block-members - we need to use 'now' in order to set a time
  *       limit.
  */
 
@@ -158,9 +159,6 @@ contract ContractForDifference is DBC {
      * Functions
      */
 
-    constructor() public {}
-    
-
     /**
      * @dev Contract has been initiated (has 2 parties) and not yet terminated.
      * @return true if contract is active
@@ -222,7 +220,7 @@ contract ContractForDifference is DBC {
      * @param _isBuyer Flag indicating if the contract creator wants to take the
      *            buyer (true) or the seller side (false).
      */
-    function create(
+    function createNew(
         address _registryAddr,
         address _cfdRegistryAddr,
         address _feedsAddr,
@@ -288,6 +286,13 @@ contract ContractForDifference is DBC {
         address _cfdRegistryAddr,
         address _feedsAddr
     )
+        // NOTE on security: any address can call this however if the CFD
+        // instance has not yet been added to the ContractForDifferentRegistry
+        // (which only ContractForDifferenceFactory can do) then this
+        // function will fail at registerParty() below.
+        // Of course someone can call this with a fake
+        // ContractForDifferenceRegistry but then nothing will touch
+        // or change the state of the 0xfutures set of deployed contracts.
         public
     {
         ContractForDifference oldCfd = ContractForDifference(_cfdAddr);
@@ -416,7 +421,7 @@ contract ContractForDifference is DBC {
     /**
      * @dev Cancels a newly created contract refunding the balance to the party
      *      that created the contract. This can only be called before a contract
-     *      is initiated. ie. between the create() and deposit() calls.
+     *      is initiated. ie. between the createNew() and deposit() calls.
      */
     function cancelNew()
         external
@@ -444,8 +449,8 @@ contract ContractForDifference is DBC {
         pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
     {
         bool isBuyer = msg.sender == buyer;
-        uint newDepositBalance = (isBuyer ? 
-            buyerDepositBalance : 
+        uint newDepositBalance = (isBuyer ?
+            buyerDepositBalance :
             sellerDepositBalance
         ).add(_value);
 
@@ -518,7 +523,7 @@ contract ContractForDifference is DBC {
     }
 
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
-    modifier assertWithdrawPreCond(uint _withdrawAmount) 
+    modifier assertWithdrawPreCond(uint _withdrawAmount)
     {
         require(_withdrawAmount >= 1, REASON_WITHDRAW_NOT_ENOUGH);
         require(initiated == true, REASON_MUST_BE_INITIATED);
@@ -746,7 +751,7 @@ contract ContractForDifference is DBC {
     }
 
     /* NOTE: Split off into modifier to work around 'stack too deep' error */
-    modifier assertBuyPreCond(bool _buyBuyerSide) 
+    modifier assertBuyPreCond(bool _buyBuyerSide)
     {
         require(isActive(), REASON_MUST_BE_ACTIVE);
         require(isSelling(_buyBuyerSide ? buyer : seller), REASON_MUST_BE_ON_SALE);
@@ -783,13 +788,15 @@ contract ContractForDifference is DBC {
     }
 
     /**
-     * @dev Daemons will call this routine when the market price has moved
-     *      enough that the closeRatio for this contract has been reached.
-     *      It can actually be called by anyone who is willing to pay the gas
-     *      for the liquidate. But if the market has moved past the liquidate
-     *      threshold the call will be rejected.
+     * Daemons will call this routine when the market price has moved enough
+     * that the closeRatio for this contract has been reached. It can
+     * actually be called by anyone who is willing to pay the gas for the
+     * liquidate.
      *
-     * This will disolve the contract and return each parties balance of
+     * If the market has not moved past the liquidate threshold the call
+     * will be rejected.
+     *
+     * @dev This will disolve the contract and return each parties balance of
      * collateral.
      */
     function liquidate()
@@ -806,7 +813,7 @@ contract ContractForDifference is DBC {
                 buyerDepositBalance,
                 sellerDepositBalance,
                 strikePrice
-            ), 
+            ),
             "Liquidate threshold not yet reached"
         );
 
@@ -1200,8 +1207,21 @@ contract ContractForDifference is DBC {
      * Transfer DAI to an address.
      */
     function daiTransfer(address _to, uint _value) private {
+        bytes32 toAddrCodeHash;
+        /* solium-disable security/no-inline-assembly */
+        assembly {
+			toAddrCodeHash := extcodehash(_to)
+        }
+
+        address toAddr;
+        if (registry.getProxyCodeHash() == toAddrCodeHash) {
+            toAddr = DSProxy(address(_to)).owner();
+        } else {
+            toAddr = _to;
+        }
+
         require(
-            registry.getDAI().transfer(_to, _value),
+            registry.getDAI().transfer(toAddr, _value),
             REASON_DAI_TRANSFER_FAILED
         );
     }
