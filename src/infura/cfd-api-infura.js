@@ -295,19 +295,19 @@ export default class CFDAPI {
     return this.proxyApi.proxyUpgrade(accountProxy, cfd)
   }
 
-  /**
+/**
    * Check for liquidation
    * @param cfdAddress, Address of the contract
-   * @param accountProxy, Account address of the user
+   * @param account, Account address of the user
    */
-  attemptContractLiquidation(cfdAddress, accountProxy) {
+  attemptContractLiquidation(cfdAddress, account) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
     ]).then(() => {
       // Contract address exists
       const cfd = getContract(cfdAddress, self.web3);
-      return this.proxyApi.proxyliquidate(accountProxy, cfd)
+      return cfd.methods.liquidate().send({ from: account, gas: 200000 });
     }).catch(error => {
       throw new Error(error);
     });
@@ -315,9 +315,8 @@ export default class CFDAPI {
   /**
    * Check for liquidation with a signed transaction (for the daemon)
    * @param cfdAddress, Address of the contract
-   * @param accountProxy, Account address of the user
    */
-  attemptContractLiquidationDaemon(cfdAddress, accountProxy) {
+  attemptContractLiquidationDaemon(cfdAddress) {
     const self = this;
     return Promise.all([
       this.web3.eth.getCodeAsync(cfdAddress)
