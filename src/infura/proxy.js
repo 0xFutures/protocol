@@ -88,16 +88,21 @@ export default class Proxy {
 				toBlock
 			}
 	    ).then(async (results) => {
-	    	// Proxy address exists
+	    	// Make sure we have at least one proxy
 	    	if (results && results.length > 0 && results[0].returnValues != undefined && results[0].returnValues.proxy != undefined) {
-	    		// Get the deployed instance of the proxy
-	    		const proxy = await dsProxyInstanceDeployed(
-			      self.config,
-			      self.web3,
-			      results[0].returnValues.proxy,
-			      userAddress
-			    )
-	    		resolve(proxy);
+          var proxyObj = results[results.length - 1];
+          // Check we have the proxy address
+          if (proxyObj != undefined && proxyObj.returnValues != undefined && proxyObj.returnValues.proxy != undefined) {
+            // Get the deployed instance of the proxy
+            const proxy = await dsProxyInstanceDeployed(
+              self.config,
+              self.web3,
+              proxyObj.returnValues.proxy,
+              userAddress
+            )
+            resolve(proxy);
+          } else
+            resolve(undefined);
 	    	}
 	    	// Proxy does not exist, return undefined
 	    	else
