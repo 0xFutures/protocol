@@ -111,7 +111,37 @@ export default class Proxy {
     });
   }
 
+  /**
+   * Return the allowed amount by the user for this proxy
+   * @param {address} proxyAddr Address of the proxy
+   * @param {address} user User of the system - a CFD party
+   * @return {Number} Allowed amount by the user for this proxy
+   */
+  async allowance(
+    proxyAddr,
+    user
+  ) {
+    const amount = await this.daiToken.methods.allowance(user, proxyAddr).call();
+    return amount;
+  }
 
+  /**
+   * Ask the user to approve his DAI for this proxy
+   * @param {address} proxyAddr Address of the proxy
+   * @param {address} user User of the system - a CFD party
+   * @return {Number} Allowed amount by the user for this proxy
+   */
+  approve(
+    proxyAddr,
+    user
+  ) {
+    return this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+  }
+
+
+  /**
+   * ContractForDifference functions
+   */
   async proxyCreateCFD({
     proxy,
     marketId,
