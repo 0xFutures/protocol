@@ -45,12 +45,21 @@ export default class Proxy {
    * @param {address} user User of the system - a CFD party
    */
   async proxyNew(user) {
+
+    // Function to wait
+    const timeout = async (ms) => {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     // Tx1: create proxy contract
     const buildTx = await this.dsProxyFactory.methods.build(user).send({
       from: user,
       gas: 1000000
     })
     const proxyAddr = buildTx.events.Created.returnValues.proxy
+    // Wait a few seconds to make sure the contract is deployed correctly
+    // (used to avoid the getCode() function to fail)
+    await timeout(3000);
     const proxy = await dsProxyInstanceDeployed(
       this.config,
       this.web3,
