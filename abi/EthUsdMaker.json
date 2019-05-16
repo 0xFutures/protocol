@@ -30,25 +30,25 @@
       "type": "function"
     }
   ],
-  "metadata": "{\"compiler\":{\"version\":\"0.5.6+commit.b259423e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":true,\"inputs\":[],\"name\":\"read\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_price\",\"type\":\"bytes32\"}],\"name\":\"put\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{}},\"userdoc\":{\"methods\":{},\"notice\":\"Mock version of the MakerDAO medianizer price feeds contract for getting the\\r ETHUSD price in test and development.\\r  * See also interface contracts/feeds/EthUsdMakerInterface.sol.\\r\"}},\"settings\":{\"compilationTarget\":{\"/D/Users/Julien/Desktop/Work/0xFutures/protocol/contracts/mock/EthUsdMaker.sol\":\"EthUsdMaker\"},\"evmVersion\":\"constantinople\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/D/Users/Julien/Desktop/Work/0xFutures/protocol/contracts/mock/EthUsdMaker.sol\":{\"keccak256\":\"0xbc5e49b9ccb52e958e475e79c4d66e27a03e2bc502cf560ae06e0c6313c980f7\",\"urls\":[\"bzzr://2b27fc426f7f9d141d96310890c03b7fcd79d1309876ef1dd3224f28d40eee0b\"]}},\"version\":1}",
-  "bytecode": "0x608060405234801561001057600080fd5b5060a28061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806357de26a4146037578063e3a8f7c614604f575b600080fd5b603d606b565b60408051918252519081900360200190f35b606960048036036020811015606357600080fd5b50356071565b005b60005490565b60005556fea165627a7a72305820699be931a843547095f7f2003244f800707058f1b876098d9cf5f916563879400029",
-  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060325760003560e01c806357de26a4146037578063e3a8f7c614604f575b600080fd5b603d606b565b60408051918252519081900360200190f35b606960048036036020811015606357600080fd5b50356071565b005b60005490565b60005556fea165627a7a72305820699be931a843547095f7f2003244f800707058f1b876098d9cf5f916563879400029",
-  "sourceMap": "229:211:17:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;229:211:17;;;;;;;",
-  "deployedSourceMap": "229:211:17:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;229:211:17;;;;;;;;;;;;;;;;;;;;;;;;279:77;;;:::i;:::-;;;;;;;;;;;;;;;;364:71;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;364:71:17;;:::i;:::-;;279:77;316:7;343:5;279:77;:::o;364:71::-;413:5;:14;364:71::o",
-  "source": "pragma solidity ^0.5.0;\r\n\r\n/**\r\n * Mock version of the MakerDAO medianizer price feeds contract for getting the\r\n * ETHUSD price in test and development.\r\n *\r\n * See also interface contracts/feeds/EthUsdMakerInterface.sol.\r\n */\r\ncontract EthUsdMaker {\r\n    bytes32 price;\r\n\r\n    function read() public view returns (bytes32) {\r\n        return price;\r\n    }\r\n\r\n    function put(bytes32 _price) external {\r\n        price = _price;\r\n    }\r\n\r\n}\r\n",
-  "sourcePath": "D:/Users/Julien/Desktop/Work/0xFutures/protocol/contracts/mock/EthUsdMaker.sol",
+  "metadata": "{\"compiler\":{\"version\":\"0.5.6+commit.b259423e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":true,\"inputs\":[],\"name\":\"read\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_price\",\"type\":\"bytes32\"}],\"name\":\"put\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{}},\"userdoc\":{\"methods\":{},\"notice\":\"Mock version of the MakerDAO medianizer price feeds contract for getting the ETHUSD price in test and development. * See also interface contracts/feeds/EthUsdMakerInterface.sol.\"}},\"settings\":{\"compilationTarget\":{\"/home/julien/0xFutures/protocol-master/contracts/mock/EthUsdMaker.sol\":\"EthUsdMaker\"},\"evmVersion\":\"constantinople\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/julien/0xFutures/protocol-master/contracts/mock/EthUsdMaker.sol\":{\"keccak256\":\"0x4286a5c76b8f20e454152b90088ecfd6fedcc4e9d8f516e95886d50ed9dd474c\",\"urls\":[\"bzzr://c2e01bfc083b7c6e857aec68207b75786e72434edd1529cd0265cdf44b8cd4d3\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5060a28061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c806357de26a4146037578063e3a8f7c614604f575b600080fd5b603d606b565b60408051918252519081900360200190f35b606960048036036020811015606357600080fd5b50356071565b005b60005490565b60005556fea165627a7a7230582044c790575a75538dab2999d94b2f2d6cf2417f6fbb2248aad84df910b856198f0029",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060325760003560e01c806357de26a4146037578063e3a8f7c614604f575b600080fd5b603d606b565b60408051918252519081900360200190f35b606960048036036020811015606357600080fd5b50356071565b005b60005490565b60005556fea165627a7a7230582044c790575a75538dab2999d94b2f2d6cf2417f6fbb2248aad84df910b856198f0029",
+  "sourceMap": "221:200:17:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;221:200:17;;;;;;;",
+  "deployedSourceMap": "221:200:17:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;221:200:17;;;;;;;;;;;;;;;;;;;;;;;;268:75;;;:::i;:::-;;;;;;;;;;;;;;;;349:69;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;349:69:17;;:::i;:::-;;268:75;305:7;331:5;268:75;:::o;349:69::-;397:5;:14;349:69::o",
+  "source": "pragma solidity ^0.5.0;\n\n/**\n * Mock version of the MakerDAO medianizer price feeds contract for getting the\n * ETHUSD price in test and development.\n *\n * See also interface contracts/feeds/EthUsdMakerInterface.sol.\n */\ncontract EthUsdMaker {\n    bytes32 price;\n\n    function read() public view returns (bytes32) {\n        return price;\n    }\n\n    function put(bytes32 _price) external {\n        price = _price;\n    }\n\n}\n",
+  "sourcePath": "/home/julien/0xFutures/protocol-master/contracts/mock/EthUsdMaker.sol",
   "compiler": {
     "name": "solc",
     "version": "0.5.6+commit.b259423e.Emscripten.clang"
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-05-16T06:11:23.345Z",
+  "updatedAt": "2019-05-16T22:34:48.326Z",
   "devdoc": {
     "methods": {}
   },
   "userdoc": {
     "methods": {},
-    "notice": "Mock version of the MakerDAO medianizer price feeds contract for getting the\r ETHUSD price in test and development.\r  * See also interface contracts/feeds/EthUsdMakerInterface.sol.\r"
+    "notice": "Mock version of the MakerDAO medianizer price feeds contract for getting the ETHUSD price in test and development. * See also interface contracts/feeds/EthUsdMakerInterface.sol."
   }
 }
