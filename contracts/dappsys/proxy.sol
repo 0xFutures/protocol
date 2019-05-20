@@ -17,14 +17,16 @@
 
 pragma solidity >=0.5.0 <0.6.0;
 
-import "./auth.sol";
-import "./note.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 // DSProxy - 0xFutures modifications:
 
 // - removed all payable keywords and the payable fallback as our proxies
 //   don't take or send ETH at all. Additionally solidity would enforce address
 //   instances in the CFD to be payable which we don't want.
+// - removed note.sol and uses
+// - removed auth.sol and replaced with openzeppelin Ownable
+// - removed unused code from proxy.sol to reduce gas footprint
 
 // DSProxy - original from dappsys:
 
@@ -32,36 +34,18 @@ import "./note.sol";
 // useful to execute a sequence of atomic actions. Since the owner of
 // the proxy can be changed, this allows for dynamic ownership models
 // i.e. a multisig
-contract DSProxy is DSAuth, DSNote {
-    event LogParams(address target, bytes data);
-
+contract DSProxy is Ownable {
     DSProxyCache public cache;  // global cache for contracts
 
     constructor(address _cacheAddr) public {
         setCache(_cacheAddr);
     }
 
-    // use the proxy to execute calldata _data on contract _code
-    function execute(bytes memory _code, bytes memory _data)
-        public
-        returns (address target, bytes memory response)
-    {
-        target = cache.read(_code);
-        if (target == address(0)) {
-            // deploy contract & store its address in cache
-            target = cache.write(_code);
-        }
-
-        response = execute(target, _data);
-    }
-
     function execute(address _target, bytes memory _data)
         public
-        auth
-        note
+        onlyOwner
         returns (bytes memory response)
     {
-        // emit LogParams(_target, _data);
         require(_target != address(0), "ds-proxy-target-address-required");
 
         // call contract in current context
@@ -86,8 +70,7 @@ contract DSProxy is DSAuth, DSNote {
     //set new cache
     function setCache(address _cacheAddr)
         public
-        auth
-        note
+        onlyOwner
         returns (bool)
     {
         require(_cacheAddr != address(0), "ds-proxy-cache-address-required");
@@ -101,7 +84,6 @@ contract DSProxy is DSAuth, DSNote {
 // Deployed proxy addresses are logged
 contract DSProxyFactory {
     event Created(address indexed sender, address indexed owner, address proxy, address cache);
-    mapping(address=>bool) public isProxy;
     DSProxyCache public cache;
 
     constructor() public {
@@ -109,18 +91,11 @@ contract DSProxyFactory {
     }
 
     // deploys a new proxy instance
-    // sets owner of proxy to caller
-    function build() public returns (address proxy) {
-        proxy = build(msg.sender);
-    }
-
-    // deploys a new proxy instance
     // sets custom owner of proxy
     function build(address owner) public returns (address proxy) {
         proxy = address(new DSProxy(address(cache)));
+        Ownable(proxy).transferOwnership(owner);
         emit Created(msg.sender, owner, address(proxy), address(cache));
-        DSProxy(proxy).setOwner(owner);
-        isProxy[proxy] = true;
     }
 }
 

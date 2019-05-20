@@ -358,7 +358,8 @@ describe('ContractForDifferenceProxy', function () {
     const txUpgrade = await proxyApiNewDeployment.proxyUpgrade(sellerProxy, cfd)
 
     // Check
-    const newCFDAddr = unpackAddress(txUpgrade.events[5].raw.data)
+    const newCFDAddr = unpackAddress(txUpgrade.events[4].raw.data)
+
     assertEqualBN(
       await getBalance(deployment.daiToken, newCFDAddr),
       cfdBalance,

@@ -6,6 +6,9 @@ copyABI () {
 cd `dirname $0`/..
 rm -rf build/
 truffle compile
+if [ $? -ne 0 ]; then
+  exit 1
+fi
 
 copyABI 'Registry'
 copyABI 'PriceFeeds'

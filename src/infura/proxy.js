@@ -10,13 +10,13 @@ import { logGas, unpackAddress } from './utils'
 import Promise from 'bluebird'
 
 /**
- * A Proxy is created for each user in the 0xfutures system. This enables 
+ * A Proxy is created for each user in the 0xfutures system. This enables
  * bundling multiple steps into a single transaction. For example instead
  * of one transaction for DAIToken approve followed by one transaction for
- * CFD create, both of these can be bundled in some byte code that is and 
+ * CFD create, both of these can be bundled in some byte code that is and
  * executed (deletecall'd) in one transaction (see dappsys/proxy.sol
  * for details of the mechanism).
- * 
+ *
  * NOTE: TESTING - routines in this api are tested in the and used by the
  *        contract_for_difference_proxy.js test. For this reason there is
  *        no seperate test file for proxy.js.
@@ -56,6 +56,8 @@ export default class Proxy {
       from: user,
       gas: 1000000
     })
+    logGas(`Proxy build`, buildTx)
+
     const proxyAddr = buildTx.events.Created.returnValues.proxy
     // Wait a few seconds to make sure the contract is deployed correctly
     // (used to avoid the getCode() function to fail)
@@ -78,7 +80,7 @@ export default class Proxy {
    * @param fromBlock, The beginning of the block interval
    * @param toBlock, The end of the block interval
    * @param userAddress, Look up proxy for this address
-   * @return Promise<string|undefined> Proxy address string or undefined 
+   * @return Promise<string|undefined> Proxy address string or undefined
    *          if none exists
    */
   async getUserProxy(
@@ -304,7 +306,7 @@ export default class Proxy {
   /**
    * Send transaction to CFD proxy
    * @param {DSProxy} proxy
-   * @param {ContractForDifferenceProxy} cfdProxy 
+   * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} msgData Transaction msg.data to send
    */
   async proxySendTransaction(proxy, msgData) {
@@ -320,7 +322,7 @@ export default class Proxy {
   /**
    * Helper function to build msg.data and call sendTransaction.
    * @param {DSProxy} proxy
-   * @param {ContractForDifferenceProxy} cfdProxy 
+   * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} method Signature/name of method to call on proxy
    */
   async proxyTx(

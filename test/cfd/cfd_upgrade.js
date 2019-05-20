@@ -158,7 +158,7 @@ describe('cfd upgrade', function () {
     //
     // Check the new contract
     //
-    const newCFDAddr = unpackAddress(txUpgrade.events[8].raw.data)
+    const newCFDAddr = unpackAddress(txUpgrade.events[7].raw.data)
     assertEqualBN(
       cfdBalanceBefore,
       await daiToken.methods.balanceOf(newCFDAddr).call(),
