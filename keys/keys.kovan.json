@@ -2,7 +2,7 @@
   "network": "kovan",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
-  "deploymentBlockNumber": 10850000,
+  "deploymentBlockNumber": 11080000,
 
   "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
@@ -13,11 +13,11 @@
   "registryAddr": "0xb88908b97b787796C8C39b433DF2421D3e383296",
 
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xcb2c0263639b6165F39aE812b5252fFAcBcCfDD8",
-  "cfdFactoryContractAddr": "0x1D7e336f23E60d3021CBdd76271f8fFFcD02c094",
-  "priceFeedsContractAddr": "0xfbA00DCE45F8ae2d825C6ab15bd3395601949dee",
-  "priceFeedsInternalContractAddr": "0x2833f5732608a3755F133dE62cBA8d5DD0FEAd6E",
-  "priceFeedsExternalContractAddr": "0xf18e78A2f6408Fa479a2B9A8CA7B6597320ae189",
+  "cfdRegistryContractAddr": "0xeDED846615045B0daFB95915F87Ada3a814CcCF9",
+  "cfdFactoryContractAddr": "0xE53ABa9f82b0786681E9B7127a912Aa7C3dc9457",
+  "priceFeedsContractAddr": "0x99933f22F4092DE8E100F24B099df3e98B101dD8",
+  "priceFeedsInternalContractAddr": "0x7D45493EDaF122186239Cbf03c2A7024bA3b9bDe",
+  "priceFeedsExternalContractAddr": "0x3D2aA19Ca6122623DD7A6FB4573Bf59FCfF3b2f6",
 
   "markets": {
     "internal": [
@@ -32,6 +32,6 @@
     }
   },
 
-  "cfdProxyContractAddr": "0x9253D3fcF046302Ce55472f1eFeCaE4cE5e95312",
-  "dsProxyFactoryContractAddr": "0xC5Dd83b71ace7977377580385da4EF1EafC1d104"
+  "cfdProxyContractAddr": "0xf9FDe4fFC0D6d222f5A3fF5c3b9bf5350e90Fb89",
+  "dsProxyFactoryContractAddr": "0x743521cA9634fAabd1026E92455191303210AcD5"
 }
