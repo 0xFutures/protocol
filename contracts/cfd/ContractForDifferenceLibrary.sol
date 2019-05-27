@@ -30,20 +30,6 @@ library ContractForDifferenceLibrary {
 
 
     /**
-     * Creator fee - 0.3% of notional.
-     */
-    function creatorFee(uint _notional) internal pure returns (uint fee) {
-        fee = percentOf(_notional, 3) / 10;
-    }
-
-    /**
-     * Joiner (deposit or buy) percentage fee - 0.5% of notional.
-     */
-    function joinerFee(uint _notional) internal pure returns (uint fee) {
-        fee = percentOf(_notional, 5) / 10;
-    }
-
-    /**
      * @dev Calculate new notional amount after a side has been sold at a new
      *      strike price.
      *
