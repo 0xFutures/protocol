@@ -20,14 +20,6 @@ contract Registry is DBC, Ownable {
         set("CFDFactoryLatest", _addr);
     }
 
-    function getFees() public view returns (address) {
-        return get("Fees");
-    }
-
-    function setFees(address _addr) public onlyOwner {
-        set("Fees", _addr);
-    }
-
     function getDAI() public view returns (ERC20) {
         return ERC20(get("DAI"));
     }

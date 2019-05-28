@@ -1,7 +1,6 @@
 import { assert } from 'chai'
 import BigNumber from 'bignumber.js'
 
-import { creatorFee, joinerFee } from '../../src/calc'
 import ProxyAPI from '../../src/infura/proxy'
 import {
   toContractBigNumber,
@@ -55,13 +54,13 @@ describe('ContractForDifferenceProxy', function () {
       marketId,
       strikePrice: ethDaiPriceAdjusted,
       notional: notionalAmountDai,
-      value: notionalAmountDai.plus(creatorFee(notionalAmountDai)),
+      value: notionalAmountDai,
       isBuyer: true
     })
     await proxyApi.proxyDeposit(
       sellerProxy,
       cfd,
-      notionalAmountDai.plus(joinerFee(notionalAmountDai))
+      notionalAmountDai
     )
 
     return { cfd, buyerProxy, sellerProxy }
@@ -102,12 +101,12 @@ describe('ContractForDifferenceProxy', function () {
     const { daiToken } = deployment
     assertEqualBN(
       await daiToken.methods.allowance(buyer, buyerProxy.options.address).call(),
-      MAX_UINT256.minus(notionalAmountDai.plus(creatorFee(notionalAmountDai))),
+      MAX_UINT256.minus(notionalAmountDai),
       'buyer allowance to proxy'
     )
     assertEqualBN(
       await daiToken.methods.allowance(seller, sellerProxy.options.address).call(),
-      MAX_UINT256.minus(notionalAmountDai.plus(joinerFee(notionalAmountDai))),
+      MAX_UINT256.minus(notionalAmountDai),
       'seller allowance to proxy'
     )
 
@@ -163,7 +162,7 @@ describe('ContractForDifferenceProxy', function () {
     // buyingParty buys the seller side
     const thirdPartyProxy = await proxyApi.proxyNew(thirdParty)
     const buyBuyerSide = true
-    const buyValue = notionalAmountDai.plus(joinerFee(notionalAmountDai)).toFixed()
+    const buyValue = notionalAmountDai.toFixed()
 
     const buyerBalBefore = await getBalance(daiToken, buyer)
     await proxyApi.proxyBuy(thirdPartyProxy, cfd, buyBuyerSide, buyValue)

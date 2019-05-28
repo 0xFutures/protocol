@@ -10,9 +10,7 @@ import {
 import {
   calculateCollateral,
   calculateNewNotional,
-  cutOffPrice,
-  creatorFee as creatorFeeCalc,
-  joinerFee as joinerFeeCalc
+  cutOffPrice
 } from '../../src/calc'
 import { cfdInstance } from '../../src/infura/contracts'
 
@@ -36,7 +34,6 @@ describe('ContractForDifference', function () {
     const DAEMON_ACCOUNT = accounts[3]
     const CREATOR_ACCOUNT = accounts[2]
     const COUNTERPARTY_ACCOUNT = accounts[4]
-    const FEES_ACCOUNT = accounts[8]
 
     // some defaults for testing
     const strikePriceRaw = new BigNumber('800.0')
@@ -48,8 +45,8 @@ describe('ContractForDifference', function () {
 
     let registry
     let priceFeeds
-    let priceFeedsInternal
     let priceFeedsExternal
+    let priceFeedsInternal
     let cfdRegistry
     let daiToken
     let ethUsdMaker
@@ -75,9 +72,6 @@ describe('ContractForDifference', function () {
       return cfd.methods.buy(buyBuyerSide, amount).send({ from: from })
     }
 
-    const creatorFee = () => creatorFeeCalc(notionalAmount)
-    const joinerFee = (notional = notionalAmount) => joinerFeeCalc(notional)
-
     /**
      * Create a new CFD directly.
      * Implements the same steps that the CFDFactory contract does.
@@ -96,7 +90,7 @@ describe('ContractForDifference', function () {
         gas: 6700000
       })
 
-      const transferAmount = creatorFee().plus(daiValue)
+      const transferAmount = daiValue
       await daiToken.methods.transfer(cfd.options.address, transferAmount.toFixed()).send()
 
       await cfd.methods.createNew(
@@ -160,8 +154,6 @@ describe('ContractForDifference', function () {
       describe('initiation', async () => {
         it('creates a new CFD with contract terms', async () => {
 
-          const feesBalBefore = await getBalance(FEES_ACCOUNT)
-
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           assert.equal(await cfd.methods.market().call(), marketId, 'market incorrect')
           assert.equal(await cfd.methods.buyer().call(), CREATOR_ACCOUNT, 'buyer incorrect')
@@ -188,13 +180,8 @@ describe('ContractForDifference', function () {
           )
           assertEqualBN(
             await getBalance(cfd.options.address),
-            notionalAmount.plus(creatorFee()),
+            notionalAmount,
             'cfd balance incorrect'
-          )
-          assertEqualBN(
-            await getBalance(FEES_ACCOUNT),
-            feesBalBefore,
-            'fees bal should not have changed'
           )
           assert.isFalse(await cfd.methods.initiated().call(), 'should not be initiated')
           await assertStatus(cfd, STATUS.CREATED)
@@ -211,23 +198,21 @@ describe('ContractForDifference', function () {
           assert.equal(await cfd.methods.buyer().call(), CREATOR_ACCOUNT, 'buyer incorrect')
           assertEqualBN(
             await getBalance(cfd.options.address),
-            collateral.plus(creatorFee()),
+            collateral,
             'cfd balance incorrect'
           )
         })
 
         it('initiates the contract on counterparty deposit()', async () => {
-          const feesBalBefore = await getBalance(FEES_ACCOUNT)
-
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           assert.equal(await cfd.methods.buyer().call(), CREATOR_ACCOUNT, 'buyer incorrect')
           assert.equal(await cfd.methods.seller().call(), EMPTY_ACCOUNT, 'seller incorrect')
 
-          const txReceipt = await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          const txReceipt = await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
 
           // check party logged by CFDRegistry
           assertLoggedParty(
-            txReceipt.events['3'].raw,
+            txReceipt.events['2'].raw,
             cfd.options.address,
             COUNTERPARTY_ACCOUNT
           )
@@ -249,12 +234,6 @@ describe('ContractForDifference', function () {
             'cfd balance incorrect'
           )
 
-          assertEqualBN(
-            await getBalance(FEES_ACCOUNT),
-            feesBalBefore.plus(notionalAmount.times(0.008)),
-            'fees bal should have the 3% creator plus 5% depositor fee'
-          )
-
           assert.equal(
             txReceipt.events.LogCFDInitiated.raw.topics[0],
             web3.utils.sha3(
@@ -266,7 +245,7 @@ describe('ContractForDifference', function () {
 
         it('allows deposit with collateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, minimumCollateral.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, minimumCollateral.toFixed())
           await assertStatus(cfd, STATUS.INITIATED)
         })
 
@@ -316,7 +295,7 @@ describe('ContractForDifference', function () {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           try {
             const collateral = minimumCollateral.minus(1)
-            await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.plus(joinerFee()).toFixed())
+            await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.toFixed())
             assert.fail('expected reject deposit with low collateral')
           } catch (err) {
             assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -327,7 +306,7 @@ describe('ContractForDifference', function () {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
           try {
             const collateral = maximumCollateral.plus(1)
-            await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.plus(joinerFee()).toFixed())
+            await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral.toFixed())
             assert.fail('expected reject deposit with high collateral')
           } catch (err) {
             assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -345,7 +324,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral1X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.toFixed())
 
           // move the market price up before terminating
           const priceRise = 0.1 // 10%
@@ -363,9 +342,8 @@ describe('ContractForDifference', function () {
 
           const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
           const cpBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
-          const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
-          const ftTx = await cfd.methods.forceTerminate().send({
+          await cfd.methods.forceTerminate().send({
             from: CREATOR_ACCOUNT
           })
 
@@ -387,11 +365,6 @@ describe('ContractForDifference', function () {
             'counterparty balance incorrect'
           )
           assertEqualBN(
-            await getBalance(FEES_ACCOUNT),
-            feesBalBefore,
-            'fees balance should be unchanged'
-          )
-          assertEqualBN(
             await getBalance(cfd.options.address),
             0,
             'cfd balance should be 0'
@@ -407,7 +380,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral5X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.toFixed())
 
           // move the market price up before terminating
           const priceFall = 0.1 // 10%
@@ -470,15 +443,12 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral1X
           })
-          await deposit(cfd, seller, collateral1X.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, collateral1X.toFixed())
           await cfd.methods.sellPrepare(strikePriceAdjusted.toFixed(), 0).send({ from: seller })
-          await buy(cfd, buyingParty, false, collateral1X.plus(joinerFee()).toFixed())
-
-          const buyerBalBefore = await getBalance(buyer)
-          const buyingPartyBalBefore = await getBalance(buyingParty)
+          await buy(cfd, buyingParty, false, collateral1X.toFixed())
 
           // buyer teminates
-          const ftTx = await cfd.methods.forceTerminate().send({
+          await cfd.methods.forceTerminate().send({
             from: buyer
           })
 
@@ -515,7 +485,7 @@ describe('ContractForDifference', function () {
 
         it('transfers seller side ownership', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
           assert.equal(
             await cfd.methods.seller().call(),
             COUNTERPARTY_ACCOUNT,
@@ -537,7 +507,7 @@ describe('ContractForDifference', function () {
 
         it('transfers buyer side ownership', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
           assert.equal(
             await cfd.methods.seller().call(),
             COUNTERPARTY_ACCOUNT,
@@ -573,7 +543,7 @@ describe('ContractForDifference', function () {
 
         it("can't transfer to one of the 2 contract parties", async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
 
           const assertFailure = async (to, from) => {
             try {
@@ -598,7 +568,7 @@ describe('ContractForDifference', function () {
         // some reason about the liquidate threshold being reached
         it('rejects the update if called and the threshold has not been reached', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
 
           const newStrikePrice = strikePriceAdjusted.times(1.1) // not enough to hit liquidate threshold
           await priceFeedsInternal.methods.push(marketId, newStrikePrice.toFixed(), nowSecs()).send({
@@ -618,7 +588,7 @@ describe('ContractForDifference', function () {
 
         it('disolves the contract - 1x leverage both sides, price rise - INTERNAL price feed', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
 
           // 5% threshold passed for seller
           const newStrikePrice = strikePriceAdjusted.times(1.951)
@@ -665,7 +635,7 @@ describe('ContractForDifference', function () {
             market: markets[marketNames.makerEthPrice],
             strikePrice: makerEthPriceAdjusted
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
 
           // 5% threshold passed for seller
           const newMarketPrice = makerEthPriceAdjusted.times(1.951)
@@ -706,7 +676,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral5X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.toFixed())
 
           // 5% threshold passed for seller at 5X - get cutoff price then add 1
           const sellerCutOffPrice = cutOffPrice({
@@ -755,7 +725,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral5X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral5X.toFixed())
 
           // under 5% threshold
           const newStrikePrice = strikePriceAdjusted.times(0.04)
@@ -1069,27 +1039,6 @@ describe('ContractForDifference', function () {
         })
       })
 
-      describe('fee calculations', async () => {
-        let cfd
-
-        before(async () => {
-          cfd = await newCFD({ notionalAmount, isBuyer: true })
-        })
-
-        it('creatorFee() calculates 0.3% of a notional amount', async () => {
-          assertEqualBN(
-            await cfd.methods.creatorFee(notionalAmount.toFixed()).call(),
-            notionalAmount.times(0.003)
-          )
-        })
-        it('joinerFee() calculates 0.5% of a notional amount', async () => {
-          assertEqualBN(
-            await cfd.methods.joinerFee(notionalAmount.toFixed()).call(),
-            notionalAmount.times(0.005)
-          )
-        })
-      })
-
       describe('sale', async () => {
         const buyer = CREATOR_ACCOUNT
         const seller = COUNTERPARTY_ACCOUNT
@@ -1108,7 +1057,7 @@ describe('ContractForDifference', function () {
           async () => {
             // initiate contract
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
-            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            await deposit(cfd, seller, notionalAmount.toFixed())
             // put seller side on sale
             await cfd.methods.sellPrepare(strikePriceAdjusted.toFixed(), 0).send({ from: seller })
 
@@ -1140,7 +1089,7 @@ describe('ContractForDifference', function () {
         it('a buyer buys the "on sale" position with enough collateral - 2X', async () => {
           // initiate contract
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           // put seller side on sale
           await cfd.methods.sellPrepare(strikePriceAdjusted.toFixed(), 0).send({ from: seller })
           await assertStatus(cfd, STATUS.SALE)
@@ -1154,16 +1103,14 @@ describe('ContractForDifference', function () {
           const buyerBalBefore = await getBalance(buyer)
           const sellerBalBefore = await getBalance(seller)
           const buyingPartyBalBefore = await getBalance(buyingParty)
-          const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
           // buyingParty buys the seller side
           const collateral = notionalAmount.dividedBy(2) // 2X leverage
           const buyBuyerSide = false // buying seller side
-          const joinFee = joinerFee()
-          const buyTx = await buy(cfd, buyingParty, buyBuyerSide, collateral.plus(joinerFee()).toFixed())
+          const buyTx = await buy(cfd, buyingParty, buyBuyerSide, collateral.toFixed())
 
           // check new party logged by CFDRegistry
-          assertLoggedParty(buyTx.events['4'].raw, cfd.options.address, buyingParty)
+          assertLoggedParty(buyTx.events['3'].raw, cfd.options.address, buyingParty)
 
           // check the contract has been updated
           assert.equal(await cfd.methods.seller().call(), buyingParty)
@@ -1220,8 +1167,7 @@ describe('ContractForDifference', function () {
           assertEqualBN(
             await getBalance(buyingParty),
             buyingPartyBalBefore
-              .minus(collateral)
-              .minus(joinerFeeCalc(notionalAmount)),
+              .minus(collateral),
             'buyingParty balance'
           )
 
@@ -1230,13 +1176,6 @@ describe('ContractForDifference', function () {
             await getBalance(cfd.options.address),
             notionalAmount.plus(collateral),
             'new cfd balance'
-          )
-
-          // check fees has received the 0.5% joiner fee
-          assertEqualBN(
-            await getBalance(FEES_ACCOUNT),
-            feesBalBefore.plus(joinFee),
-            'fees balance'
           )
         })
 
@@ -1249,7 +1188,7 @@ describe('ContractForDifference', function () {
         it('new notional correct when buyer sells at 20% higher strike price', async () => {
           // initiate contract
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           // put seller side on sale
           const saleStrikePrice = strikePriceAdjusted.times(1.2)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: buyer })
@@ -1260,8 +1199,7 @@ describe('ContractForDifference', function () {
 
           // buyingParty buys the seller side
           const buyBuyerSide = true
-          const joinFee = joinerFee()
-          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee).toFixed())
+          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.toFixed())
 
           const expectedNewNotional = notionalAmount.times(1.2)
           assertEqualBN(
@@ -1290,7 +1228,7 @@ describe('ContractForDifference', function () {
         it('new notional correct when seller sells at 20% lower strike price', async () => {
           // initiate contract
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           // put seller side on sale
           const saleStrikePrice = strikePriceAdjusted.times(0.8)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: seller })
@@ -1301,8 +1239,7 @@ describe('ContractForDifference', function () {
 
           // buyingParty buys the seller side
           const buyBuyerSide = false // buying seller side
-          const joinFee = joinerFee()
-          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.plus(joinFee).toFixed())
+          await buy(cfd, buyingParty, buyBuyerSide, notionalAmount.toFixed())
 
           const expectedNewNotional = notionalAmount.times(0.8)
           assertEqualBN(
@@ -1330,17 +1267,15 @@ describe('ContractForDifference', function () {
         //  - a new buyer buys the seller side at 4x collateral
         //  - assert the selling parties receive collateral amounts
         //  - assert CFD values are all correct after the sales
-        //  - assert fees are sent to fees address
         //
         it('both sides can be on sale at once with different terms', async () => {
           const buyBuyerSide = true
           const collateral1X = notionalAmount
           const collateral2X = notionalAmount.dividedBy(2)
-          const joinFee = joinerFee()
 
           // initiate contract
           const cfd = await newCFD({ notionalAmount, isBuyer: true }) // defaults to 1X
-          await deposit(cfd, seller, collateral2X.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, collateral2X.toFixed())
           // buyer side put on sale
           const buyerDesiredPrice = strikePriceAdjusted.times(1.1)
           await cfd.methods.sellPrepare(buyerDesiredPrice.toFixed(), 0).send({ from: buyer })
@@ -1360,7 +1295,6 @@ describe('ContractForDifference', function () {
           const sellerBalBefore = await getBalance(seller)
           const buyingParty1BalBefore = await getBalance(buyingParty1)
           const buyingParty2BalBefore = await getBalance(buyingParty2)
-          const feesBalBefore = await getBalance(FEES_ACCOUNT)
 
           //
           // Buyer side buy
@@ -1373,11 +1307,11 @@ describe('ContractForDifference', function () {
             calcBuyerSide: true
           })
 
-          const buy1Tx = await buy(cfd, buyingParty1, buyBuyerSide, collateral2X.plus(joinFee).toFixed())
+          const buy1Tx = await buy(cfd, buyingParty1, buyBuyerSide, collateral2X.toFixed())
 
           // check the state
           assert.equal(await cfd.methods.buyer().call(), buyingParty1)
-          assertLoggedParty(buy1Tx.events['4'].raw, cfd.options.address, buyingParty1)
+          assertLoggedParty(buy1Tx.events['3'].raw, cfd.options.address, buyingParty1)
           assertEqualBN(await cfd.methods.strikePrice().call(), buyerDesiredPrice)
           assertEqualBN(await cfd.methods.buyerInitialStrikePrice().call(), buyerDesiredPrice)
           assertEqualBN(
@@ -1418,12 +1352,11 @@ describe('ContractForDifference', function () {
           })
 
           const collateral4XBuy2 = newNotional.dividedBy(4)
-          const joinFeeBuy2 = joinerFee(newNotional)
-          const buy2Tx = await buy(cfd, buyingParty2, !buyBuyerSide, collateral4XBuy2.plus(joinFeeBuy2).toFixed())
+          const buy2Tx = await buy(cfd, buyingParty2, !buyBuyerSide, collateral4XBuy2.toFixed())
 
           // check the state
           assert.equal(await cfd.methods.seller().call(), buyingParty2)
-          assertLoggedParty(buy2Tx.events['4'].raw, cfd.options.address, buyingParty2)
+          assertLoggedParty(buy2Tx.events['3'].raw, cfd.options.address, buyingParty2)
           assertEqualBN(await cfd.methods.strikePrice().call(), sellerDesiredPrice)
           assertEqualBN(
             await cfd.methods.sellerInitialStrikePrice().call(),
@@ -1448,15 +1381,13 @@ describe('ContractForDifference', function () {
           assertEqualBN(
             await getBalance(buyingParty1),
             buyingParty1BalBefore
-              .minus(collateral2X)
-              .minus(joinerFee()),
+              .minus(collateral2X),
             'buyingParty1 balance'
           )
           assertEqualBN(
             await getBalance(buyingParty2),
             buyingParty2BalBefore
-              .minus(collateral4XBuy2)
-              .minus(joinFeeBuy2),
+              .minus(collateral4XBuy2),
             'buyingParty2 balance'
           )
 
@@ -1465,13 +1396,6 @@ describe('ContractForDifference', function () {
             await getBalance(cfd.options.address),
             collateral4XBuy2.plus(await cfd.methods.buyerDepositBalance().call()),
             'new cfd balance'
-          )
-
-          // check fees has received 0.5% join fee plus the buy fee
-          assertEqualBN(
-            await getBalance(FEES_ACCOUNT),
-            feesBalBefore.plus(joinFee).plus(joinFeeBuy2),
-            'fees balance'
           )
 
           // sale details all reset
@@ -1487,7 +1411,7 @@ describe('ContractForDifference', function () {
         it('buyer buy rejected with collateral less then 20% of the notional', async () => {
           // initiate contract
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           // mark seller side on sale
           await cfd.methods.sellPrepare(strikePriceAdjusted.toFixed(), 0).send({ from: seller })
           await assertStatus(cfd, STATUS.SALE)
@@ -1497,7 +1421,7 @@ describe('ContractForDifference', function () {
 
           const buyBuyerSide = true
           try {
-            await buy(cfd, buyingParty, !buyBuyerSide, collateral.plus(joinerFee()).toFixed())
+            await buy(cfd, buyingParty, !buyBuyerSide, collateral.toFixed())
             assert.fail('expected reject buy')
           } catch (err) {
             assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
@@ -1506,7 +1430,7 @@ describe('ContractForDifference', function () {
 
         it('buyer can cancel a sale', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           const saleStrikePrice = strikePriceAdjusted.times(1.05)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: buyer })
 
@@ -1523,7 +1447,7 @@ describe('ContractForDifference', function () {
 
         it('seller can cancel a sale', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           const saleStrikePrice = strikePriceAdjusted.times(1.05)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: seller })
 
@@ -1540,7 +1464,7 @@ describe('ContractForDifference', function () {
 
         it('buyer can update sale price', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           const saleStrikePrice = strikePriceAdjusted.times(1.05)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: buyer })
 
@@ -1552,7 +1476,7 @@ describe('ContractForDifference', function () {
 
         it('seller can update sale price', async () => {
           const cfd = await newCFD({ notionalAmount, isBuyer: true })
-          await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+          await deposit(cfd, seller, notionalAmount.toFixed())
           const saleStrikePrice = strikePriceAdjusted.times(1.05)
           await cfd.methods.sellPrepare(saleStrikePrice.toFixed(), 0).send({ from: seller })
 
@@ -1578,7 +1502,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral2X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral2X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral2X.toFixed())
           assertEqualBN(await cfd.methods.buyerDepositBalance().call(), collateral2X)
           assertEqualBN(await cfd.methods.sellerDepositBalance().call(), collateral2X)
 
@@ -1603,7 +1527,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral1X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.toFixed())
           assertEqualBN(await cfd.methods.buyerDepositBalance().call(), collateral1X)
           assertEqualBN(await cfd.methods.sellerDepositBalance().call(), collateral1X)
 
@@ -1613,7 +1537,7 @@ describe('ContractForDifference', function () {
           const creatorBalBefore = await getBalance(CREATOR_ACCOUNT)
           const counterpartyBalBefore = await getBalance(COUNTERPARTY_ACCOUNT)
 
-          const tx1 = await cfd.methods.withdraw(withdrawAmount.toFixed()).send({
+          await cfd.methods.withdraw(withdrawAmount.toFixed()).send({
             from: CREATOR_ACCOUNT
           })
           assertEqualBN(await cfd.methods.buyerDepositBalance().call(), expectedAmount)
@@ -1624,7 +1548,7 @@ describe('ContractForDifference', function () {
             'creator account balance incorrect'
           )
 
-          const tx2 = await cfd.methods.withdraw(withdrawAmount.toFixed()).send({
+          await cfd.methods.withdraw(withdrawAmount.toFixed()).send({
             from: COUNTERPARTY_ACCOUNT
           })
           assertEqualBN(await cfd.methods.buyerDepositBalance().call(), expectedAmount)
@@ -1645,7 +1569,7 @@ describe('ContractForDifference', function () {
             isBuyer: true,
             daiValue: collateral1X
           })
-          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.plus(joinerFee()).toFixed())
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, collateral1X.toFixed())
           assertEqualBN(
             await cfd.methods.buyerDepositBalance().call(),
             collateral1X,
@@ -1696,7 +1620,7 @@ describe('ContractForDifference', function () {
           async () => {
             // initiate contract
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
-            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            await deposit(cfd, seller, notionalAmount.toFixed())
             const deposits = notionalAmount.dividedBy(1)
             const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), true).call()
             // put buyer side on sale at liquidation price
@@ -1713,7 +1637,7 @@ describe('ContractForDifference', function () {
           async () => {
             // initiate contract
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
-            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            await deposit(cfd, seller, notionalAmount.toFixed())
             const deposits = notionalAmount.dividedBy(1)
             const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), false).call()
             // put seller side on sale at liquidation price
@@ -1730,7 +1654,7 @@ describe('ContractForDifference', function () {
           async () => {
             // initiate contract
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
-            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            await deposit(cfd, seller, notionalAmount.toFixed())
             const deposits = notionalAmount.dividedBy(1)
             const buyerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), true).call()
             // put buyer side on sale over liquidation price
@@ -1743,7 +1667,7 @@ describe('ContractForDifference', function () {
           async () => {
             // initiate contract
             const cfd = await newCFD({ notionalAmount, isBuyer: true })
-            await deposit(cfd, seller, notionalAmount.plus(joinerFee()).toFixed())
+            await deposit(cfd, seller, notionalAmount.toFixed())
             const deposits = notionalAmount.dividedBy(1)
             const sellerLiqPrice = await cfd.methods.cutOffPrice(notionalAmount.toFixed(), deposits.toFixed(), strikePriceAdjusted.toFixed(), false).call()
             // put seller side on sale under liquidation price

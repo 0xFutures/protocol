@@ -32,9 +32,6 @@ export default class AdminAPI {
   /**
    * Deposit is called by a party wishing to join a new CFD.
    *
-   * See joinerFee() for details of required fees in addition to the initial
-   * collateral. These fees are added on to the passed amount.
-   *
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */

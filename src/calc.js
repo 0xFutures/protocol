@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js'
 
-BigNumber.config({DECIMAL_PLACES: 30})
+BigNumber.config({ DECIMAL_PLACES: 30 })
 
 /**
  * @see ContractForDifference.sol calculateCollateralAmount() for the CFD
@@ -54,19 +54,6 @@ const cutOffPrice = ({
 }
 
 /**
- * Fee for creator is half an update fee PLUS 0.3% of the notional.
- * @see ContractForDifference.sol creatorFee() for Solidity implementation.
- */
-const creatorFee = notionalAmount => notionalAmount.times(0.003)
-
-/**
- * Fee for joiner - via either deposit() or buy()
- * Fee is 0.5% of the notional.
- * @see ContractForDifference.sol joinerFee() for Solidity implementation.
- */
-const joinerFee = notionalAmount => notionalAmount.times(0.005)
-
-/**
  * Calculate new notional amount after a side has been sold at a new strike price.
  *
  * @see ContractForDifference.sol calculateNewNotional() for the CFD
@@ -85,13 +72,11 @@ const joinerFee = notionalAmount => notionalAmount.times(0.005)
  * @return newNotional Result of the calculation.
  *
  */
-const calculateNewNotional = ({oldNotional, oldStrikePrice, newStrikePrice}) =>
+const calculateNewNotional = ({ oldNotional, oldStrikePrice, newStrikePrice }) =>
   oldNotional.times(newStrikePrice.dividedBy(oldStrikePrice))
 
 module.exports = {
   calculateCollateral,
   calculateNewNotional,
-  cutOffPrice,
-  creatorFee,
-  joinerFee
+  cutOffPrice
 }

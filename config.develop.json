@@ -5,7 +5,6 @@
   "gasPrice": 100000000000,
   "daemonAccountAddr": "0xf17f52151ebef6c7334fad080c5704d77216b732",
   "ownerAccountAddr": "0x627306090abab3a6e1400e9345bc60c78a8bef57",
-  "feesAccountAddr": "0x6330a553fc93768f612722bb8c2ec78ac90b3bbc",
   "daiTokenAddr": "0x8cdaf0cd259887258bc13a92c0a6da92698644c0",
   "registryAddr": "0xf12b5dd4ead5f743c6baa640b0216200e89b60da",
   "priceFeedsContractAddr": "0x30753e4a8aad7f8597332e813735def5dd395028",

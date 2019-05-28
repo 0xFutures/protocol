@@ -3,7 +3,6 @@ import BigNumber from 'bignumber.js'
 
 import * as Utils from 'web3-utils'
 
-import { creatorFee, joinerFee } from '../src/calc'
 import CFDAPI from '../src/infura/cfd-api-infura'
 import ProxyAPI from '../src/infura/proxy'
 import { EMPTY_ACCOUNT, STATUS, toContractBigNumber } from '../src/infura/utils'
@@ -50,12 +49,12 @@ describe('cfd-api.js', function () {
       strikePrice: priceAdjusted,
       notional: notionalAmountDai,
       isBuyer: partyIsBuyer,
-      value: notionalAmountDai.plus(creatorFee(notionalAmountDai))
+      value: notionalAmountDai
     })
     await proxyApi.proxyDeposit(
       counterpartyProxy,
       cfd,
-      notionalAmountDai.plus(joinerFee(notionalAmountDai))
+      notionalAmountDai
     )
     return cfd
   }

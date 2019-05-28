@@ -19,7 +19,6 @@ import {
 } from './utils'
 
 import ProxyAPI from './proxy'
-import { creatorFee, joinerFee } from '../calc'
 
 // strip off any decimal component of a value as values must be whole numbers
 const safeValue = value => value.toFixed(0)
@@ -44,9 +43,6 @@ export default class CFDAPI {
 
   /**
    * Create a new CFD.
-   *
-   * See creatorFee() for details of required fees in addition to the initial
-   * collateral.
    *
    * @param marketIdStr Contract for this market (eg. "Poloniex_ETH_USD")
    * @param strikePrice Contract strike price
@@ -80,7 +76,7 @@ export default class CFDAPI {
 
     const notionalBN = new BigNumber(notionalAmountDai)
     const deposit = notionalBN.dividedBy(leverageValue)
-    const value = safeValue(deposit.plus(creatorFee(notionalBN)))
+    const value = safeValue(deposit)
 
     return await this.proxyApi.proxyCreateCFD({
       proxy: creatorProxy,
@@ -95,16 +91,12 @@ export default class CFDAPI {
   /**
    * Deposit is called by a party wishing to join a new CFD.
    *
-   * See joinerFee() for details of required fees in addition to the initial
-   * collateral. These fees are added on to the passed amount.
-   *
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
   async deposit(cfdAddress, depositAccountProxy, amount) {
     const cfd = getContract(cfdAddress, this.web3)
-    const fee = await this.joinFee(cfd)
-    const value = safeValue(amount.plus(fee))
+    const value = safeValue(amount)
 
     await this.proxyApi.proxyDeposit(
       depositAccountProxy,
@@ -191,8 +183,7 @@ export default class CFDAPI {
   }
 
   /**
-   * Fulfill a request to mark a CFD for sale by calling sellPrepare on the CFD
-   * and sending the fee for a single market price read.
+   * Fulfill a request to mark a CFD for sale by calling sellPrepare on the CFD.
    * @param cfdAddress Address of a deployed CFD
    * @param sellerAccountProxy Proxy account settling the position.
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
@@ -228,9 +219,8 @@ export default class CFDAPI {
    */
   async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide) {
     const cfd = getContract(cfdAddress, this.web3)
-    const fee = await this.joinFee(cfd)
     const valueToBuyBN = new BigNumber(valueToBuy)
-    const value = safeValue(valueToBuyBN.plus(fee))
+    const value = safeValue(valueToBuyBN)
     return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value)
   }
 
@@ -295,11 +285,11 @@ export default class CFDAPI {
     return this.proxyApi.proxyUpgrade(accountProxy, cfd)
   }
 
-/**
-   * Check for liquidation
-   * @param cfdAddress, Address of the contract
-   * @param account, Account address of the user
-   */
+  /**
+     * Check for liquidation
+     * @param cfdAddress, Address of the contract
+     * @param account, Account address of the user
+     */
   attemptContractLiquidation(cfdAddress, account) {
     const self = this;
     return Promise.all([
@@ -666,11 +656,6 @@ export default class CFDAPI {
    */
   marketIdBytesToStr(marketId) {
     return this.priceFeeds.methods.marketName(marketId).call()
-  }
-
-  async joinFee(cfd) {
-    const notionalAmount = await cfd.methods.notionalAmountDai().call()
-    return joinerFee(new BigNumber(notionalAmount))
   }
 
   /**

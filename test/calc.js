@@ -2,11 +2,9 @@ const BigNumber = require('bignumber.js')
 const {
   calculateCollateral,
   calculateNewNotional,
-  cutOffPrice,
-  creatorFee,
-  joinerFee
+  cutOffPrice
 } = require('../src/calc')
-const {assertEqualBN} = require('./helpers/assert')
+const { assertEqualBN } = require('./helpers/assert')
 
 const notional = new BigNumber('100000')
 const strikePrice = new BigNumber('1000')
@@ -235,15 +233,5 @@ describe('calc.js', () => {
         2950,
         'cutOffPrice at 0.5x for seller'
       ))
-  })
-
-  describe('fee calculations', async () => {
-    it('creatorFee() calculates correct fee', async () => {
-      assertEqualBN(creatorFee(notional), notional.times(0.003))
-    })
-
-    it('joinerFee() calculates correct fee', async () => {
-      assertEqualBN(joinerFee(notional), notional.times(0.005))
-    })
   })
 })

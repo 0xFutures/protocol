@@ -46,10 +46,6 @@ const deployRegistry = async (web3, config, logFn) => {
   })
   logFn(`Registry: ${registry.options.address}`)
 
-  logFn('Calling registry.setFees ...')
-  await registry.methods.setFees(config.feesAccountAddr).send()
-  logFn('done\n')
-
   logFn('Calling registry.setDAI ...')
   await registry.methods.setDAI(config.daiTokenAddr).send()
   logFn('done\n')

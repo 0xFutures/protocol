@@ -1,7 +1,6 @@
 import { assert } from 'chai'
 import { BigNumber } from 'bignumber.js'
 
-const { creatorFee } = require('../../src/calc')
 const {
   getContract,
   cfdInstance,
@@ -70,7 +69,7 @@ describe('ContractForDifferenceFactory', function () {
 
   it('creates a new CFD given valid terms and value', async () => {
     const notionalAmount = new BigNumber('1e18') // 1 DAI
-    const initialValue = notionalAmount.plus(creatorFee(notionalAmount))
+    const initialValue = notionalAmount
     await daiToken.methods.approve(cfdFactory.options.address, initialValue.toFixed()).send({
       from: OWNER_ACCOUNT
     })
@@ -106,7 +105,7 @@ describe('ContractForDifferenceFactory', function () {
     )
     assertEqualBN(
       await daiToken.methods.balanceOf(cfd.options.address).call(),
-      notionalAmount.plus(creatorFee(notionalAmount)),
+      notionalAmount,
       'cfd balance incorrect'
     )
     assert.isFalse(await cfd.methods.initiated().call(), 'should not be initiated')
