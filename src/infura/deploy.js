@@ -42,7 +42,8 @@ const deployRegistry = async (web3, config, logFn) => {
   logFn('Deploying Registry ...')
   const registry = await Registry.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`Registry: ${registry.options.address}`)
 
@@ -77,7 +78,8 @@ const deployPriceFeeds = async (web3, config, logFn) => {
 
   const txOpts = {
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   }
 
   logFn('Deploying PriceFeedsInternal ...')
@@ -140,14 +142,16 @@ const deployCFD = async (web3, config, logFn) => {
   logFn('\nDeploying ForwardFactory ...')
   const ff = await ForwardFactory.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`ForwardFactory: ${ff.options.address}`)
 
   logFn('Deploying ContractForDifferenceLibrary ...')
   const cfdLib = await CFDLibrary.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`ContractForDifferenceLibrary: ${cfdLib.options.address}`)
 
@@ -159,14 +163,16 @@ const deployCFD = async (web3, config, logFn) => {
   )
   const cfd = await CFD.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: 7000000
+    gas: 7000000,
+    gasPrice: config.gasPrice
   })
   logFn(`ContractForDifference: ${cfd.options.address}`)
 
   logFn('Deploying ContractForDifferenceRegistry ...')
   const cfdRegistry = await CFDRegistry.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`ContractForDifferenceRegistry: ${cfdRegistry.options.address}`)
 
@@ -182,14 +188,16 @@ const deployCFD = async (web3, config, logFn) => {
     ]
   }).send({
     from: config.ownerAccountAddr,
-    gas: 3000000
+    gas: 3000000,
+    gasPrice: config.gasPrice
   })
   logFn(`ContractForDifferenceFactory: ${cfdFactory.options.address}`)
 
   logFn('Deploying ContractForDifferenceProxy ...')
   const cfdProxy = await CFDProxy.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`ContractForDifferenceProxy: ${cfdProxy.options.address}`)
 
@@ -235,7 +243,8 @@ const deployProxy = async (web3, config, logFn, registry) => {
   logFn('Deploying Proxy ...')
   const dsProxyFactory = await DSProxyFactory.deploy({}).send({
     from: config.ownerAccountAddr,
-    gas: config.gasDefault
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
   })
   logFn(`DSProxyFactory: ${dsProxyFactory.options.address}`)
 
