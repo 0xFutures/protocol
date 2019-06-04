@@ -151,10 +151,12 @@ export default class CFDAPI {
           }
         })
       }).catch(error => {
-        throw new Error(error);
+      	console.log(error);
+        return undefined;
       });
     }).catch(error => {
-      throw new Error(error);
+      console.log(error);
+      return undefined;
     });
   }
 
@@ -448,6 +450,9 @@ export default class CFDAPI {
         });
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
+          // Check cfd
+          if (cfd == undefined)
+          	return false;
           // Check if we want to exclude the liquidated
           if (includeLiquidated == true || cfd.details.closed == false)
             return true;
@@ -507,6 +512,9 @@ export default class CFDAPI {
           .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
+          // Check cfd
+          if (cfd == undefined)
+          	return false;
           // Check if we want to exclude the liquidated
           if ((cfd.details.buyer.toLowerCase() == partyAddress.toLowerCase() ||
             cfd.details.seller.toLowerCase() == partyAddress.toLowerCase()) &&
@@ -558,6 +566,9 @@ export default class CFDAPI {
           .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
+          // Check cfd
+          if (cfd == undefined)
+          	return false;
           // Get only the CFD that are not initialized and not closed
           if (cfd.details.status == STATUS.CREATED && cfd.details.closed == false)
             return true;
@@ -607,6 +618,9 @@ export default class CFDAPI {
           .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
         // For each event, get the CFD
         getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
+          // Check cfd
+          if (cfd == undefined)
+          	return false;
           // Get only the CFD that are not initialized and not closed
           if (cfd.details.status == STATUS.SALE && cfd.details.closed == false &&
             (cfd.details.buyerIsSelling == true || cfd.details.sellerIsSelling == true))
