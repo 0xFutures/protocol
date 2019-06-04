@@ -480,6 +480,8 @@ export default class CFDAPI {
     // Function to get one CFD details
     const getDetailsCfd = async (ev) => {
       let cfd = await self.getCFD(ev.address);
+      if (cfd == undefined)
+      	return undefined;
       const block = await self.web3.eth.getBlockAsync(ev.blockNumber);
       cfd.details.ts = new Date(block.timestamp * 1000);
       return cfd;
