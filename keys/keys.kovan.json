@@ -11,12 +11,13 @@
 
   "registryAddr": "0xA256b15694835d137A35c9514684207431646178",
 
+  "registryAddr": "0xb88908b97b787796C8C39b433DF2421D3e383296",
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xC39dE422d5F388870179631230c8905b6EEb06fC",
-  "cfdFactoryContractAddr": "0x9285E4Cfe93C077f8F0Ce452C565f9Ef1b4baC5F",
-  "priceFeedsContractAddr": "0x17dA063ce1aaC1075Ddf4Ff1075A7b0b51dcc7f8",
-  "priceFeedsInternalContractAddr": "0xdE5CC4817dB7878525611587a227526E9898d446",
-  "priceFeedsExternalContractAddr": "0xf1c68447C33a20492811f071087B2525c43Cb08e",
+  "cfdRegistryContractAddr": "0xdF6234F80feB864cACC12CF5E471A36E408e605e",
+  "cfdFactoryContractAddr": "0x7781B564a6531a8724D93EB047d52F314F921e69",
+  "priceFeedsContractAddr": "0x7b8090aB3FE548D15832c8F0E7B794Be71be411D",
+  "priceFeedsInternalContractAddr": "0x1b4CB33c63989C80D32b6F2244be7e4e6f376e24",
+  "priceFeedsExternalContractAddr": "0x9F805E3b99b3D2C622f512181f68Bf72C64f6Ea3",
 
   "markets": {
     "internal": [
@@ -31,6 +32,6 @@
     }
   },
 
-  "cfdProxyContractAddr": "0x42e3077dB67625AF16FA3ca9b119Ea88FFaC0CfB",
-  "dsProxyFactoryContractAddr": "0xbf3F90c73dec43ceBac8d7FCf0F780b668445B35"
+  "cfdProxyContractAddr": "0xcd9ea629F10DB814b55713D119F891D55F94e9A4",
+  "dsProxyFactoryContractAddr": "0x8a5559E74b6507F299017A47AF87AeBc5a9e00e1"
 }
