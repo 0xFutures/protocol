@@ -330,7 +330,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-06-04T13:54:51.947Z",
+  "updatedAt": "2019-06-07T11:54:35.781Z",
   "devdoc": {
     "methods": {
       "addMarket(string)": {
