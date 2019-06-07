@@ -179,14 +179,14 @@ describe('PriceFeeds', function () {
   describe('isMarketActive', () => {
     it('internal active', async () => {
       assert(
-        await pfContract.methods.isMarketActive(MakerMarket.id).call(),
+        await pfContract.methods.isMarketActive(CoinbaseMarket.id).call(),
         'isMarketActive() should return true for internal market'
       )
     })
 
     it('external active', async () => {
       assert(
-        await pfContract.methods.isMarketActive(CoinbaseMarket.id).call(),
+        await pfContract.methods.isMarketActive(MakerMarket.id).call(),
         'isMarketActive() should return true for external market'
       )
     })
