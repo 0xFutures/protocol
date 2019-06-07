@@ -95,6 +95,7 @@ contract ContractForDifference is DBC {
     string constant REASON_ONLY_CONTRACT_PARTIES = "Only contract parties can do this";
     string constant REASON_MUST_BE_ACTIVE = "Must be active";
     string constant REASON_MARKET_PRICE_RANGE_FAILED = "collateralInRange false";
+    string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
     string constant REASON_WITHDRAW_NOT_ENOUGH = "Can't withdraw more then available";
     string constant REASON_AMOUNT_NOT_ENOUGH = "Amount not enough";
     string constant REASON_UPGRADE_ALREADY_SET = "msg.sender already called";
@@ -227,6 +228,7 @@ contract ContractForDifference is DBC {
     )
         public
         pre_cond(_notionalAmountDai >= MINIMUM_NOTIONAL_AMOUNT_DAI, REASON_NOTIONAL_TOO_LOW)
+        pre_cond(PriceFeeds(_feedsAddr).isMarketActive(_marketId), REASON_MARKET_INACTIVE_OR_UNKNOWN)
     {
         registry = Registry(_registryAddr);
         uint collateralSent = registry.getDAI().balanceOf(address(this));

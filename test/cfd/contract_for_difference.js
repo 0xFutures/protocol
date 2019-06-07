@@ -312,6 +312,16 @@ describe('ContractForDifference', function () {
             assert.equal(`${REJECT_MESSAGE} collateralInRange false`, err.message)
           }
         })
+
+        it('rejects if market is not registered with price feeds', async () => {
+          const badMarket = web3.utils.keccak256('Coinbase_No_Market')
+          try {
+            await newCFD({ market: badMarket, notionalAmount, isBuyer: true })
+            assert.fail('expected reject for bad market')
+          } catch (err) {
+            assert.equal(`${REJECT_MESSAGE} Price requested for inactive or unknown market`, err.message)
+          }
+        })
       })
 
       describe('forceTerminate()', async () => {
