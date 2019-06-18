@@ -161,10 +161,10 @@ const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBloc
   });
 }
 
+// For web3 latest version, use this instead:
+//    contract.jsonInterface.abi.methods[fnName].signature
 const getFunctionSignature = (contract, fnName) =>
-  contract._jsonInterface.find(
-    el => el.name === fnName
-  ).signature
+  contract._jsonInterface.find(el => el.name === fnName).signature
 
 module.exports = {
   assertBigNumberOrString,

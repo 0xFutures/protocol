@@ -49,7 +49,6 @@ const deployRegistry = async (web3, config, logFn) => {
 
   logFn('Calling registry.setDAI ...')
   await registry.methods.setDAI(config.daiTokenAddr).send({
-    from: config.ownerAccountAddr,
     gas: config.gasDefault,
     gasPrice: config.gasPrice
   })
@@ -95,7 +94,10 @@ const deployPriceFeeds = async (web3, config, logFn) => {
   logFn(`PriceFeedsExternal: ${priceFeedsExternal.options.address}`)
 
   logFn('Calling priceFeedsInternal.setDaemonAccount ...')
-  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send(txOpts)
+  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send({
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
   logFn('done\n')
 
   logFn('Deploying PriceFeeds ...')
@@ -209,9 +211,18 @@ const deployCFD = async (web3, config, logFn) => {
 
   logFn('Setting up CFD Factory and Registry ...')
   // run in sequence (in parallel has a nonce issue with hdwaller provider)
-  await cfdFactory.methods.setCFDRegistry(cfdRegistry.options.address).send()
-  await cfdRegistry.methods.setFactory(cfdFactory.options.address).send()
-  await registry.methods.setCFDFactoryLatest(cfdFactory.options.address).send()
+  await cfdFactory.methods.setCFDRegistry(cfdRegistry.options.address).send({
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
+  await cfdRegistry.methods.setFactory(cfdFactory.options.address).send({
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
+  await registry.methods.setCFDFactoryLatest(cfdFactory.options.address).send({
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
@@ -254,7 +265,9 @@ const deployProxy = async (web3, config, logFn, registry) => {
 
   logFn('setProxyCodeHash ...')
   const codeHash = web3.utils.keccak256(dsProxyByteCode())
-  await registry.methods.setProxyCodeHash(codeHash).send()
+  await registry.methods.setProxyCodeHash(codeHash).send({
+    gasPrice: 8000000000
+  })
   logFn(`done`)
 
   const updatedConfig = Object.assign({}, config, {

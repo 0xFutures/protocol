@@ -46,7 +46,9 @@ const deploy = async () => {
     // run in sequence (in parallel has a nonce issue with hdwaller provider)
     for (const market of config.markets.internal) {
       console.log(market)
-      await deployment.priceFeedsInternal.methods.addMarket(market).send()
+      await deployment.priceFeedsInternal.methods.addMarket(market).send({
+        gasPrice: 8000000000
+      })
     }
     console.log(`done\n`)
 
@@ -64,7 +66,9 @@ const deploy = async () => {
         marketKey,
         market.address,
         callSignature
-      ).send()
+      ).send({
+        gasPrice: 8000000000
+      })
     }
     console.log(`done\n`)
 
