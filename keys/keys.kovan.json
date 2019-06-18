@@ -2,35 +2,31 @@
   "network": "kovan",
   "gasDefault": 2000000,
   "gasPrice": 5000000000,
-  "deploymentBlockNumber": 11200000,
+  "deploymentBlockNumber": 11655000,
 
   "ownerAccountAddr": "0xd14ad776cc3251aba3243e7c81d7610d25bce3ee",
   "daemonAccountAddr": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
 
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
 
-  "registryAddr": "0x9C859b0acDC7a7F2b867e3a6D9F3913A87546e88",
-  
+  "registryAddr": "0x78b9fE5C58aAffcDFDaddb3e33fce4E3Da26b801",
+
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xAad590EFf32636722a94e0B443da76597E48A1d1",
-  "cfdFactoryContractAddr": "0x4Ab302Cdb3eE6bBf379FBB6B69809B2CD2e55FA9",
-  "priceFeedsContractAddr": "0x987d266B29b3AdC049BA92dbB9D8584399739862",
-  "priceFeedsInternalContractAddr": "0x7Df0Df09Cb1277C65eE27e9DF203394F903639db",
-  "priceFeedsExternalContractAddr": "0x39773271ad292fEB5fEDD513Eb128cF71CC7C14b",
+  "cfdRegistryContractAddr": "0xB3Cde1C2802c94290FC2214D801a13907CE69D17",
+  "cfdFactoryContractAddr": "0x25aC08Ba587C6f72513E27b6C79577Ab2225418D",
+  "priceFeedsContractAddr": "0x936c55B5EF598c123e2aC24fBb5072DB661DD8D2",
+  "priceFeedsInternalContractAddr": "0xcf0Fa333C104F793c853950a62a300c1E0e0AC94",
+  "priceFeedsExternalContractAddr": "0xdE69ded161630E4562a4BBC705cb0Ff8e0AAD5f8",
 
   "markets": {
     "internal": [
-      "Coinbase_BTC"
+      "Coinbase_BTC",
+      "Coinbase_ETH"
     ],
     "external": {
-      "Maker_ETH_USD": {
-        "priceFn": "read",
-        "interface": "EthUsdMakerInterface",
-        "address": "0xa5aa4e07f5255e14f02b385b1f04b35cc50bdb66"
-      }
     }
   },
 
-  "cfdProxyContractAddr": "0x0FF7E53981cD6d81fB1D2F3ABC85ED1AFBa27Cc7",
-  "dsProxyFactoryContractAddr": "0xfA27309Af09a9D66FD850db62C3BB18dcd8BC3EC"
+  "cfdProxyContractAddr": "0x87EDCf9679e1EAa8039b27F6C3138A1eF15B4f9C",
+  "dsProxyFactoryContractAddr": "0x1C3f35EAc901A3c2d55c649c69D532Bd7d378E76"
 }
