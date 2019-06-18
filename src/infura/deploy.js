@@ -48,7 +48,11 @@ const deployRegistry = async (web3, config, logFn) => {
   logFn(`Registry: ${registry.options.address}`)
 
   logFn('Calling registry.setDAI ...')
-  await registry.methods.setDAI(config.daiTokenAddr).send()
+  await registry.methods.setDAI(config.daiTokenAddr).send({
+    from: config.ownerAccountAddr,
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
   logFn('done\n')
 
   const updatedConfig = Object.assign({}, config, {
@@ -91,7 +95,7 @@ const deployPriceFeeds = async (web3, config, logFn) => {
   logFn(`PriceFeedsExternal: ${priceFeedsExternal.options.address}`)
 
   logFn('Calling priceFeedsInternal.setDaemonAccount ...')
-  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send()
+  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send(txOpts)
   logFn('done\n')
 
   logFn('Deploying PriceFeeds ...')
