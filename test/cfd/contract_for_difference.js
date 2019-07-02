@@ -790,6 +790,28 @@ describe('ContractForDifference', function () {
           await assertStatus(cfd, STATUS.CLOSED)
           assert.isTrue(await cfd.methods.liquidatedMutually().call())
         })
+
+        it('first caller can reverse intent to liquidate', async () => {
+          const cfd = await newCFD({ notionalAmount, isBuyer: true })
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
+          await cfd.methods.liquidateMutual().send({
+            from: CREATOR_ACCOUNT
+          })
+          assertEqualAddress(
+            CREATOR_ACCOUNT,
+            await cfd.methods.liquidateMutualCalledBy().call(),
+            'liquidate caller marked'
+          )
+
+          await cfd.methods.liquidateMutualCancel().send({
+            from: CREATOR_ACCOUNT
+          })
+          assertEqualAddress(
+            EMPTY_ACCOUNT,
+            await cfd.methods.liquidateMutualCalledBy().call(),
+            'liquidate caller back to 0x0'
+          )
+        })
       })
 
       describe('price movement calculations', async () => {

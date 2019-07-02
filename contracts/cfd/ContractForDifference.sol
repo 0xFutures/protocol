@@ -68,6 +68,7 @@ contract ContractForDifference is DBC {
     event LogCFDClosed(address winner, uint buyerCollateral, uint sellerCollateral, bytes32 market);
     event LogCFDForceTerminated(address terminator, uint terminatorAmount, address otherParty, uint otherPartyAmount, bytes32 market);
     event LogCFDLiquidateMutual(uint buyerAmount, uint sellerAmount);
+    event LogCFDLiquidateMutualCancelled(address party);
     event LogCFDUpgraded(address newCFD);
     event LogCFDRemainingBalanceUnexpected(uint remainder);
 
@@ -105,6 +106,7 @@ contract ContractForDifference is DBC {
     string constant REASON_MUST_BE_MORE_THAN_CUTOFF = "Must be more than liquidation price";
     string constant REASON_MUST_BE_LESS_THAN_CUTOFF = "Must be less than liquidation price";
     string constant REASON_LIQUIDATE_MUTUAL_ALREADY_SET = "msg.sender already called liquidateMutual";
+    string constant REASON_MUST_BE_LIQUIDATE_MUTUAL_CALLER = "msg.sender must be the same as liquidateMutualCalledBy";
 
     uint public constant FORCE_TERMINATE_PENALTY_PERCENT = 5;
     uint public constant MINIMUM_NOTIONAL_AMOUNT_DAI = 1 * 1e18; // 1 DAI/1 USD
@@ -850,6 +852,19 @@ contract ContractForDifference is DBC {
         liquidatedMutually = true;
 
         emit LogCFDLiquidateMutual(buyerCollateral, sellerCollateral);
+    }
+
+    /**
+     * @dev Cancel the intent to liquidate mutually. This reverses a previous
+     * intent to liquidate by the account liquidateMutualCalledBy.
+     */
+    function liquidateMutualCancel()
+        external
+        pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
+        pre_cond(msg.sender == liquidateMutualCalledBy, REASON_MUST_BE_LIQUIDATE_MUTUAL_CALLER)
+    {
+        liquidateMutualCalledBy = address(0);
+        emit LogCFDLiquidateMutualCancelled(msg.sender);
     }
 
     /**
