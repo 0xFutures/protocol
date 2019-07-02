@@ -274,6 +274,15 @@ describe('cfd-api.js', function () {
     await assertStatus(cfd, STATUS.INITIATED, `expect back to initiated`)
   })
 
+  it('liquidateMutual and liquidateMutualCancel', async () => {
+    const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
+
+    await api.liquidateMutual(cfd.options.address, buyerProxy)
+    assertEqualAddress(await cfd.methods.liquidateMutualCalledBy().call(), buyerProxy.options.address)
+
+    await api.liquidateMutualCancel(cfd.options.address, buyerProxy)
+    assertEqualAddress(await cfd.methods.liquidateMutualCalledBy().call(), EMPTY_ACCOUNT)
+  })
 
   describe('contractsForParty', function () {
     const callAndAssert = (party, options, assertFn) =>
@@ -359,7 +368,6 @@ describe('cfd-api.js', function () {
 
     })
   })
-
 
   describe('topup & withdraw', function () {
 

@@ -240,6 +240,30 @@ export default class CFDAPI {
   }
 
   /**
+   * Invoke liquidateMutual functionality.
+   * @param cfdAddress, Address of the deployed CFD
+   * @param accountProxy, The proxy address of the account who is terminating
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async liquidateMutual(cfdAddress, accountProxy) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return this.proxyApi.proxyLiquidateMutual(accountProxy, cfd)
+  }
+
+  /**
+   * Party cancels liquidateMutual (before second party calls to agree)
+   * @param cfdAddress, Address of the deployed CFD
+   * @param accountProxy, The proxy address of the account who is terminating
+   * @return Promise resolving to success with tx details or reject depending
+   *          on the outcome.
+   */
+  async liquidateMutualCancel(cfdAddress, accountProxy) {
+    const cfd = getContract(cfdAddress, this.web3)
+    return this.proxyApi.proxyLiquidateMutualCancel(accountProxy, cfd)
+  }
+
+  /**
    * Force liquidation a contract
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The proxy address of the account who is terminating

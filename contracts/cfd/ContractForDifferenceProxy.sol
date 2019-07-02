@@ -150,6 +150,20 @@ contract ContractForDifferenceProxy {
     }
 
     /**
+     * ContractForDifference.liquidateMutual
+     */
+    function liquidateMutual(ContractForDifference _cfd) external {
+        _cfd.liquidateMutual();
+    }
+
+    /**
+     * ContractForDifference.liquidateMutualCancel
+     */
+    function liquidateMutualCancel(ContractForDifference _cfd) external {
+        _cfd.liquidateMutualCancel();
+    }
+
+    /**
      * ContractForDifference.forceTerminate
      */
     function forceTerminate(ContractForDifference _cfd) external {

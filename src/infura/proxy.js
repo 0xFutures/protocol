@@ -274,6 +274,24 @@ export default class Proxy {
     ])
   }
 
+  async proxyLiquidateMutual(
+    proxy,
+    cfd,
+  ) {
+    return this.proxyTx(proxy, 'liquidateMutual', [
+      cfd.options.address
+    ])
+  }
+
+  async proxyLiquidateMutualCancel(
+    proxy,
+    cfd,
+  ) {
+    return this.proxyTx(proxy, 'liquidateMutualCancel', [
+      cfd.options.address
+    ])
+  }
+
   async proxyForceTerminate(
     proxy,
     cfd,
