@@ -67,6 +67,7 @@ contract ContractForDifference is DBC {
 
     event LogCFDClosed(address winner, uint buyerCollateral, uint sellerCollateral, bytes32 market);
     event LogCFDForceTerminated(address terminator, uint terminatorAmount, address otherParty, uint otherPartyAmount, bytes32 market);
+    event LogCFDLiquidateMutual(uint buyerAmount, uint sellerAmount);
     event LogCFDUpgraded(address newCFD);
     event LogCFDRemainingBalanceUnexpected(uint remainder);
 
@@ -98,11 +99,12 @@ contract ContractForDifference is DBC {
     string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
     string constant REASON_WITHDRAW_NOT_ENOUGH = "Can't withdraw more then available";
     string constant REASON_AMOUNT_NOT_ENOUGH = "Amount not enough";
-    string constant REASON_UPGRADE_ALREADY_SET = "msg.sender already called";
+    string constant REASON_UPGRADE_ALREADY_SET = "msg.sender already called upgrade";
     string constant REASON_UPGRADE_ALREADY_LATEST = "Already at latest version";
     string constant REASON_TRANSFER_TO_EXISTING_PARTY = "Can't transfer to existing party";
     string constant REASON_MUST_BE_MORE_THAN_CUTOFF = "Must be more than liquidation price";
     string constant REASON_MUST_BE_LESS_THAN_CUTOFF = "Must be less than liquidation price";
+    string constant REASON_LIQUIDATE_MUTUAL_ALREADY_SET = "msg.sender already called liquidateMutual";
 
     uint public constant FORCE_TERMINATE_PENALTY_PERCENT = 5;
     uint public constant MINIMUM_NOTIONAL_AMOUNT_DAI = 1 * 1e18; // 1 DAI/1 USD
@@ -140,7 +142,8 @@ contract ContractForDifference is DBC {
 
     bool public initiated = false;
     bool public closed = false;
-    bool public terminated;
+    bool public terminated = false;
+    bool public liquidatedMutually = false;
 
     // set to true for a short period of time - when second party has called
     // upgrade and upgrade has called the new factory to do the work
@@ -149,6 +152,10 @@ contract ContractForDifference is DBC {
     // set to first party that calls upgrade
     // enables identification of who called and that it has been called once
     address public upgradeCalledBy = address(0);
+
+    // set to first party that calls liquidateMutual
+    // enables identification of who called and that it has been called once
+    address public liquidateMutualCalledBy = address(0);
 
     address public cfdRegistryAddr;
     address public feedsAddr;
@@ -353,11 +360,13 @@ contract ContractForDifference is DBC {
     function getCfdAttributes3()
         public
         view
-        returns (bool, address)
+        returns (bool, address, bool, address)
     {
         return (
             terminated,
-            upgradeCalledBy
+            upgradeCalledBy,
+            liquidatedMutually,
+            liquidateMutualCalledBy
         );
     }
 
@@ -818,6 +827,32 @@ contract ContractForDifference is DBC {
     }
 
     /**
+     * @dev This functions allows a mutual liquiidation of the contract. It
+     *      requires both parties call it. The contract will be liquidated
+     *      when the second party calls it.
+     */
+    function liquidateMutual()
+        external
+        pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
+        pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
+        pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
+        pre_cond(msg.sender != liquidateMutualCalledBy, REASON_LIQUIDATE_MUTUAL_ALREADY_SET)
+    {
+        // 1st call to initiate liquidateMutual process
+        if (liquidateMutualCalledBy == address(0)) {
+            liquidateMutualCalledBy = msg.sender;
+            return;
+        }
+
+        // 2nd call has been made
+        (uint buyerCollateral, uint sellerCollateral) = liquidateInternal(false);
+        
+        liquidatedMutually = true;
+
+        emit LogCFDLiquidateMutual(buyerCollateral, sellerCollateral);
+    }
+
+    /**
      * Force terminate executed by one party who will penalised 5% of their
      * collateral. Then penalty will be sent to the counterparty.
      */
@@ -826,17 +861,38 @@ contract ContractForDifference is DBC {
         pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
     {
-        uint marketPrice = latestPrice();
-        bool forcingPartyIsBuyer = msg.sender == buyer;
+        (uint buyerCollateral, uint sellerCollateral) = liquidateInternal(true);
 
-        uint buyerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
+        terminated = true;
+
+        if (msg.sender == buyer)
+            emit LogCFDForceTerminated(buyer, buyerCollateral, seller, sellerCollateral, market);
+        else
+            emit LogCFDForceTerminated(seller, sellerCollateral, buyer, buyerCollateral, market);
+    }
+
+    /**
+     * Liquidate function shared by both forceTerminate and liquidateMutual
+     * that redistributes funds to both parties. Amounts are distributed based
+     * on the current market price. In the case of forceTerminate a fee is
+     * taken from the terminating party and given to the counterparty.
+     */
+    function liquidateInternal(bool liquidateForced)
+        internal
+        pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
+        pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
+        returns (uint buyerCollateral, uint sellerCollateral)
+    {
+        uint marketPrice = latestPrice();
+
+        buyerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             marketPrice,
             notionalAmountDai,
             buyerDepositBalance,
             true
         );
-        uint sellerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
+        sellerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
             marketPrice,
             notionalAmountDai,
@@ -862,17 +918,21 @@ contract ContractForDifference is DBC {
         // is manually resolved the amount can be redistributed.
         daiTransfer(registry.owner(), balanceRemainder);
 
-        // penalise the force terminator 5% and give it to the counterparty
-        uint penalty = ContractForDifferenceLibrary.percentOf(
-            forcingPartyIsBuyer ? buyerCollateral : sellerCollateral,
-            FORCE_TERMINATE_PENALTY_PERCENT
-        );
-        if (forcingPartyIsBuyer) {
-            buyerCollateral = buyerCollateral.sub(penalty);
-            sellerCollateral = sellerCollateral.add(penalty);
-        } else {
-            buyerCollateral = buyerCollateral.add(penalty);
-            sellerCollateral = sellerCollateral.sub(penalty);
+        if (liquidateForced == true) {
+            bool forcingPartyIsBuyer = msg.sender == buyer;
+
+            // penalise the force terminator 5% and give it to the counterparty
+            uint penalty = ContractForDifferenceLibrary.percentOf(
+                forcingPartyIsBuyer ? buyerCollateral : sellerCollateral,
+                FORCE_TERMINATE_PENALTY_PERCENT
+            );
+            if (forcingPartyIsBuyer) {
+                buyerCollateral = buyerCollateral.sub(penalty);
+                sellerCollateral = sellerCollateral.add(penalty);
+            } else {
+                buyerCollateral = buyerCollateral.add(penalty);
+                sellerCollateral = sellerCollateral.sub(penalty);
+            }
         }
 
         // Send collateral amounts back each party.
@@ -881,14 +941,11 @@ contract ContractForDifference is DBC {
         daiTransfer(seller, sellerCollateral);
         emit LogCFDTransferFunds(seller, sellerCollateral);
 
-        terminated = true;
         closed = true;
 
-        if (forcingPartyIsBuyer)
-            emit LogCFDForceTerminated(buyer, buyerCollateral, seller, sellerCollateral, market);
-        else
-            emit LogCFDForceTerminated(seller, sellerCollateral, buyer, buyerCollateral, market);
+        return (buyerCollateral, sellerCollateral);
     }
+
 
     /**
      * @dev Upgrade contract to a new version. This involves creating a new CFD

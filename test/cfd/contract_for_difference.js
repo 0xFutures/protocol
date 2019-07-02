@@ -14,7 +14,7 @@ import {
 } from '../../src/calc'
 import { cfdInstance } from '../../src/infura/contracts'
 
-import { assertEqualBN, assertLoggedParty, assertStatus } from '../helpers/assert'
+import { assertEqualAddress, assertEqualBN, assertLoggedParty, assertStatus } from '../helpers/assert'
 import { deployAllForTest, mockMakerPut } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
@@ -128,7 +128,7 @@ describe('ContractForDifference', function () {
         marketNames
       } = await deployAllForTest({
         web3,
-        initialPrice: strikePriceRaw
+        initialPriceInternal: strikePriceRaw
       })
       )
       strikePriceAdjusted = toContractBigNumber(strikePriceRaw)
@@ -767,6 +767,28 @@ describe('ContractForDifference', function () {
             cpBalBefore.plus(cfdBalance),
             'seller should have full balance transferred'
           )
+        })
+      })
+
+      describe('liquidation via liquidateMutual()', async () => {
+        it('succeeds when both parties call', async () => {
+          const cfd = await newCFD({ notionalAmount, isBuyer: true })
+          await deposit(cfd, COUNTERPARTY_ACCOUNT, notionalAmount.toFixed())
+
+          await cfd.methods.liquidateMutual().send({
+            from: CREATOR_ACCOUNT
+          })
+          assertEqualAddress(
+            CREATOR_ACCOUNT,
+            await cfd.methods.liquidateMutualCalledBy().call(),
+            'liquidate caller marked'
+          )
+
+          await cfd.methods.liquidateMutual().send({
+            from: COUNTERPARTY_ACCOUNT
+          })
+          await assertStatus(cfd, STATUS.CLOSED)
+          assert.isTrue(await cfd.methods.liquidatedMutually().call())
         })
       })
 

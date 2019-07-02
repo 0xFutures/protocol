@@ -82,7 +82,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
     )
         external
         pre_cond(
-            registry.getDAI().allowance(msg.sender, address(this)) >= _value, 
+            registry.getDAI().allowance(msg.sender, address(this)) >= _value,
             REASON_DAI_ALLOWANCE_TOO_LOW
         )
         returns (ContractForDifference cfd)
@@ -130,7 +130,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         // can only upgrade if cfd registered and not with this latest version
         address registryEntry = registry.allCFDs(cfdAddr);
         require(
-            registryEntry != address(0) && registryEntry != address(this), 
+            registryEntry != address(0) && registryEntry != address(this),
             REASON_MUST_REGISTERED_CFD
         );
 
