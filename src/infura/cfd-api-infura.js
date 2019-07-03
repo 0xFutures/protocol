@@ -114,7 +114,7 @@ export default class CFDAPI {
     return Promise.all([
       cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
       cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
-      cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
+      cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy,liquidatedMutually,liquidateMutualCalledBy]
       cfd.methods.closed().call()
     ]).then(function (values) {
       // Got all the data, fetch the data that needed previous values
@@ -131,6 +131,8 @@ export default class CFDAPI {
             status: parseInt(values[0][7]),
             liquidated: values[2][0],
             upgradeCalledBy: values[2][1].toLowerCase(),
+            liquidatedMutually: values[2][2],
+            liquidateMutualCalledBy: values[2][3].toLowerCase(),
             buyer: values[0][0].toLowerCase(),
             buyerIsSelling: values[0][5],
             seller: values[0][1].toLowerCase(),
