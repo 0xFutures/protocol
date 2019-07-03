@@ -2,7 +2,7 @@
   "network": "live",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
-  "deploymentBlockNumber": 8077000,
+  "deploymentBlockNumber": 8080000,
 
   "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
   "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
@@ -12,11 +12,11 @@
   "registryAddr": "0xc1c4a78AAf6aFe490cF50786aba503Ece0F91281",
 
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xe586566ee4e04e242A080229981D8a0bD2248485",
-  "cfdFactoryContractAddr": "0x5edAf979Edc53Ad53882a9d666885991b5b48Eff",
-  "priceFeedsContractAddr": "0x7D1F2d697222FBA8eCAf34178ac7174a59675D63",
-  "priceFeedsInternalContractAddr": "0xfF44d1eB88A40e2799F2Dce0844E857D3b8B1719",
-  "priceFeedsExternalContractAddr": "0x5936478f9FBFA1E154f88eDBfBb7C4d6e7B64BAA",
+  "cfdRegistryContractAddr": "0x5A52957196cE6461146A5101eF9D5585FcebdD67",
+  "cfdFactoryContractAddr": "0x4e6b7E2753EBc28714Bd0f0F8037F141B8f40757",
+  "priceFeedsContractAddr": "0x9C9A1b5D79f7760F960361FCB4a66b2FDcb9A921",
+  "priceFeedsInternalContractAddr": "0x97894498203d448E52bf4Da8369DF3fc949d4061",
+  "priceFeedsExternalContractAddr": "0x7BEB97173629F0144E9a6cA12726D7831B2D440b",
 
   "markets": {
     "internal": [
@@ -27,6 +27,6 @@
     }
   },
 
-  "cfdProxyContractAddr": "0x0d789ca97E450faAA9E8D47cDf24A86e30Cddef6",
-  "dsProxyFactoryContractAddr": "0x95e2dB60d46EBa0C7cECFF2aD9DD5003Fb0da4CD"
+  "cfdProxyContractAddr": "0x4E1E0F180B41DAe4484914Ba990AAA0a567980f1",
+  "dsProxyFactoryContractAddr": "0xb3F6e1035C32208229ffc72d1410F306990C03Be"
 }
