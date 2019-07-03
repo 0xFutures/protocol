@@ -67,7 +67,7 @@ contract ContractForDifference is DBC {
 
     event LogCFDClosed(address winner, uint buyerCollateral, uint sellerCollateral, bytes32 market);
     event LogCFDForceTerminated(address terminator, uint terminatorAmount, address otherParty, uint otherPartyAmount, bytes32 market);
-    event LogCFDLiquidateMutual(uint buyerAmount, uint sellerAmount);
+    event LogCFDLiquidateMutual(address buyer, address seller, uint buyerAmount, uint sellerAmount);
     event LogCFDLiquidateMutualCancelled(address party);
     event LogCFDUpgraded(address newCFD);
     event LogCFDRemainingBalanceUnexpected(uint remainder);
@@ -851,7 +851,7 @@ contract ContractForDifference is DBC {
         
         liquidatedMutually = true;
 
-        emit LogCFDLiquidateMutual(buyerCollateral, sellerCollateral);
+        emit LogCFDLiquidateMutual(buyer, seller, buyerCollateral, sellerCollateral);
     }
 
     /**
