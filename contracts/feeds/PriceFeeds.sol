@@ -1,7 +1,6 @@
 pragma solidity ^0.5.0;
 
-import "./PriceFeedsInternal.sol";
-import "./PriceFeedsExternal.sol";
+import "./PriceFeedsKyber.sol";
 
 /**
  * Interface to market prices for the CFD contract.
@@ -11,12 +10,10 @@ contract PriceFeeds {
     string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
     string constant REASON_MARKET_VALUE_ZERO = "Market price is zero";
 
-    PriceFeedsInternal feedInternal;
-    PriceFeedsExternal feedExternal;
+    PriceFeedsKyber feedKyber;
 
-    constructor(address _internal, address _external) public {
-        feedInternal = PriceFeedsInternal(_internal);
-        feedExternal = PriceFeedsExternal(_external);
+    constructor(address _kyber) public {
+        feedKyber = PriceFeedsKyber(_kyber);
     }
 
     function read(bytes32 _marketId)
@@ -24,10 +21,8 @@ contract PriceFeeds {
         view
         returns (uint value)
     {
-        if (feedInternal.isMarketActive(_marketId)) {
-            (value, ) = feedInternal.read(_marketId);
-        } else if (feedExternal.isMarketActive(_marketId)) {
-            value = feedExternal.read(_marketId);
+        if (feedKyber.isMarketActive(_marketId)) {
+            value = feedKyber.read(_marketId);
         } else {
             revert(REASON_MARKET_INACTIVE_OR_UNKNOWN);
         }
@@ -42,10 +37,8 @@ contract PriceFeeds {
         view
         returns (string memory name)
     {
-        if (feedInternal.isMarketActive(_marketId)) {
-            name = feedInternal.marketNames(_marketId);
-        } else if (feedExternal.isMarketActive(_marketId)) {
-            name = feedExternal.marketNames(_marketId);
+        if (feedKyber.isMarketActive(_marketId)) {
+            name = feedKyber.marketNames(_marketId);
         } else {
             revert(REASON_MARKET_INACTIVE_OR_UNKNOWN);
         }
@@ -57,9 +50,7 @@ contract PriceFeeds {
         returns (bool active)
     {
         active = false;
-        if (feedInternal.isMarketActive(_marketId)) {
-            active = true;
-        } else if (feedExternal.isMarketActive(_marketId)) {
+        if (feedKyber.isMarketActive(_marketId)) {
             active = true;
         }
     }

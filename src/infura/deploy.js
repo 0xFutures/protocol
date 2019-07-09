@@ -9,10 +9,9 @@ import {
   forwardFactoryInstance,
   priceFeedsInstance,
   priceFeedsInstanceDeployed,
-  priceFeedsInternalInstance,
-  priceFeedsExternalInstance,
+  priceFeedsKyberInstance,
   registryInstance,
-  registryInstanceDeployed,
+  registryInstanceDeployed
 } from './contracts'
 import { isEthereumAddress } from './utils'
 
@@ -76,8 +75,7 @@ const deployPriceFeeds = async (web3, config, logFn) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
 
   const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
-  const PriceFeedsInternal = priceFeedsInternalInstance(web3.currentProvider, config)
-  const PriceFeedsExternal = priceFeedsExternalInstance(web3.currentProvider, config)
+  const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)
 
   const txOpts = {
     from: config.ownerAccountAddr,
@@ -85,40 +83,29 @@ const deployPriceFeeds = async (web3, config, logFn) => {
     gasPrice: config.gasPrice
   }
 
-  logFn('Deploying PriceFeedsInternal ...')
-  const priceFeedsInternal = await PriceFeedsInternal.deploy({}).send(txOpts)
-  logFn(`PriceFeedsInternal: ${priceFeedsInternal.options.address}`)
+  logFn('Deploying PriceFeedsKyber ...')
 
-  logFn('Deploying PriceFeedsExternal ...')
-  const priceFeedsExternal = await PriceFeedsExternal.deploy({}).send(txOpts)
-  logFn(`PriceFeedsExternal: ${priceFeedsExternal.options.address}`)
+  const priceFeedsKyber = await PriceFeedsKyber.deploy({
+    arguments: [config.feeds.kyber.kyberNetworkAddr]
+  }).send(txOpts)
+  logFn(`PriceFeedsKyber: ${priceFeedsKyber.options.address}`)
 
-  logFn('Calling priceFeedsInternal.setDaemonAccount ...')
-  await priceFeedsInternal.methods.setDaemonAccount(config.daemonAccountAddr).send({
-    gas: config.gasDefault,
-    gasPrice: config.gasPrice
-  })
   logFn('done\n')
 
   logFn('Deploying PriceFeeds ...')
   const priceFeeds = await PriceFeeds.deploy({
-    arguments: [
-      priceFeedsInternal.options.address,
-      priceFeedsExternal.options.address
-    ]
+    arguments: [priceFeedsKyber.options.address]
   }).send(txOpts)
   logFn(`PriceFeeds: ${priceFeeds.options.address}`)
 
   const updatedConfig = Object.assign({}, config, {
     priceFeedsContractAddr: priceFeeds.options.address,
-    priceFeedsInternalContractAddr: priceFeedsInternal.options.address,
-    priceFeedsExternalContractAddr: priceFeedsExternal.options.address,
+    priceFeedsKyberContractAddr: priceFeedsKyber.options.address
   })
 
   return {
     priceFeeds,
-    priceFeedsInternal,
-    priceFeedsExternal,
+    priceFeedsKyber,
     updatedConfig
   }
 }
@@ -240,7 +227,6 @@ const deployCFD = async (web3, config, logFn) => {
   }
 }
 
-
 /**
  * Deploy and configure Proxy.
  * @param web3 Connected Web3 instance
@@ -325,27 +311,24 @@ const deployAll = async (
   const {
     updatedConfig: configAfterFeeds,
     priceFeeds,
-    priceFeedsInternal,
-    priceFeedsExternal
-  } = await deployPriceFeeds(
-    web3,
-    config,
-    log
-  )
+    priceFeedsKyber
+  } = await deployPriceFeeds(web3, config, log)
   config = configAfterFeeds
 
   const {
     updatedConfig: configAfterCFD,
     cfdFactory,
     cfdRegistry,
-    cfdProxy,
+    cfdProxy
   } = await deployCFD(web3, config, log)
   config = configAfterCFD
 
-  const {
-    updatedConfig: configAfterProxy,
-    dsProxyFactory
-  } = await deployProxy(web3, config, log, registry)
+  const { updatedConfig: configAfterProxy, dsProxyFactory } = await deployProxy(
+    web3,
+    config,
+    log,
+    registry
+  )
   config = configAfterProxy
 
   return {
@@ -355,8 +338,7 @@ const deployAll = async (
     daiToken,
     dsProxyFactory,
     priceFeeds,
-    priceFeedsInternal,
-    priceFeedsExternal,
+    priceFeedsKyber,
     registry,
     updatedConfig: config
   }

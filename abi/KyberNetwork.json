@@ -1,0 +1,74 @@
+{
+  "contractName": "KyberNetwork",
+  "abi": [
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "src",
+          "type": "address"
+        },
+        {
+          "name": "dest",
+          "type": "address"
+        },
+        {
+          "name": "srcQty",
+          "type": "uint256"
+        }
+      ],
+      "name": "getExpectedRateOnlyPermission",
+      "outputs": [
+        {
+          "name": "expectedRate",
+          "type": "uint256"
+        },
+        {
+          "name": "slippageRate",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "constant": false,
+      "inputs": [
+        {
+          "name": "_tokenAddress",
+          "type": "address"
+        },
+        {
+          "name": "_rate",
+          "type": "uint256"
+        }
+      ],
+      "name": "put",
+      "outputs": [],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.5.6+commit.b259423e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"constant\":false,\"inputs\":[{\"name\":\"_tokenAddress\",\"type\":\"address\"},{\"name\":\"_rate\",\"type\":\"uint256\"}],\"name\":\"put\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"src\",\"type\":\"address\"},{\"name\":\"dest\",\"type\":\"address\"},{\"name\":\"srcQty\",\"type\":\"uint256\"}],\"name\":\"getExpectedRateOnlyPermission\",\"outputs\":[{\"name\":\"expectedRate\",\"type\":\"uint256\"},{\"name\":\"slippageRate\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"methods\":{}},\"userdoc\":{\"methods\":{}}},\"settings\":{\"compilationTarget\":{\"/home/hatch/projects/0xfutures/protocol/contracts/mock/KyberNetwork.sol\":\"KyberNetwork\"},\"evmVersion\":\"constantinople\",\"libraries\":{},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"/home/hatch/projects/0xfutures/protocol/contracts/mock/KyberNetwork.sol\":{\"keccak256\":\"0x65984597efdc882a25c62cca69bf03529f8f8932237f19dc0dcac912c3a4cfbb\",\"urls\":[\"bzzr://74539d6c9e7466e2ab0aeec63863e510b2d19d9adf7c048633ec9704862929d8\"]}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50610115806100206000396000f3fe6080604052348015600f57600080fd5b506004361060325760003560e01c80637f8d53c614603757806385dc0c56146062575b600080fd5b606060048036036040811015604b57600080fd5b506001600160a01b03813516906020013560ae565b005b609560048036036060811015607657600080fd5b506001600160a01b0381358116916020810135909116906040013560ca565b6040805192835260208301919091528051918290030190f35b6001600160a01b03909116600090815260208190526040902055565b506001600160a01b03166000908152602081905260409020549182915056fea165627a7a7230582055be3ebf386a81b1117e7e2480da9871d01da51f14190152cae942c7faa82e2f0029",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060325760003560e01c80637f8d53c614603757806385dc0c56146062575b600080fd5b606060048036036040811015604b57600080fd5b506001600160a01b03813516906020013560ae565b005b609560048036036060811015607657600080fd5b506001600160a01b0381358116916020810135909116906040013560ca565b6040805192835260208301919091528051918290030190f35b6001600160a01b03909116600090815260208190526040902055565b506001600160a01b03166000908152602081905260409020549182915056fea165627a7a7230582055be3ebf386a81b1117e7e2480da9871d01da51f14190152cae942c7faa82e2f0029",
+  "sourceMap": "190:416:13:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;190:416:13;;;;;;;",
+  "deployedSourceMap": "190:416:13:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;190:416:13;;;;;;;;;;;;;;;;;;;;;;;;501:102;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;;;;;;501:102:13;;;;;;;;:::i;:::-;;255:240;;;;;;13:2:-1;8:3;5:11;2:2;;;29:1;26;19:12;2:2;-1:-1;;;;;;255:240:13;;;;;;;;;;;;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;501:102;-1:-1:-1;;;;;568:20:13;;;:5;:20;;;;;;;;;;:28;501:102::o;255:240::-;-1:-1:-1;;;;;;439:20:13;375:17;439:20;;;;;;;;;;;;;;-1:-1:-1;255:240:13:o",
+  "source": "pragma solidity ^0.5.0;\n\n/**\n * Mock version of the KyberNetwork contract for getting the\n * market rates in test and development.\n */\n\n// solium-disable no-empty-blocks\ninterface ERC20 {}\n\ncontract KyberNetwork {\n    mapping(address => uint) rates;\n\n    function getExpectedRateOnlyPermission(ERC20 src, ERC20 dest, uint srcQty)\n        public\n        view\n        returns (uint expectedRate, uint slippageRate)\n    {\n        uint rate = rates[address(dest)];\n        return (rate, rate);\n    }\n\n    function put(address _tokenAddress, uint _rate) external {\n        rates[_tokenAddress] = _rate;\n    }\n\n}\n",
+  "sourcePath": "/home/hatch/projects/0xfutures/protocol/contracts/mock/KyberNetwork.sol",
+  "compiler": {
+    "name": "solc",
+    "version": "0.5.6+commit.b259423e.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.0.8",
+  "updatedAt": "2019-07-08T09:04:47.339Z",
+  "devdoc": {
+    "methods": {}
+  },
+  "userdoc": {
+    "methods": {}
+  }
+}

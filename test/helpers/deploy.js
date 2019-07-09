@@ -5,27 +5,26 @@ import configTest from '../../config.test.json'
 import {
   daiTokenInstance,
   daiTokenInstanceDeployed,
-  ethUsdMakerInstance,
-  ethUsdMakerInstanceDeployed
+  kyberNetworkInstance,
+  kyberNetworkInstanceDeployed
 } from '../../src/infura/contracts'
-import {deployAll} from '../../src/infura/deploy'
+import { deployAll } from '../../src/infura/deploy'
 import {
-  getFunctionSignature,
-  nowSecs,
-  toContractBigNumber
-} from '../../src/infura/utils'
+  EthDaiMarketStr,
+  EthWbtcMarketStr,
+  addMarketKyber,
+  mockKyberPut
+} from './kyber'
 
 // test testing
 const MARKET_NAMES = {
-  poloniexEthUsd: 'Poloniex_ETH_USD',
-  poloniexBtcUsd: 'Poloniex_BTC_USD',
-  makerEthUsd: 'Maker_ETH_USD'
+  kyberEthDai: EthDaiMarketStr,
+  kyberEthWbtc: EthWbtcMarketStr
 }
 
 const MARKETS = {
-  [MARKET_NAMES.poloniexEthUsd]: Utils.sha3(MARKET_NAMES.poloniexEthUsd),
-  [MARKET_NAMES.poloniexBtcUsd]: Utils.sha3(MARKET_NAMES.poloniexBtcUsd),
-  [MARKET_NAMES.makerEthUsd]: Utils.sha3(MARKET_NAMES.makerEthUsd)
+  [MARKET_NAMES.kyberEthDai]: Utils.sha3(MARKET_NAMES.kyberEthDai),
+  [MARKET_NAMES.kyberEthWbtc]: Utils.sha3(MARKET_NAMES.kyberEthWbtc)
 }
 
 /**
@@ -54,7 +53,7 @@ const deployMock = async (web3, config, instanceFn) => {
 const deployMocks = async (web3, config) => {
   return {
     daiToken: await deployMock(web3, config, daiTokenInstance),
-    ethUsdMaker: await deployMock(web3, config, ethUsdMakerInstance)
+    kyberNetwork: await deployMock(web3, config, kyberNetworkInstance)
   }
 }
 
@@ -66,58 +65,48 @@ const deployAllForTest = async ({
   web3,
   config = configTest,
   firstTime = true,
-  initialPriceInternal, // push this price for internal test market
-  initialPriceExternal, // push this price for external test market
+  initialPriceKyberDAI, // push this price for kyber DAI market
   seedAccounts = [] // array of accounts to seed with DAI
 }) => {
+  // console.log(`TOP`)
+  // console.log(new Error().stack)
+
   let daiToken
-  let ethUsdMaker
+  let kyberNetwork
 
   // Mock contracts
   if (firstTime) {
     const mocks = await deployMocks(web3, config)
     daiToken = mocks.daiToken
-    ethUsdMaker = mocks.ethUsdMaker
+    kyberNetwork = mocks.kyberNetwork
   } else {
     daiToken = await daiTokenInstanceDeployed(config, web3)
-    ethUsdMaker = await ethUsdMakerInstanceDeployed(config, web3)
+    kyberNetwork = await kyberNetworkInstanceDeployed(config, web3)
   }
 
-  if (initialPriceExternal) {
-    await mockMakerPut(ethUsdMaker, initialPriceExternal)
+  if (initialPriceKyberDAI) {
+    // console.log(`pushing price ${initialPriceKyberDAI}`)
+    await mockKyberPut(
+      kyberNetwork,
+      daiToken.options.address,
+      initialPriceKyberDAI
+    )
   }
 
   // Deploy ALL
-  const configUpdated = Object.assign({}, config, {
-    daiTokenAddr: daiToken.options.address,
-    ethUsdMakerAddr: ethUsdMaker.options.address
-  })
+  const configUpdated = Object.assign({}, config)
+  configUpdated.daiTokenAddr = daiToken.options.address
+  configUpdated.feeds.kyber.kyberNetworkAddr = kyberNetwork.options.address
+
   const deployment = await deployAll(web3, configUpdated, firstTime)
+  const { priceFeedsKyber } = deployment
 
-  // Internal PriceFeeds - add markets
-  const {priceFeedsInternal, priceFeedsExternal} = deployment
-  await priceFeedsInternal.methods.addMarket(MARKET_NAMES.poloniexEthUsd).send()
-  await priceFeedsInternal.methods.addMarket(MARKET_NAMES.poloniexBtcUsd).send()
-
-  if (initialPriceInternal) {
-    const initialPriceBN = toContractBigNumber(initialPriceInternal)
-    await priceFeedsInternal.methods
-      .push(
-        MARKETS[MARKET_NAMES.poloniexEthUsd],
-        initialPriceBN.toFixed(),
-        nowSecs()
-      )
-      .send({
-        from: configUpdated.daemonAccountAddr
-      })
-  }
-
-  // External PriceFeeds - add maker mock market
-  await addMarketExternal(
-    priceFeedsExternal,
-    ethUsdMaker,
-    'read',
-    MARKET_NAMES.makerEthUsd
+  // add DAI market for testing
+  // console.log(`creating market kyber dai`)
+  await addMarketKyber(
+    priceFeedsKyber,
+    daiToken.options.address,
+    MARKET_NAMES.kyberEthDai
   )
 
   if (firstTime === true && seedAccounts.length > 0) {
@@ -135,40 +124,10 @@ const deployAllForTest = async ({
     // deployed test market details
     markets: MARKETS,
     marketNames: MARKET_NAMES,
-    // add ethUsdMaker as it's not in 'deployment' from deployAll
+    // add kyberNetwork as it's not in 'deployment' from deployAll
     // only a test env mock contract
-    ethUsdMaker
+    kyberNetwork
   })
 }
 
-/**
- * Add market to PriceFeedsExternal contract.
- * @param {Web3.eth.Contract} priceFeedsExternal PriceFeedsExternal contract handle
- * @param {Web3.eth.Contract} externalContract External contract handle (eg. MakerEthUsd)
- * @param {string} fnName Name of function on external contract that returns the price
- * @param {string} marketStr String id of market
- */
-const addMarketExternal = (
-  priceFeedsExternal,
-  externalContract,
-  fnName,
-  marketStr
-) => {
-  const callSig = getFunctionSignature(externalContract, fnName)
-  return priceFeedsExternal.methods
-    .addMarket(marketStr, externalContract.options.address, callSig)
-    .send()
-}
-
-/**
- * Push a given price into the maker mock contract.
- * @param {Web3.eth.Contract} makerMock EthUsdMaker contract handle
- * @param {BigNumber|string} price value in raw form (eg. '160.5' for 160.60 USD)
- */
-const mockMakerPut = async (makerMock, price) => {
-  const valueAdjusted = toContractBigNumber(price)
-  const valueAsBytes32 = Utils.padLeft(Utils.numberToHex(valueAdjusted), 64)
-  await makerMock.methods.put(valueAsBytes32).send()
-}
-
-export {deployAllForTest, deployMocks, addMarketExternal, mockMakerPut}
+export { deployAllForTest, deployMocks }

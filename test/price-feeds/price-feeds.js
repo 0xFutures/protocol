@@ -2,97 +2,71 @@ import { assert } from 'chai'
 import * as Utils from 'web3-utils'
 
 import {
-  ethUsdMakerInstance,
+  kyberNetworkInstance,
   priceFeedsInstance,
-  priceFeedsExternalInstance,
-  priceFeedsInternalInstance
+  priceFeedsKyberInstance
 } from '../../src/infura/contracts'
-import { getFunctionSignature, toContractBigNumber } from '../../src/infura/utils'
+import { toContractBigNumber } from '../../src/infura/utils'
 import { assertEqualBN } from '../helpers/assert'
-import { mockMakerPut } from '../helpers/deploy'
+import { mockKyberPut } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
 
-const EthUsdMakerABI = require('../../build/contracts/EthUsdMakerInterface.json').abi
-const EthUsdMakerContract = new web3.eth.Contract(EthUsdMakerABI)
+const EthDaiMarketStr = 'Kyber_ETH_DAI'
+const EthWbtcMarketStr = 'Kyber_ETH_WBTC'
 
-const MakerMarketStr = 'MakerDAO_USD_ETH'
-const CoinbaseMarketStr = 'Coinbase_USD_BTC'
-
-const MakerMarket = {
-  name: MakerMarketStr,
-  id: Utils.sha3(MakerMarketStr),
-  address: undefined, // added when deployed below
-  callSig: getFunctionSignature(EthUsdMakerContract, 'read')
+const EthDaiMarket = {
+  name: EthDaiMarketStr,
+  id: Utils.sha3(EthDaiMarketStr),
+  tokenAddress: Utils.randomHex(20) // stub fake address - KyberNetwork doesn't call through to token
 }
 
-const CoinbaseMarket = {
-  name: CoinbaseMarketStr,
-  id: Utils.sha3(CoinbaseMarketStr)
+const EthWbtcMarket = {
+  name: EthWbtcMarketStr,
+  id: Utils.sha3(EthWbtcMarketStr),
+  tokenAddress: undefined
 }
 
-describe('PriceFeeds', function () {
+describe('PriceFeeds', function() {
   const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
-  const PriceFeedsExternal = priceFeedsExternalInstance(web3.currentProvider, config)
-  const PriceFeedsInternal = priceFeedsInternalInstance(web3.currentProvider, config)
-  const EthUsdMakerMock = ethUsdMakerInstance(web3.currentProvider, config)
+  const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)
+  const KyberNetworkMock = kyberNetworkInstance(web3.currentProvider, config)
 
   const OWNER_ACCOUNT = config.ownerAccountAddr
-  const DAEMON_ACCOUNT = config.daemonAccountAddr
 
-  const coinbaseBTCValueStr = '5000.50'
-
-  const makerValueStr = '164.625'
-  const makerValueContract = toContractBigNumber(makerValueStr)
+  const marketValueStr = '164.625'
 
   const txOpts = { from: OWNER_ACCOUNT, gas: 2000000 }
 
-  let pfiContract
-  let pfeContract
+  let pfkContract
   let pfContract
-  let ethUsdMakerContract
-
-  let coinbaseBTCValueContract
+  let kyberNetworkContract
 
   beforeEach(async () => {
-    // PriceFeedsInternal contract
-    pfiContract = await PriceFeedsInternal.deploy({}).send(txOpts)
-    await pfiContract.methods.setDaemonAccount(DAEMON_ACCOUNT).send();
-    await pfiContract.methods.addMarket(CoinbaseMarket.name).send();
+    kyberNetworkContract = await KyberNetworkMock.deploy({}).send(txOpts)
 
-    // push value
-    coinbaseBTCValueContract = toContractBigNumber(coinbaseBTCValueStr)
-    await pfiContract.methods.push(
-      CoinbaseMarket.id,
-      coinbaseBTCValueContract.toFixed(),
-      Date.now()
-    ).send({
-      from: DAEMON_ACCOUNT
-    })
+    // PriceFeedsKyber contract
+    pfkContract = await PriceFeedsKyber.deploy({
+      arguments: [kyberNetworkContract.options.address]
+    }).send(txOpts)
 
-    // PriceFeedsExternal contract
-    pfeContract = await PriceFeedsExternal.deploy({}).send(txOpts)
+    await pfkContract.methods
+      .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress)
+      .send()
 
-    ethUsdMakerContract = await EthUsdMakerMock.deploy({}).send(txOpts)
-    MakerMarket.address = ethUsdMakerContract.options.address
-    await pfeContract.methods.addMarket(
-      MakerMarket.name,
-      MakerMarket.address,
-      MakerMarket.callSig
-    ).send();
-
-    await mockMakerPut(ethUsdMakerContract, makerValueStr)
+    await mockKyberPut(
+      kyberNetworkContract,
+      EthDaiMarket.tokenAddress,
+      marketValueStr
+    )
 
     // PriceFeeds contract
     pfContract = await PriceFeeds.deploy({
-      arguments: [
-        pfiContract.options.address,
-        pfeContract.options.address
-      ]
+      arguments: [pfkContract.options.address]
     }).send(txOpts)
   })
 
-  const REVERT_MESSAGE = `Returned error: ` +
-    `VM Exception while processing transaction: revert`
+  const REVERT_MESSAGE =
+    `Returned error: ` + `VM Exception while processing transaction: revert`
   const INACTIVE_MARKET_MESSAGE = `Price requested for inactive or unknown market`
   const ZERO_VALUE_MESSAGE = `Market price is zero`
 
@@ -110,18 +84,11 @@ describe('PriceFeeds', function () {
   }
 
   describe('read', () => {
-    it('internal ok', async () => {
+    it('kyber ok', async () => {
       assertEqualBN(
-        await pfContract.methods.read(MakerMarket.id).call(),
-        makerValueContract,
-        'read() value for internal market wrong'
-      )
-    })
-    it('external ok', async () => {
-      assertEqualBN(
-        await pfContract.methods.read(CoinbaseMarket.id).call(),
-        coinbaseBTCValueContract,
-        'read() value for external market wrong'
+        await pfContract.methods.read(EthDaiMarket.id).call(),
+        toContractBigNumber(marketValueStr),
+        'read() value for kyber market wrong'
       )
     })
 
@@ -135,34 +102,26 @@ describe('PriceFeeds', function () {
     })
 
     describe('market zero value reverts', () => {
-      it('external', async () => {
-        await ethUsdMakerContract.methods.put('0x0').send()
-        await assertReverts(pfContract, 'read', MakerMarket.id, ZERO_VALUE_MESSAGE)
-      })
-
-      it('internal', async () => {
-        await pfiContract.methods.push(CoinbaseMarket.id, '0', Date.now()).send({
-          from: DAEMON_ACCOUNT
-        })
-        await assertReverts(pfContract, 'read', CoinbaseMarket.id, ZERO_VALUE_MESSAGE)
+      it('kyber', async () => {
+        await kyberNetworkContract.methods
+          .put(EthDaiMarket.tokenAddress, '0x0')
+          .send()
+        await assertReverts(
+          pfContract,
+          'read',
+          EthDaiMarket.id,
+          ZERO_VALUE_MESSAGE
+        )
       })
     })
   })
 
   describe('marketName', () => {
-    it('internal ok', async () => {
+    it('kyber ok', async () => {
       assert.equal(
-        await pfContract.methods.marketName(MakerMarket.id).call(),
-        MakerMarket.name,
-        'marketName() value internal market wrong'
-      )
-    })
-
-    it('external ok', async () => {
-      assert.equal(
-        await pfContract.methods.marketName(CoinbaseMarket.id).call(),
-        CoinbaseMarket.name,
-        'marketName() value for external market wrong'
+        await pfContract.methods.marketName(EthDaiMarket.id).call(),
+        EthDaiMarket.name,
+        'marketName() value for kyber ETH DAI market wrong'
       )
     })
 
@@ -177,28 +136,20 @@ describe('PriceFeeds', function () {
   })
 
   describe('isMarketActive', () => {
-    it('internal active', async () => {
+    it('kyber active', async () => {
       assert(
-        await pfContract.methods.isMarketActive(CoinbaseMarket.id).call(),
-        'isMarketActive() should return true for internal market'
-      )
-    })
-
-    it('external active', async () => {
-      assert(
-        await pfContract.methods.isMarketActive(MakerMarket.id).call(),
-        'isMarketActive() should return true for external market'
+        await pfContract.methods.isMarketActive(EthDaiMarket.id).call(),
+        'isMarketActive() should return true for kyber market'
       )
     })
 
     it('market not active', async () => {
       assert.isFalse(
-        await pfContract.methods.isMarketActive(
-          Utils.sha3('not_an_active_market'),
-        ).call(),
+        await pfContract.methods
+          .isMarketActive(Utils.sha3('not_an_active_market'))
+          .call(),
         'isMarketActive() should return false'
       )
     })
   })
-
 })

@@ -15,15 +15,15 @@
   "cfdRegistryContractAddr": "0x2807cB2aC9Bab6a00a9E0F549A375FA2fa7d347F",
   "cfdFactoryContractAddr": "0x9F7436432FCC50E941DBf496532f5b8EF4c13861",
   "priceFeedsContractAddr": "0x7D19d8DC18dD5a6Cd72d3D3bb55a84bC2D6A6596",
-  "priceFeedsInternalContractAddr": "0x79032f4bf6f7f472E55812F751Cbba199D8e60E6",
-  "priceFeedsExternalContractAddr": "0xa1CB033B81f3386BA8f35C373F3b22A8380B68b4",
+  "priceFeedsKyberContractAddr": "0xa1CB033B81f3386BA8f35C373F3b22A8380B68b4",
 
-  "markets": {
-    "internal": [
-      "Coinbase_BTC",
-      "Coinbase_ETH"
-    ],
-    "external": {
+  "feeds": {
+    "kyber": {
+      "kyberNetworkAddr": "0x9ae49C0d7F8F9EF4B864e004FE86Ac8294E20950",
+      "markets": {
+        "Kyber_ETH_DAI": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+        "Kyber_ETH_WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
+      }
     }
   },
 

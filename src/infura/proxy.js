@@ -1,3 +1,4 @@
+import Promise from 'bluebird'
 import {
   cfdInstance,
   cfdProxyInstanceDeployed,
@@ -7,7 +8,6 @@ import {
   dsProxyFactoryInstanceDeployed
 } from './contracts'
 import { logGas, unpackAddress } from './utils'
-import Promise from 'bluebird'
 
 /**
  * A Proxy is created for each user in the 0xfutures system. This enables
@@ -22,7 +22,6 @@ import Promise from 'bluebird'
  *        no seperate test file for proxy.js.
  */
 export default class Proxy {
-
   /**
    * Create a new instance of this class setting up contract handles and
    * validiting the config addresses point to actual deployed contracts.
@@ -45,10 +44,9 @@ export default class Proxy {
    * @param {address} user User of the system - a CFD party
    */
   async proxyNew(user) {
-
     // Function to wait
-    const timeout = async (ms) => {
-      return new Promise(resolve => setTimeout(resolve, ms));
+    const timeout = async ms => {
+      return new Promise(resolve => setTimeout(resolve, ms))
     }
 
     // Tx1: create proxy contract
@@ -61,7 +59,7 @@ export default class Proxy {
     const proxyAddr = buildTx.events.Created.returnValues.proxy
     // Wait a few seconds to make sure the contract is deployed correctly
     // (used to avoid the getCode() function to fail)
-    await timeout(3000);
+    await timeout(3000)
     const proxy = await dsProxyInstanceDeployed(
       this.config,
       this.web3,
@@ -88,38 +86,44 @@ export default class Proxy {
     toBlock = 'latest',
     userAddress
   ) {
-  	var self = this;
+    var self = this
     return new Promise(function(resolve, reject) {
-    	// Find the proxy address
-    	self.dsProxyFactory.getPastEvents(
-			'Created',
-			{
-				filter: { owner: userAddress },
-				fromBlock,
-				toBlock
-			}
-	    ).then(async (results) => {
-	    	// Make sure we have at least one proxy
-	    	if (results && results.length > 0 && results[0].returnValues != undefined && results[0].returnValues.proxy != undefined) {
-          var proxyObj = results[results.length - 1];
-          // Check we have the proxy address
-          if (proxyObj != undefined && proxyObj.returnValues != undefined && proxyObj.returnValues.proxy != undefined) {
-            // Get the deployed instance of the proxy
-            const proxy = await dsProxyInstanceDeployed(
-              self.config,
-              self.web3,
-              proxyObj.returnValues.proxy,
-              userAddress
-            )
-            resolve(proxy);
-          } else
-            resolve(undefined);
-	    	}
-	    	// Proxy does not exist, return undefined
-	    	else
-	    		resolve(undefined);
-	    });
-    });
+      // Find the proxy address
+      self.dsProxyFactory
+        .getPastEvents('Created', {
+          filter: { owner: userAddress },
+          fromBlock,
+          toBlock
+        })
+        .then(async results => {
+          // Make sure we have at least one proxy
+          if (
+            results &&
+            results.length > 0 &&
+            results[0].returnValues != undefined &&
+            results[0].returnValues.proxy != undefined
+          ) {
+            var proxyObj = results[results.length - 1]
+            // Check we have the proxy address
+            if (
+              proxyObj != undefined &&
+              proxyObj.returnValues != undefined &&
+              proxyObj.returnValues.proxy != undefined
+            ) {
+              // Get the deployed instance of the proxy
+              const proxy = await dsProxyInstanceDeployed(
+                self.config,
+                self.web3,
+                proxyObj.returnValues.proxy,
+                userAddress
+              )
+              resolve(proxy)
+            } else resolve(undefined)
+          }
+          // Proxy does not exist, return undefined
+          else resolve(undefined)
+        })
+    })
   }
 
   /**
@@ -128,12 +132,9 @@ export default class Proxy {
    * @param {address} user User of the system - a CFD party
    * @return {Number} Allowed amount by the user for this proxy
    */
-  async allowance(
-    proxyAddr,
-    user
-  ) {
-    const amount = await this.daiToken.methods.allowance(user, proxyAddr).call();
-    return amount;
+  async allowance(proxyAddr, user) {
+    const amount = await this.daiToken.methods.allowance(user, proxyAddr).call()
+    return amount
   }
 
   /**
@@ -142,13 +143,9 @@ export default class Proxy {
    * @param {address} user User of the system - a CFD party
    * @return {Number} Allowed amount by the user for this proxy
    */
-  approve(
-    proxyAddr,
-    user
-  ) {
+  approve(proxyAddr, user) {
     return this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
   }
-
 
   /**
    * ContractForDifference functions
@@ -181,62 +178,41 @@ export default class Proxy {
     return cfd
   }
 
-  proxyDeposit(
-    proxy,
-    cfd,
-    value
-  ) {
+  proxyDeposit(proxy, cfd, value) {
     return this.proxyTx(proxy, 'deposit', [
-      cfd.options.address, this.daiToken.options.address, value.toString()
+      cfd.options.address,
+      this.daiToken.options.address,
+      value.toString()
     ])
   }
 
-  proxyChangeStrikePrice(
-    proxy,
-    cfd,
-    newPrice
-  ) {
+  proxyChangeStrikePrice(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'changeStrikePrice', [
-      cfd.options.address, newPrice.toString()
+      cfd.options.address,
+      newPrice.toString()
     ])
   }
 
-  async proxySellPrepare(
-    proxy,
-    cfd,
-    desiredStrikePrice,
-    timeLimit
-  ) {
+  async proxySellPrepare(proxy, cfd, desiredStrikePrice, timeLimit) {
     return this.proxyTx(proxy, 'sellPrepare', [
-      cfd.options.address, desiredStrikePrice.toString(), timeLimit
+      cfd.options.address,
+      desiredStrikePrice.toString(),
+      timeLimit
     ])
   }
 
-  async proxySellUpdate(
-    proxy,
-    cfd,
-    newPrice
-  ) {
+  async proxySellUpdate(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'sellUpdate', [
-      cfd.options.address, newPrice.toString()
+      cfd.options.address,
+      newPrice.toString()
     ])
   }
 
-  async proxySellCancel(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'sellCancel', [
-      cfd.options.address
-    ])
+  async proxySellCancel(proxy, cfd) {
+    return this.proxyTx(proxy, 'sellCancel', [cfd.options.address])
   }
 
-  async proxyBuy(
-    proxy,
-    cfd,
-    buyBuyerSide,
-    buyValue
-  ) {
+  async proxyBuy(proxy, cfd, buyBuyerSide, buyValue) {
     return this.proxyTx(proxy, 'buy', [
       cfd.options.address,
       this.daiToken.options.address,
@@ -245,76 +221,42 @@ export default class Proxy {
     ])
   }
 
-  async proxyTopup(
-    proxy,
-    cfd,
-    value
-  ) {
+  async proxyTopup(proxy, cfd, value) {
     return this.proxyTx(proxy, 'topup', [
-      cfd.options.address, this.daiToken.options.address, value.toString()
+      cfd.options.address,
+      this.daiToken.options.address,
+      value.toString()
     ])
   }
 
-  async proxyWithdraw(
-    proxy,
-    cfd,
-    value
-  ) {
+  async proxyWithdraw(proxy, cfd, value) {
     return this.proxyTx(proxy, 'withdraw', [
-      cfd.options.address, value.toString()
+      cfd.options.address,
+      value.toString()
     ])
   }
 
-  async proxyCancelNew(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'cancelNew', [
-      cfd.options.address
-    ])
+  async proxyCancelNew(proxy, cfd) {
+    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address])
   }
 
-  async proxyLiquidateMutual(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'liquidateMutual', [
-      cfd.options.address
-    ])
+  async proxyLiquidateMutual(proxy, cfd) {
+    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address])
   }
 
-  async proxyLiquidateMutualCancel(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'liquidateMutualCancel', [
-      cfd.options.address
-    ])
+  async proxyLiquidateMutualCancel(proxy, cfd) {
+    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address])
   }
 
-  async proxyForceTerminate(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'forceTerminate', [
-      cfd.options.address
-    ])
+  async proxyForceTerminate(proxy, cfd) {
+    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address])
   }
 
-  async proxyUpgrade(
-    proxy,
-    cfd,
-  ) {
-    return this.proxyTx(proxy, 'upgrade', [
-      cfd.options.address
-    ])
+  async proxyUpgrade(proxy, cfd) {
+    return this.proxyTx(proxy, 'upgrade', [cfd.options.address])
   }
 
-  async proxyTransferPosition(
-    proxy,
-    cfd,
-    newAddress
-  ) {
+  async proxyTransferPosition(proxy, cfd, newAddress) {
     return this.proxyTx(proxy, 'transferPosition', [
       cfd.options.address,
       newAddress.toString()
@@ -343,11 +285,7 @@ export default class Proxy {
    * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} method Signature/name of method to call on proxy
    */
-  async proxyTx(
-    proxy,
-    method,
-    methodArgs
-  ) {
+  async proxyTx(proxy, method, methodArgs) {
     const msgData = this.cfdProxy.methods[method](...methodArgs).encodeABI()
     const txRsp = await this.proxySendTransaction(proxy, msgData)
     logGas(`CFD ${method} (through proxy)`, txRsp)
@@ -377,10 +315,15 @@ export default class Proxy {
    */
   async initialise() {
     this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
-    this.dsProxyFactory = await dsProxyFactoryInstanceDeployed(this.config, this.web3)
+    this.dsProxyFactory = await dsProxyFactoryInstanceDeployed(
+      this.config,
+      this.web3
+    )
     this.cfdProxy = await cfdProxyInstanceDeployed(this.config, this.web3)
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
-    this.eventHashLogCFDRegistryParty = this.web3.utils.sha3(`LogCFDRegistryParty(address,address)`)
+    this.eventHashLogCFDRegistryParty = this.web3.utils.sha3(
+      `LogCFDRegistryParty(address,address)`
+    )
     return this
   }
 }

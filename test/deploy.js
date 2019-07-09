@@ -9,7 +9,8 @@ import { STATUS } from '../src/infura/utils'
 import { deployAllForTest } from './helpers/deploy'
 import { config as configBase, web3 } from './helpers/setup'
 
-const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction: revert'
+const REJECT_MESSAGE =
+  'Returned error: VM Exception while processing transaction: revert'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_OWNER_1 = 0
@@ -21,10 +22,10 @@ const ACCOUNT_SELLER = 7
 
 const ONE_DAI = new BigNumber('1e18')
 
-const marketStr = 'Poloniex_ETH_USD'
+const marketStr = 'Kyber_ETH_DAI'
 const price = '67.00239'
 
-describe('deploy.js', function () {
+describe('deploy.js', function() {
   let daemon1, daemon2
   let owner1, owner2
 
@@ -39,17 +40,21 @@ describe('deploy.js', function () {
   const deployFullSet = async (config, firstTime = true) => {
     let updatedConfig
       // eslint-disable-next-line no-extra-semi
-      ; ({ updatedConfig } = await deployAllForTest({
-        web3,
-        config,
-        initialPriceInternal: price,
-        firstTime,
-        seedAccounts: [buyer, seller]
-      }))
+    ;({ updatedConfig } = await deployAllForTest({
+      web3,
+      config,
+      initialPriceKyberDAI: price,
+      firstTime,
+      seedAccounts: [buyer, seller]
+    }))
     return updatedConfig
   }
 
-  const newCFDInitiated = async (partyProxy, counterpartyProxy, partyIsBuyer) => {
+  const newCFDInitiated = async (
+    partyProxy,
+    counterpartyProxy,
+    partyIsBuyer
+  ) => {
     const cfd = await cfdAPI.newCFD(
       marketStr,
       price,
@@ -64,18 +69,21 @@ describe('deploy.js', function () {
 
   before(done => {
     notionalAmount = ONE_DAI
-    web3.eth.getAccounts().then(async (accounts) => {
-      daemon1 = accounts[ACCOUNT_DAEMON_1]
-      daemon2 = accounts[ACCOUNT_DAEMON_2]
-      owner1 = accounts[ACCOUNT_OWNER_1]
-      owner2 = accounts[ACCOUNT_OWNER_2]
-      buyer = accounts[ACCOUNT_BUYER]
-      seller = accounts[ACCOUNT_SELLER]
-      done()
-    }).catch((err) => {
-      console.log(err)
-      process.exit(-1)
-    });
+    web3.eth
+      .getAccounts()
+      .then(async accounts => {
+        daemon1 = accounts[ACCOUNT_DAEMON_1]
+        daemon2 = accounts[ACCOUNT_DAEMON_2]
+        owner1 = accounts[ACCOUNT_OWNER_1]
+        owner2 = accounts[ACCOUNT_OWNER_2]
+        buyer = accounts[ACCOUNT_BUYER]
+        seller = accounts[ACCOUNT_SELLER]
+        done()
+      })
+      .catch(err => {
+        console.log(err)
+        process.exit(-1)
+      })
   })
 
   it('deploy new set of contracts with new owner and daemon account', async () => {
@@ -86,8 +94,7 @@ describe('deploy.js', function () {
      */
 
     const config1 = Object.assign({}, configBase, {
-      ownerAccountAddr: owner1,
-      daemonAccountAddr: daemon1
+      ownerAccountAddr: owner1
     })
     deploymentConfig.v1 = await deployFullSet(config1, true)
 
@@ -99,8 +106,7 @@ describe('deploy.js', function () {
      * Deploy second time - will use the existing Registry but create ALL others
      */
     const config2 = Object.assign({}, deploymentConfig.v1, {
-      ownerAccountAddr: owner2,
-      daemonAccountAddr: daemon2
+      ownerAccountAddr: owner2
     })
     deploymentConfig.v2 = await deployFullSet(config2, false)
     assert.equal(
@@ -118,7 +124,11 @@ describe('deploy.js', function () {
 
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v2, web3)
     const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
-    assert.equal(STATUS.INITIATED, await cfd.methods.status().call(), 'new cfd initiated')
+    assert.equal(
+      STATUS.INITIATED,
+      await cfd.methods.status().call(),
+      'new cfd initiated'
+    )
 
     // check cannot create CFD on the old set
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)

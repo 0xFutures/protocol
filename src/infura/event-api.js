@@ -1,14 +1,8 @@
 import Promise from 'bluebird'
-import {
-  cfdInstance,
-  getContract
-} from './contracts'
-import {
-  getAllEventsWithName
-} from './utils'
+import { cfdInstance, getContract } from './contracts'
+import { getAllEventsWithName } from './utils'
 
 export default class EVENTAPI {
-
   /**
    * Create a new instance of this class setting up contract handles and
    * validiting the config addresses point to actual deployed contracts.
@@ -19,7 +13,7 @@ export default class EVENTAPI {
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance (config, web3) {
+  static async newInstance(config, web3) {
     /*if (web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
@@ -36,41 +30,46 @@ export default class EVENTAPI {
    * @param eventName (optional) To get a specific event only (undefined to get all)
    * @return Promise resolving to a list of events
    */
-  getAllEvents (
-    contracts,
-    eventName = undefined
-  ) {
+  getAllEvents(contracts, eventName = undefined) {
     let self = this
     let resEvents = []
-    let nbContracts = (contracts != undefined && contracts.length != undefined) ? contracts.length : 0;
+    let nbContracts =
+      contracts != undefined && contracts.length != undefined
+        ? contracts.length
+        : 0
     let nbContractDone = 0
     // Function to check if we are done requesting
-    const checkDone = (resolve) => {
-    	nbContractDone += 1;
-    	if (nbContractDone >= nbContracts)
-    		resolve(resEvents);
+    const checkDone = resolve => {
+      nbContractDone += 1
+      if (nbContractDone >= nbContracts) resolve(resEvents)
     }
     return new Promise(function(resolve, reject) {
-	    // Check if we have 0 contracts
-	    if (nbContracts <= 0)
-	      resolve([]);
-	    else {
-	      // For each contract
-	      contracts.forEach(function (contract) {
-	      	// Get the CFD instance
-	      	const cfd = getContract(contract.options.address, self.web3);
-	      	// Get all the events
-	      	getAllEventsWithName(eventName, cfd, self.config.deploymentBlockNumber, 'latest').then((events) => {
-	      		events.forEach(function(ev) {
-	      			resEvents.push(ev);
-	      		});
-	      		checkDone(resolve);
-	      	}).catch((err) => {
-	      		checkDone(resolve);
-	      	});
-	      })
-	    }
-	});
+      // Check if we have 0 contracts
+      if (nbContracts <= 0) resolve([])
+      else {
+        // For each contract
+        contracts.forEach(function(contract) {
+          // Get the CFD instance
+          const cfd = getContract(contract.options.address, self.web3)
+          // Get all the events
+          getAllEventsWithName(
+            eventName,
+            cfd,
+            self.config.deploymentBlockNumber,
+            'latest'
+          )
+            .then(events => {
+              events.forEach(function(ev) {
+                resEvents.push(ev)
+              })
+              checkDone(resolve)
+            })
+            .catch(err => {
+              checkDone(resolve)
+            })
+        })
+      }
+    })
   }
 
   /**
@@ -84,7 +83,7 @@ export default class EVENTAPI {
    * @param config Configuration object with all properties as per config.json.template
    * @param web3 Initiated web3 instance for the network to work with.
    */
-  constructor (config, web3) {
+  constructor(config, web3) {
     this.config = config
     this.web3 = web3
     this.web3.eth.getCodeAsync = Promise.promisify(this.web3.eth.getCode)
@@ -101,8 +100,11 @@ export default class EVENTAPI {
    *
    * @return api instance
    */
-  async initialise () {
-    this.cfd = cfdInstance(this.web3.currentProvider, this.config.ownerAccountAddr)
+  async initialise() {
+    this.cfd = cfdInstance(
+      this.web3.currentProvider,
+      this.config.ownerAccountAddr
+    )
     return this
   }
 }

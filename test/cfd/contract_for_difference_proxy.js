@@ -3,13 +3,19 @@ import BigNumber from 'bignumber.js'
 
 import ProxyAPI from '../../src/infura/proxy'
 import {
+  fromContractBigNumber,
   toContractBigNumber,
   unpackAddress,
-  STATUS,
+  STATUS
 } from '../../src/infura/utils'
 
-import { assertEqualAddress, assertEqualBN, assertStatus } from '../helpers/assert'
-import { deployAllForTest, mockMakerPut } from '../helpers/deploy'
+import {
+  assertEqualAddress,
+  assertEqualBN,
+  assertStatus
+} from '../helpers/assert'
+import { deployAllForTest } from '../helpers/deploy'
+import { mockKyberPut } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
@@ -20,12 +26,12 @@ const ACCOUNT_THIRD_PARTY = 7
 
 const MAX_UINT256 = new BigNumber(2).exponentiatedBy(256).minus(1)
 
-const marketId = web3.utils.sha3('Maker_ETH_USD')
+const marketId = web3.utils.sha3('Kyber_ETH_DAI')
 const ethDaiPrice = '275.20'
-const ethDaiPriceAdjusted = toContractBigNumber('275.20')
+const ethDaiPriceAdjusted = toContractBigNumber(ethDaiPrice)
 const notionalAmountDai = new BigNumber('1e18') // 1 DAI
 
-describe('ContractForDifferenceProxy', function () {
+describe('ContractForDifferenceProxy', function() {
   let deployment
   let proxyApi
 
@@ -38,11 +44,9 @@ describe('ContractForDifferenceProxy', function () {
    *  Helpers
    */
 
-
   // get DAI balance for address
-  const getBalance = async (daiToken, addr) => new BigNumber(
-    await daiToken.methods.balanceOf(addr).call()
-  )
+  const getBalance = async (daiToken, addr) =>
+    new BigNumber(await daiToken.methods.balanceOf(addr).call())
 
   // create a proxy for each user and create a new CFD and deposit
   const createCFD = async () => {
@@ -57,15 +61,10 @@ describe('ContractForDifferenceProxy', function () {
       value: notionalAmountDai,
       isBuyer: true
     })
-    await proxyApi.proxyDeposit(
-      sellerProxy,
-      cfd,
-      notionalAmountDai
-    )
+    await proxyApi.proxyDeposit(sellerProxy, cfd, notionalAmountDai)
 
     return { cfd, buyerProxy, sellerProxy }
   }
-
 
   /*
    * Lifecycle
@@ -80,7 +79,7 @@ describe('ContractForDifferenceProxy', function () {
 
     deployment = await deployAllForTest({
       web3,
-      initialPriceExternal: ethDaiPrice,
+      initialPriceKyberDAI: ethDaiPrice,
       firstTime: true,
       config,
       seedAccounts: [buyer, seller, thirdParty]
@@ -100,28 +99,47 @@ describe('ContractForDifferenceProxy', function () {
 
     const { daiToken } = deployment
     assertEqualBN(
-      await daiToken.methods.allowance(buyer, buyerProxy.options.address).call(),
+      await daiToken.methods
+        .allowance(buyer, buyerProxy.options.address)
+        .call(),
       MAX_UINT256.minus(notionalAmountDai),
       'buyer allowance to proxy'
     )
     assertEqualBN(
-      await daiToken.methods.allowance(seller, sellerProxy.options.address).call(),
+      await daiToken.methods
+        .allowance(seller, sellerProxy.options.address)
+        .call(),
       MAX_UINT256.minus(notionalAmountDai),
       'seller allowance to proxy'
     )
 
-    assertEqualAddress(await cfd.methods.buyer().call(), buyerProxy.options.address)
-    assertEqualBN(await cfd.methods.notionalAmountDai().call(), notionalAmountDai)
+    assertEqualAddress(
+      await cfd.methods.buyer().call(),
+      buyerProxy.options.address
+    )
+    assertEqualBN(
+      await cfd.methods.notionalAmountDai().call(),
+      notionalAmountDai
+    )
     assertEqualBN(await cfd.methods.strikePrice().call(), ethDaiPriceAdjusted)
     assert.equal(await cfd.methods.market().call(), marketId)
 
     // 5% threshold passed for seller
-    const newMarketPrice = ethDaiPriceAdjusted.times(1.951)
-    await mockMakerPut(deployment.ethUsdMaker, newMarketPrice)
+    const newMarketPrice = fromContractBigNumber(
+      ethDaiPriceAdjusted.times(1.951)
+    )
+    await mockKyberPut(
+      deployment.kyberNetwork,
+      daiToken.options.address,
+      newMarketPrice
+    )
 
     const cfdBalance = await getBalance(daiToken, cfd.options.address)
     const buyerBalBefore = await getBalance(daiToken, buyer)
-    const sellerProxyBalBefore = await getBalance(daiToken, sellerProxy.options.address)
+    const sellerProxyBalBefore = await getBalance(
+      daiToken,
+      sellerProxy.options.address
+    )
 
     await cfd.methods.liquidate().send({
       from: daemon,
@@ -153,11 +171,19 @@ describe('ContractForDifferenceProxy', function () {
     // put buyer side on sale
     const salePricePercent = 1.2
     const saleStrikePrice = ethDaiPriceAdjusted.times(salePricePercent)
-    await proxyApi.proxySellPrepare(buyerProxy, cfd, saleStrikePrice.toFixed(), 0)
+    await proxyApi.proxySellPrepare(
+      buyerProxy,
+      cfd,
+      saleStrikePrice.toFixed(),
+      0
+    )
     await assertStatus(cfd, STATUS.SALE)
 
     // assert sale details in the contract
-    assertEqualBN(await cfd.methods.buyerSaleStrikePrice().call(), saleStrikePrice)
+    assertEqualBN(
+      await cfd.methods.buyerSaleStrikePrice().call(),
+      saleStrikePrice
+    )
 
     // buyingParty buys the seller side
     const thirdPartyProxy = await proxyApi.proxyNew(thirdParty)
@@ -204,7 +230,12 @@ describe('ContractForDifferenceProxy', function () {
     // put buyer side on sale
     const salePricePercent = 1.2
     const saleStrikePrice = ethDaiPriceAdjusted.times(salePricePercent)
-    await proxyApi.proxySellPrepare(buyerProxy, cfd, saleStrikePrice.toFixed(), 0)
+    await proxyApi.proxySellPrepare(
+      buyerProxy,
+      cfd,
+      saleStrikePrice.toFixed(),
+      0
+    )
 
     await assertStatus(cfd, STATUS.SALE, `sale status`)
     await assertEqualBN(
@@ -265,11 +296,7 @@ describe('ContractForDifferenceProxy', function () {
     const buyerBalBeforeTopup = await getBalance(daiToken, buyer)
     const topupAmount = notionalAmountDai.dividedBy(2)
 
-    await proxyApi.proxyTopup(
-      buyerProxy,
-      cfd,
-      topupAmount
-    )
+    await proxyApi.proxyTopup(buyerProxy, cfd, topupAmount)
 
     assertEqualBN(
       await cfd.methods.buyerDepositBalance().call(),
@@ -285,11 +312,7 @@ describe('ContractForDifferenceProxy', function () {
     // withdraw and check balances
     const buyerBalBeforeWithdraw = await getBalance(daiToken, buyer)
     const withdrawAmount = topupAmount
-    await proxyApi.proxyWithdraw(
-      buyerProxy,
-      cfd,
-      withdrawAmount
-    )
+    await proxyApi.proxyWithdraw(buyerProxy, cfd, withdrawAmount)
 
     assertEqualBN(
       await cfd.methods.buyerDepositBalance().call(),
@@ -301,7 +324,6 @@ describe('ContractForDifferenceProxy', function () {
       buyerBalBeforeWithdraw.plus(withdrawAmount),
       'buyer address gets the withdrawn amount'
     )
-
   })
 
   it('transferPosition', async () => {
@@ -325,10 +347,7 @@ describe('ContractForDifferenceProxy', function () {
   it('forceTerminate', async () => {
     const { cfd, sellerProxy } = await createCFD()
 
-    await proxyApi.proxyForceTerminate(
-      sellerProxy,
-      cfd,
-    )
+    await proxyApi.proxyForceTerminate(sellerProxy, cfd)
 
     await assertStatus(cfd, STATUS.CLOSED, `still sale status`)
   })
@@ -336,23 +355,25 @@ describe('ContractForDifferenceProxy', function () {
   it('upgrade proxy', async () => {
     const { cfd, buyerProxy, sellerProxy } = await createCFD()
 
-    const cfdBalance = await getBalance(deployment.daiToken, cfd.options.address)
-    assertEqualBN(
-      cfdBalance,
-      notionalAmountDai.times(2),
-      'initial cfd balance'
+    const cfdBalance = await getBalance(
+      deployment.daiToken,
+      cfd.options.address
     )
+    assertEqualBN(cfdBalance, notionalAmountDai.times(2), 'initial cfd balance')
 
     // Deploy new set of contracts that we will later try upgrade too
     const deploymentv2 = await deployAllForTest({
       web3,
       // initialPriceExternal: ethDaiPrice,
       firstTime: false,
-      config: deployment.updatedConfig,
+      config: deployment.updatedConfig
     })
 
     // Upgrade CFD to new set
-    const proxyApiNewDeployment = await ProxyAPI.newInstance(deploymentv2.updatedConfig, web3)
+    const proxyApiNewDeployment = await ProxyAPI.newInstance(
+      deploymentv2.updatedConfig,
+      web3
+    )
     await proxyApiNewDeployment.proxyUpgrade(buyerProxy, cfd)
     const txUpgrade = await proxyApiNewDeployment.proxyUpgrade(sellerProxy, cfd)
 
@@ -366,6 +387,5 @@ describe('ContractForDifferenceProxy', function () {
     )
 
     // const newCFD = await cfdAPI.getCFD(newCFDAddr)
-
   })
 })

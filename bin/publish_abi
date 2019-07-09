@@ -12,8 +12,7 @@ fi
 
 copyABI 'Registry'
 copyABI 'PriceFeeds'
-copyABI 'PriceFeedsInternal'
-copyABI 'PriceFeedsExternal'
+copyABI 'PriceFeedsKyber'
 copyABI 'ForwardFactory'
 copyABI 'ContractForDifference'
 copyABI 'ContractForDifferenceFactory'
@@ -23,6 +22,6 @@ copyABI 'ContractForDifferenceRegistry'
 copyABI 'DSProxyFactory'
 copyABI 'DSProxy'
 copyABI 'DAIToken'
-copyABI 'EthUsdMaker'
+copyABI 'KyberNetwork'
 
 cd -

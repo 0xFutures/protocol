@@ -2,8 +2,7 @@ import Promise from 'bluebird'
 import {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstanceDeployed,
-  priceFeedsInternalInstanceDeployed,
-  priceFeedsExternalInstanceDeployed,
+  priceFeedsKyberInstanceDeployed,
   registryInstanceDeployed
 } from './contracts'
 
@@ -19,30 +18,14 @@ export default class AdminAPI {
    * @return Constructed and initialised instance of this class
    */
   static async newInstance(config, web3) {
-    /*if (web3.isConnected() !== true) {
+    /* if (web3.isConnected() !== true) {
       return Promise.reject(
         new Error('web3 is not connected - check the endpoint')
       )
-    }*/
+    } */
     const api = new AdminAPI(config, web3)
     await api.initialise()
     return api
-  }
-
-  /**
-   * Deposit is called by a party wishing to join a new CFD.
-   *
-   * @return Promise resolving to success with tx details or reject depending
-   *          on the outcome.
-   */
-  changeDaemonAccount(newDaemonAddr) {
-    return this.priceFeedsInternal.methods.setDaemonAccount(newDaemonAddr).send(
-      { from: this.config.ownerAccountAddr }
-    ).then(() => {
-      this.config.daemonAccountAddr = newDaemonAddr
-      console.log(`Daemon updated on chain.\n`)
-      console.log(`Update daemonAccountAddr in your config.${this.config.network}.json file now.`)
-    })
   }
 
   /**
@@ -59,15 +42,21 @@ export default class AdminAPI {
     const registryOnly = options.registryOnly === true
     const ownableContracts = registryOnly
       ? ['registry']
-      : ['priceFeedsInternal', 'priceFeedsExternal', 'registry', 'cfdRegistry', 'cfdFactory']
-    return Promise.all(ownableContracts.map(contractKey =>
-      this[contractKey].methods.transferOwnership(newOwnerAddr).send(
-        { from: this.config.ownerAccountAddr }
+      : ['priceFeedsKyber', 'registry', 'cfdRegistry', 'cfdFactory']
+    return Promise.all(
+      ownableContracts.map(contractKey =>
+        this[contractKey].methods
+          .transferOwnership(newOwnerAddr)
+          .send({ from: this.config.ownerAccountAddr })
       )
-    )).then(() => {
+    ).then(() => {
       this.config.ownerAccountAddr = newOwnerAddr
       console.log(`Owner updated on chain to ${newOwnerAddr}.\n`)
-      console.log(`Update ownerAccountAddr in your config.${this.config.network}.json file now.`)
+      console.log(
+        `Update ownerAccountAddr in your config.${
+          this.config.network
+        }.json file now.`
+      )
     })
   }
 
@@ -101,8 +90,10 @@ export default class AdminAPI {
   async initialise() {
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
-    this.priceFeedsInternal = await priceFeedsInternalInstanceDeployed(this.config, this.web3)
-    this.priceFeedsExternal = await priceFeedsExternalInstanceDeployed(this.config, this.web3)
+    this.priceFeedsKyber = await priceFeedsKyberInstanceDeployed(
+      this.config,
+      this.web3
+    )
     this.registry = await registryInstanceDeployed(this.config, this.web3)
     return this
   }

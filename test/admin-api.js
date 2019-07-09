@@ -6,9 +6,8 @@ import { config as configBase, web3 } from './helpers/setup'
 
 const PRICE = '67.00239'
 
-describe('admin-api.js', function () {
-  let priceFeedsInternal
-  let priceFeedsExternal
+describe('admin-api.js', function() {
+  let priceFeedsKyber
   let cfdFactory
   let cfdRegistry
 
@@ -18,57 +17,58 @@ describe('admin-api.js', function () {
   let accounts
 
   before(done => {
-    web3.eth.getAccounts().then(async (accs) => {
+    web3.eth
+      .getAccounts()
+      .then(async accs => {
+        accounts = accs
 
-      accounts = accs
+        let registry
 
-      let registry
-
-        // eslint-disable-next-line no-extra-semi
-        ; ({
-          priceFeedsInternal,
-          priceFeedsExternal,
+          // eslint-disable-next-line no-extra-semi
+        ;({
+          priceFeedsKyber,
           cfdRegistry,
           cfdFactory,
           registry
         } = await deployAllForTest({
           web3,
-          initialPriceInternal: PRICE
+          initialPriceKyberDAI: PRICE
         }))
 
-      config = Object.assign({}, configBase)
-      config.priceFeedsInternalContractAddr = priceFeedsInternal.options.address
-      config.priceFeedsExternalContractAddr = priceFeedsExternal.options.address
-      config.cfdFactoryContractAddr = cfdFactory.options.address
-      config.cfdRegistryContractAddr = cfdRegistry.options.address
-      config.registryAddr = registry.options.address
+        config = Object.assign({}, configBase)
+        config.priceFeedsKyberContractAddr = priceFeedsKyber.options.address
+        config.cfdFactoryContractAddr = cfdFactory.options.address
+        config.cfdRegistryContractAddr = cfdRegistry.options.address
+        config.registryAddr = registry.options.address
 
-      api = await AdminAPI.newInstance(config, web3)
+        api = await AdminAPI.newInstance(config, web3)
 
-      done()
-    }).catch((err) => {
-      console.log(err)
-      process.exit(-1)
-    })
-  })
-
-  it('changeDaemonAccount', async () => {
-    assert.equal((await api.priceFeedsInternal.methods.daemonAccount().call()).toLowerCase(), config.daemonAccountAddr.toLowerCase())
-    const newDaemonAddr = accounts[4]
-    await api.changeDaemonAccount(newDaemonAddr)
-    assert.equal((await api.priceFeedsInternal.methods.daemonAccount().call()).toLowerCase(), newDaemonAddr.toLowerCase())
+        done()
+      })
+      .catch(err => {
+        console.log(err)
+        process.exit(-1)
+      })
   })
 
   describe('changeOwnerAccount', () => {
-    const OWNED_CONTRACTS = ['priceFeedsInternal', 'priceFeedsExternal', 'registry', 'cfdRegistry', 'cfdFactory']
+    const OWNED_CONTRACTS = [
+      'priceFeedsKyber',
+      'registry',
+      'cfdRegistry',
+      'cfdFactory'
+    ]
 
-    const assertOwnerAll = (ownerAddr, owned = OWNED_CONTRACTS) => Promise.all(owned.map(
-      async contract => assert.equal(
-        ownerAddr.toLowerCase(),
-        (await api[contract].methods.owner().call()).toLowerCase(),
-        `${contract} owner`
-      ))
-    )
+    const assertOwnerAll = (ownerAddr, owned = OWNED_CONTRACTS) =>
+      Promise.all(
+        owned.map(async contract =>
+          assert.equal(
+            ownerAddr.toLowerCase(),
+            (await api[contract].methods.owner().call()).toLowerCase(),
+            `${contract} owner`
+          )
+        )
+      )
 
     it('all ownable', async () => {
       await assertOwnerAll(api.config.ownerAccountAddr)

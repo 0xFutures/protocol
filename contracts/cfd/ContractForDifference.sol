@@ -848,7 +848,7 @@ contract ContractForDifference is DBC {
 
         // 2nd call has been made
         (uint buyerCollateral, uint sellerCollateral) = liquidateInternal(false);
-        
+
         liquidatedMutually = true;
 
         emit LogCFDLiquidateMutual(buyerCollateral, sellerCollateral);

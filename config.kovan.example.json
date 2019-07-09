@@ -14,23 +14,19 @@
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
 
   "registryAddr": "0x6adda96526557b70538839747cde8e82d654995e",
-  
+
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
   "cfdRegistryContractAddr": "0x68b91734b994abb54acc6a2cddcb2314ab2df94f",
   "cfdFactoryContractAddr": "0xa217f8559ecae53a886b799fc9e4a027ba506130",
   "priceFeedsContractAddr": "0xa486bd450037899afe8dc0925710b45f9a63fda9",
-  "priceFeedsInternalContractAddr": "0xcd14d3c4e03a34421f482542b3fd4e1136af9dc1",
-  "priceFeedsExternalContractAddr": "0xd071c14d84bf00414a631d94adea49321d48b90f",
-  
-  "markets": {
-    "internal": [
-      "Coinbase_BTC"
-    ],
-    "external": {
-      "Maker_ETH_USD": {
-        "priceFn": "read",
-        "interface": "EthUsdMakerInterface",
-        "address": "0xa5aa4e07f5255e14f02b385b1f04b35cc50bdb66"
+  "priceFeedsKyberContractAddr": "0xd071c14d84bf00414a631d94adea49321d48b90f",
+
+  "feeds": {
+    "kyber": {
+      "kyberNetworkAddr": "0x118A7b23B7a2e6A57963d017A7E76A4E2636F075",
+      "markets": {
+        "Kyber_ETH_DAI": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
+        "Kyber_ETH_MKR": "0xAaF64BFCC32d0F15873a02163e7E500671a4ffcD"
       }
     }
   }

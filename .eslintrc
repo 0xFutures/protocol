@@ -21,6 +21,8 @@
   "rules": {
     "no-console": "off",
     "no-unused-vars": ["warn"],
-    "object-curly-spacing": ["warn", "never"]
+    "object-curly-spacing": ["warn", "on"],
+    "semi": [2, "never"],
+    "quotes": [2, "single"]
   }
 }

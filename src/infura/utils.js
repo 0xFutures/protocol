@@ -5,7 +5,7 @@ BigNumber.config({ DECIMAL_PLACES: 30 })
 
 const EMPTY_ACCOUNT = '0x' + '0'.repeat(40)
 
-const NUMBER_DECIMALS = 18;
+const NUMBER_DECIMALS = 18
 
 /**
  * Feed values must be passed around as Bignumbers or strings due to the 15
@@ -26,7 +26,7 @@ const assertBigNumberOrString = number => {
  * @param number BigNumber|String Actual number to be converted
  * @return BigNumber contract format value
  */
-const toContractBigNumber = (number) => {
+const toContractBigNumber = number => {
   assertBigNumberOrString(number)
   const bn = new BigNumber(number)
   return bn.times(Math.pow(10, NUMBER_DECIMALS))
@@ -38,7 +38,7 @@ const toContractBigNumber = (number) => {
  * @param contractBigNumber BigNumber Contract format number to be adjusted
  * @return BigNumber original value
  */
-const fromContractBigNumber = (number) => {
+const fromContractBigNumber = number => {
   assertBigNumberOrString(number)
   const bn = new BigNumber(number)
   return bn.div(new BigNumber(10).pow(NUMBER_DECIMALS))
@@ -55,8 +55,7 @@ const unpackAddress = packed => packed.replace(/x0{24}/, 'x')
 
 const logGasOn = false
 const logGas = (title, txReceipt) => {
-  if (logGasOn)
-    console.log(`${title}: ${txReceipt.gasUsed}`)
+  if (logGasOn) console.log(`${title}: ${txReceipt.gasUsed}`)
 }
 
 /**
@@ -83,57 +82,78 @@ const STATUS = {
 /*
  * Sign and send a raw transaction
  */
-const signAndSendTransaction = (web3, account, privateKeyStr, contractAddr, data, gasPrice, pushGasLimit = 100000) => {
-  return new Promise(function (resolve, reject) {
+const signAndSendTransaction = (
+  web3,
+  account,
+  privateKeyStr,
+  contractAddr,
+  data,
+  gasPrice,
+  pushGasLimit = 100000
+) => {
+  return new Promise(function(resolve, reject) {
     // Get the transaction count for the nonce
-    web3.eth.getTransactionCount(account).then((txCount) => {
-      // Create the transaction object to call the contract function
-      const txObject = {
-        nonce: web3.utils.toHex(txCount),
-        gasLimit: web3.utils.toHex(pushGasLimit),
-        gasPrice: web3.utils.toHex(gasPrice),
-        to: contractAddr,
-        data: data,
-        from: account
-      }
-      // Sign the transaction
-      web3.eth.accounts.signTransaction(txObject, privateKeyStr, (err, resp) => {
-        if (err || resp == undefined || resp.rawTransaction == undefined)
-          reject(err);
-        else {
-          // Send the transaction
-          web3.eth.sendSignedTransaction(resp.rawTransaction).once('receipt', function (receipt) {
-            // Transaction has been mined
-            console.log("[API-Infura] Transaction mined!");
-            resolve(receipt);
-          }).on('error', function (error) {
-            // Error
-            reject(error);
-          });
+    web3.eth
+      .getTransactionCount(account)
+      .then(txCount => {
+        // Create the transaction object to call the contract function
+        const txObject = {
+          nonce: web3.utils.toHex(txCount),
+          gasLimit: web3.utils.toHex(pushGasLimit),
+          gasPrice: web3.utils.toHex(gasPrice),
+          to: contractAddr,
+          data: data,
+          from: account
         }
-      });
-    }).catch((err) => {
-      reject(err);
-    })
-  });
+        // Sign the transaction
+        web3.eth.accounts.signTransaction(
+          txObject,
+          privateKeyStr,
+          (err, resp) => {
+            if (err || resp == undefined || resp.rawTransaction == undefined)
+              reject(err)
+            else {
+              // Send the transaction
+              web3.eth
+                .sendSignedTransaction(resp.rawTransaction)
+                .once('receipt', function(receipt) {
+                  // Transaction has been mined
+                  console.log('[API-Infura] Transaction mined!')
+                  resolve(receipt)
+                })
+                .on('error', function(error) {
+                  // Error
+                  reject(error)
+                })
+            }
+          }
+        )
+      })
+      .catch(err => {
+        reject(err)
+      })
+  })
 }
-
 
 /* List of all the events with its hash
  * Used to reverse match
  * (While waiting for web3 to be fixed...)
  */
 const EVENTS = {
-  '0x841e82cad4a100e3997b0c3d76c329c2cee8720bf04af5e890bb904c1fa90e88': 'LogPriceFeedsInternalMarketAdded',
-  '0x4b9ff7c6404c1f870ba7a00b727dcfd9ae5af0299f39d19dc2e4b60622f04b3d': 'LogPriceFeedsInternalMarketRemoved',
-  '0xa9c24b8fa6727fcb2af1b00f75ac512750449a799a5725ec59c20cbcc9944d50': 'LogPriceFeedsInternalPush',
-  '0xba600a88fc714ebd6a38fe64f2b502e9c06a548e4a883a2b43ac0d344be0d212': 'LogPriceFeedsExternalMarketAdded',
-  '0x241027c30341da155be2f8d6bf3ae10bdf6083fd0ffcf36e848ae540041fff11': 'LogPriceFeedsExternalMarketRemoved',
-  '0x2d0c41699a808fef3dcfaa411d95703031d69229e73f5f3299fd6045deb4f962': 'LogCFDFactoryNew',
-  '0xe77178664194a5b1c28f6ee0f3fcb6d4404d796abfdf7edee18b68617768f48a': 'LogCFDFactoryNewByUpgrade',
-  '0x5180589a8efb07c77a3318d1c34775bb649df9d3e93ac2a75a8e9747e3aaccd4': 'LogCFDRegistryParty',
-  '0xd58bd0566ead9ed32659fb925d8d03f4bc085d137fafff69ba9d390275a6eaaf': 'LogCFDRegistryNew',
-  '0x15d100e262556a93dd6558ac262964e8c338b642a9a6530ee29521879cfb9f1a': 'LogCFDRegistrySale'
+  '0xa5a61bd6a6ada80224b49aa7fae9b176c38f70934cfc65e1c34495527cd91e23':
+    'LogPriceFeedsKyberMarketAdded',
+  '0xb54c2b8928a495bb6488be8bfd8a852a5815f53d28e2c454b49f5635e5d1d6a8':
+    'LogPriceFeedsKyberMarketRemoved',
+  '0x2d0c41699a808fef3dcfaa411d95703031d69229e73f5f3299fd6045deb4f962':
+    'LogCFDFactoryNew',
+  '0xe77178664194a5b1c28f6ee0f3fcb6d4404d796abfdf7edee18b68617768f48a':
+    'LogCFDFactoryNewByUpgrade',
+  '0x5180589a8efb07c77a3318d1c34775bb649df9d3e93ac2a75a8e9747e3aaccd4':
+    'LogCFDRegistryParty',
+  '0xd58bd0566ead9ed32659fb925d8d03f4bc085d137fafff69ba9d390275a6eaaf':
+    'LogCFDRegistryNew',
+  '0x15d100e262556a93dd6558ac262964e8c338b642a9a6530ee29521879cfb9f1a':
+    'LogCFDRegistrySale'
 }
 /* Return the events, and filter with the event name
  * @param eventName, the event name used to filter (e.g. LogFeedsPush)
@@ -141,24 +161,41 @@ const EVENTS = {
  * @param contractInstance, the web3 contract instance
  * @param fromBlock, block number where we start looking for (default to 0)
  */
-const getAllEventsWithName = (eventName, contractInstance, fromBlock = 0, toBlock = 'latest') => {
+const getAllEventsWithName = (
+  eventName,
+  contractInstance,
+  fromBlock = 0,
+  toBlock = 'latest'
+) => {
   return new Promise((resolve, reject) => {
-    contractInstance.getPastEvents('allEvents', { fromBlock: fromBlock, toBlock: toBlock }, (error, events) => {
-      // If there is an error
-      if (error || events == undefined)
-        reject(error);
-      else {
-        // Filter the events (using the topics array for now, since event name is missing)
-        events = events.filter(function (ev) {
-          if (ev == undefined || ev.raw == undefined || ev.raw.topics == undefined || ev.raw.topics.length <= 0 || (EVENTS[ev.raw.topics[0]] == undefined && eventName != undefined))
-            return false;
-          // Check event is the one we are looking for
-          return (eventName == undefined || EVENTS[ev.raw.topics[0].toLowerCase()] == eventName);
-        });
-        resolve(events);
+    contractInstance.getPastEvents(
+      'allEvents',
+      { fromBlock: fromBlock, toBlock: toBlock },
+      (error, events) => {
+        // If there is an error
+        if (error || events == undefined) reject(error)
+        else {
+          // Filter the events (using the topics array for now, since event name is missing)
+          events = events.filter(function(ev) {
+            if (
+              ev == undefined ||
+              ev.raw == undefined ||
+              ev.raw.topics == undefined ||
+              ev.raw.topics.length <= 0 ||
+              (EVENTS[ev.raw.topics[0]] == undefined && eventName != undefined)
+            )
+              return false
+            // Check event is the one we are looking for
+            return (
+              eventName == undefined ||
+              EVENTS[ev.raw.topics[0].toLowerCase()] == eventName
+            )
+          })
+          resolve(events)
+        }
       }
-    });
-  });
+    )
+  })
 }
 
 // For web3 latest version, use this instead:
@@ -180,5 +217,5 @@ module.exports = {
   getAllEventsWithName,
   getFunctionSignature,
   signAndSendTransaction,
-  unpackAddress,
+  unpackAddress
 }

@@ -8,13 +8,12 @@ import CFDProxyJSON from '../../abi/ContractForDifferenceProxy.json'
 import DSProxyFactoryJSON from '../../abi/DSProxyFactory.json'
 import DSProxyJSON from '../../abi/DSProxy.json'
 import PriceFeedsJSON from '../../abi/PriceFeeds.json'
-import PriceFeedsInternalJSON from '../../abi/PriceFeedsInternal.json'
-import PriceFeedsExternalJSON from '../../abi/PriceFeedsExternal.json'
+import PriceFeedsKyberJSON from '../../abi/PriceFeedsKyber.json'
 import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
 import RegistryJSON from '../../abi/Registry.json'
 
 import MockDAITokenJSON from '../../abi/DAIToken.json'
-import MockEthUsdMakerJSON from '../../abi/EthUsdMaker.json'
+import MockKyberNetworkJSON from '../../abi/KyberNetwork.json'
 
 /**********************************************************
  *  Contract handles for deployed contracts.
@@ -35,34 +34,34 @@ const priceFeedsInstanceDeployed = async (config, web3) =>
     web3,
     'priceFeedsContractAddr',
     PriceFeedsJSON,
-    config.priceFeedsInternalContractAddr,
-    config.priceFeedsExternalContractAddr
+    config.PriceFeedsKyberContractAddr
   )
 
-const priceFeedsInternalInstanceDeployed = async (config, web3) =>
+const priceFeedsKyberInstanceDeployed = async (config, web3) =>
   deployedInstance(
     config,
     web3,
-    'priceFeedsInternalContractAddr',
-    PriceFeedsInternalJSON,
-    config.daemonAccountAddr
-  )
-
-const priceFeedsExternalInstanceDeployed = async (config, web3) =>
-  deployedInstance(
-    config,
-    web3,
-    'priceFeedsExternalContractAddr',
-    PriceFeedsExternalJSON
+    'priceFeedsKyberContractAddr',
+    PriceFeedsKyberJSON
   )
 
 const registryInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'registryAddr', RegistryJSON)
 
 const dsProxyFactoryInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'dsProxyFactoryContractAddr', DSProxyFactoryJSON)
+  deployedInstance(
+    config,
+    web3,
+    'dsProxyFactoryContractAddr',
+    DSProxyFactoryJSON
+  )
 
-const dsProxyInstanceDeployed = async (config, web3, proxyAddr, defaultFromAddr) =>
+const dsProxyInstanceDeployed = async (
+  config,
+  web3,
+  proxyAddr,
+  defaultFromAddr
+) =>
   deployedContractInstance(
     proxyAddr,
     DSProxyJSON,
@@ -72,9 +71,8 @@ const dsProxyInstanceDeployed = async (config, web3, proxyAddr, defaultFromAddr)
     web3
   )
 
-
 /**********************************************************
- *  Contract handles to instances not connected to a 
+ *  Contract handles to instances not connected to a
  *  specific deployment address.
  *********************************************************/
 
@@ -87,11 +85,8 @@ const forwardFactoryInstance = (web3Provider, config) =>
 const priceFeedsInstance = (web3Provider, config) =>
   contractInstance(PriceFeedsJSON, web3Provider, config)
 
-const priceFeedsInternalInstance = (web3Provider, config) =>
-  contractInstance(PriceFeedsInternalJSON, web3Provider, config)
-
-const priceFeedsExternalInstance = (web3Provider, config) =>
-  contractInstance(PriceFeedsExternalJSON, web3Provider, config)
+const priceFeedsKyberInstance = (web3Provider, config) =>
+  contractInstance(PriceFeedsKyberJSON, web3Provider, config)
 
 const cfdInstance = (web3Provider, config) =>
   contractInstance(CFDJSON, web3Provider, config)
@@ -115,8 +110,8 @@ const dsProxyInstance = (web3Provider, config) =>
   contractInstance(DSProxyJSON, web3Provider, config)
 
 /**********************************************************
-*  Contract handles to mock and test only contracts. 
-*********************************************************/
+ *  Contract handles to mock and test only contracts.
+ *********************************************************/
 
 const daiTokenInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, 'daiTokenAddr', MockDAITokenJSON)
@@ -124,12 +119,11 @@ const daiTokenInstanceDeployed = async (config, web3) =>
 const daiTokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)
 
-const ethUsdMakerInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'ethUsdMakerAddr', MockEthUsdMakerJSON)
+const kyberNetworkInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, 'kyberNetworkAddr', MockKyberNetworkJSON)
 
-const ethUsdMakerInstance = (web3Provider, config) =>
-  contractInstance(MockEthUsdMakerJSON, web3Provider, config)
-
+const kyberNetworkInstance = (web3Provider, config) =>
+  contractInstance(MockKyberNetworkJSON, web3Provider, config)
 
 /**
  * Create a handle to an instance of a contract already deployed on the
@@ -144,16 +138,14 @@ const deployedContractInstance = async (
   defaultGasLimit,
   web3
 ) => {
+  if (addr == undefined) return undefined
 
-  if (addr == undefined)
-    return undefined;
-
-  let code = await web3.eth.getCode(addr);
+  let code = await web3.eth.getCode(addr)
 
   if (code === '0x0' || code === '0x') {
     throw new Error(
       `${contractJSON.contractName} contract NOT deployed at ${addr}.` +
-      ` Check the address and network settings.`
+        ` Check the address and network settings.`
     )
   }
   return new web3.eth.Contract(contractJSON.abi, addr, {
@@ -183,22 +175,22 @@ const deployedInstance = (
  * Create a handle to a contract given the JSON and a web3 provider instance.
  */
 const contractInstance = (contractJSON, web3Provider, config) => {
-  const web3 = new Web3(web3Provider);
+  const web3 = new Web3(web3Provider)
   var contractInstance = new web3.eth.Contract(contractJSON.abi)
-  if (config.ownerAccountAddr)
-    contractInstance.options.from = config.ownerAccountAddr;
-  if (config.gasDefault)
-    contractInstance.options.gas = config.gasDefault;
-  if (contractJSON.bytecode)
-    contractInstance.options.data = contractJSON.bytecode;
-  return contractInstance;
+  if (config.ownerAccountAddr) {
+    contractInstance.options.from = config.ownerAccountAddr
+  }
+  if (config.gasDefault) contractInstance.options.gas = config.gasDefault
+  if (contractJSON.bytecode) {
+    contractInstance.options.data = contractJSON.bytecode
+  }
+  return contractInstance
 }
 
 /**
  * Get contract handle
  */
-const getContract = (cfdAdd, web3) =>
-  new web3.eth.Contract(CFDJSON.abi, cfdAdd);
+const getContract = (cfdAdd, web3) => new web3.eth.Contract(CFDJSON.abi, cfdAdd)
 
 module.exports = {
   getContract,
@@ -217,15 +209,13 @@ module.exports = {
   dsProxyInstanceDeployed,
   dsProxyFactoryInstance,
   dsProxyFactoryInstanceDeployed,
-  ethUsdMakerInstance,
-  ethUsdMakerInstanceDeployed,
+  kyberNetworkInstance,
+  kyberNetworkInstanceDeployed,
   forwardFactoryInstance,
   priceFeedsInstance,
   priceFeedsInstanceDeployed,
-  priceFeedsInternalInstance,
-  priceFeedsInternalInstanceDeployed,
-  priceFeedsExternalInstance,
-  priceFeedsExternalInstanceDeployed,
+  priceFeedsKyberInstance,
+  priceFeedsKyberInstanceDeployed,
   registryInstance,
   registryInstanceDeployed
 }

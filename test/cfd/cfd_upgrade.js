@@ -9,23 +9,28 @@ import {
 } from '../../src/infura/contracts'
 import { unpackAddress, STATUS } from '../../src/infura/utils'
 
-import { assertStatus, assertEqualAddress, assertEqualBN } from '../helpers/assert'
+import {
+  assertStatus,
+  assertEqualAddress,
+  assertEqualBN
+} from '../helpers/assert'
 import { deployAllForTest } from '../helpers/deploy'
 import { config as configBase, web3 } from '../helpers/setup'
 
-const REJECT_MESSAGE = 'Returned error: VM Exception while processing transaction'
+const REJECT_MESSAGE =
+  'Returned error: VM Exception while processing transaction'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)
 const ACCOUNT_BUYER = 5
 const ACCOUNT_SELLER = 6
 
-const marketStr = 'Poloniex_ETH_USD'
+const marketStr = 'Kyber_ETH_DAI'
 const price = '67.00239'
 
 const isBigNumber = num =>
   typeof num === 'object' && 'e' in num && 'c' in num && 's' in num
 
-describe('cfd upgrade', function () {
+describe('cfd upgrade', function() {
   let buyer
   let seller
   let notionalAmountDai
@@ -37,17 +42,21 @@ describe('cfd upgrade', function () {
   const deployFullSet = async ({ config = configBase, firstTime }) => {
     let updatedConfig
       // eslint-disable-next-line no-extra-semi
-      ; ({ updatedConfig } = await deployAllForTest({
-        web3,
-        initialPriceInternal: price,
-        firstTime,
-        config,
-        seedAccounts: [buyer, seller]
-      }))
+    ;({ updatedConfig } = await deployAllForTest({
+      web3,
+      initialPriceKyberDAI: price,
+      firstTime,
+      config,
+      seedAccounts: [buyer, seller]
+    }))
     return updatedConfig
   }
 
-  const newCFDInitiated = async (partyProxy, counterpartyProxy, partyIsBuyer) => {
+  const newCFDInitiated = async (
+    partyProxy,
+    counterpartyProxy,
+    partyIsBuyer
+  ) => {
     const cfd = await cfdAPI.newCFD(
       marketStr,
       price,
@@ -56,7 +65,11 @@ describe('cfd upgrade', function () {
       partyIsBuyer,
       partyProxy
     )
-    await cfdAPI.deposit(cfd.options.address, counterpartyProxy, notionalAmountDai)
+    await cfdAPI.deposit(
+      cfd.options.address,
+      counterpartyProxy,
+      notionalAmountDai
+    )
     return cfd
   }
 
@@ -69,14 +82,17 @@ describe('cfd upgrade', function () {
 
   before(done => {
     notionalAmountDai = new BigNumber('1e18') // 1 DAI
-    web3.eth.getAccounts().then(async (accounts) => {
-      buyer = accounts[ACCOUNT_BUYER]
-      seller = accounts[ACCOUNT_SELLER]
-      done()
-    }).catch((err) => {
-      console.log(err)
-      process.exit(-1)
-    })
+    web3.eth
+      .getAccounts()
+      .then(async accounts => {
+        buyer = accounts[ACCOUNT_BUYER]
+        seller = accounts[ACCOUNT_SELLER]
+        done()
+      })
+      .catch(err => {
+        console.log(err)
+        process.exit(-1)
+      })
   })
 
   it('core upgrade flow succeeds', async () => {
@@ -86,7 +102,11 @@ describe('cfd upgrade', function () {
     // Deploy 1st set of contracts and create a CFD
     //
     deploymentConfig.v1 = await deployFullSet({ firstTime: true })
-    const { buyerProxy, sellerProxy } = await createProxies(deploymentConfig.v1, buyer, seller)
+    const { buyerProxy, sellerProxy } = await createProxies(
+      deploymentConfig.v1,
+      buyer,
+      seller
+    )
 
     cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)
     const registry = await registryInstanceDeployed(deploymentConfig.v1, web3)
@@ -140,9 +160,14 @@ describe('cfd upgrade', function () {
       'upgrade caller marked'
     )
     await assertStatus(cfd, STATUS.INITIATED)
-    assert.isFalse(await cfd.methods.upgradeable().call(), 'upgradeable not set yet')
+    assert.isFalse(
+      await cfd.methods.upgradeable().call(),
+      'upgradeable not set yet'
+    )
 
-    const cfdBalanceBefore = await daiToken.methods.balanceOf(cfd.options.address).call()
+    const cfdBalanceBefore = await daiToken.methods
+      .balanceOf(cfd.options.address)
+      .call()
     const txUpgrade = await cfdAPI.upgradeCFD(cfd.options.address, sellerProxy)
 
     //
@@ -202,7 +227,11 @@ describe('cfd upgrade', function () {
 
   it('upgrade rejected for contract already at latest version', async () => {
     const deploymentConfig = await deployFullSet({ firstTime: true })
-    const { buyerProxy, sellerProxy } = await createProxies(deploymentConfig, buyer, seller)
+    const { buyerProxy, sellerProxy } = await createProxies(
+      deploymentConfig,
+      buyer,
+      seller
+    )
 
     cfdAPI = await CFDAPI.newInstance(deploymentConfig, web3)
     const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
@@ -213,5 +242,4 @@ describe('cfd upgrade', function () {
       assert.isTrue(err.message.startsWith(REJECT_MESSAGE))
     }
   })
-
 })

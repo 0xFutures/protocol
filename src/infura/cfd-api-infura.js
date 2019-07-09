@@ -44,12 +44,12 @@ export default class CFDAPI {
   /**
    * Create a new CFD.
    *
-   * @param marketIdStr Contract for this market (eg. "Poloniex_ETH_USD")
+   * @param marketIdStr Contract for this market (eg. "Kyber_ETH_DAI")
    * @param strikePrice Contract strike price
    * @param notionalAmountDai Contract amount
    * @param leverage The leverage (between 0.01 and 5.00)
    * @param isBuyer Creator wants to be contract buyer or seller
-   * @param creatorProxy Proxy of creator of the new CFD 
+   * @param creatorProxy Proxy of creator of the new CFD
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -98,11 +98,7 @@ export default class CFDAPI {
     const cfd = getContract(cfdAddress, this.web3)
     const value = safeValue(amount)
 
-    await this.proxyApi.proxyDeposit(
-      depositAccountProxy,
-      cfd,
-      value
-    )
+    await this.proxyApi.proxyDeposit(depositAccountProxy, cfd, value)
   }
 
   /**
@@ -110,54 +106,63 @@ export default class CFDAPI {
    * @param cfdAddress Address of a deployed CFD
    */
   async getCFD(cfdAddress) {
-    const self = this, cfd = getContract(cfdAddress, self.web3);
+    const self = this,
+      cfd = getContract(cfdAddress, self.web3)
     return Promise.all([
-      cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
-      cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
-      cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy]
+      cfd.methods.getCfdAttributes().call(), // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
+      cfd.methods.getCfdAttributes2().call(), // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
+      cfd.methods.getCfdAttributes3().call(), // [termninated,upgradeCalledBy]
       cfd.methods.closed().call()
-    ]).then(function (values) {
-      // Got all the data, fetch the data that needed previous values
-      return Promise.all([
-        self.marketIdBytesToStr(values[0][2]),                                            // [market]
-        cfd.methods.cutOffPrice(values[0][4], values[1][2], values[1][6], true).call(),   // [buyerLiquidationPrice]
-        cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
-      ]).then(function (values2) {
-        // Got the rest of the data
-        return Object.assign(cfd, {
-          details: {
-            address: cfdAddress.toLowerCase(),
-            closed: values[3],
-            status: parseInt(values[0][7]),
-            liquidated: values[2][0],
-            upgradeCalledBy: values[2][1].toLowerCase(),
-            buyer: values[0][0].toLowerCase(),
-            buyerIsSelling: values[0][5],
-            seller: values[0][1].toLowerCase(),
-            sellerIsSelling: values[0][6],
-            market: values2[0],
-            notionalAmountDai: fromContractBigNumber(values[0][4]),
-            buyerInitialNotional: fromContractBigNumber(values[1][0]),
-            sellerInitialNotional: fromContractBigNumber(values[1][1]),
-            strikePrice: fromContractBigNumber(values[0][3]),
-            buyerSaleStrikePrice: fromContractBigNumber(values[1][4]),
-            sellerSaleStrikePrice: fromContractBigNumber(values[1][5]),
-            buyerDepositBalance: fromContractBigNumber(values[1][2]),
-            sellerDepositBalance: fromContractBigNumber(values[1][3]),
-            buyerInitialStrikePrice: fromContractBigNumber(values[1][6]),
-            sellerInitialStrikePrice: fromContractBigNumber(values[1][7]),
-            buyerLiquidationPrice: fromContractBigNumber(values2[1]),
-            sellerLiquidationPrice: fromContractBigNumber(values2[2])
-          }
-        })
-      }).catch(error => {
-      	console.log(error);
-        return undefined;
-      });
-    }).catch(error => {
-      console.log(error);
-      return undefined;
-    });
+    ])
+      .then(function (values) {
+        // Got all the data, fetch the data that needed previous values
+        return Promise.all([
+          self.marketIdBytesToStr(values[0][2]), // [market]
+          cfd.methods
+            .cutOffPrice(values[0][4], values[1][2], values[1][6], true)
+            .call(), // [buyerLiquidationPrice]
+          cfd.methods
+            .cutOffPrice(values[0][4], values[1][3], values[1][7], false)
+            .call() // [sellerLiquidationPrice]
+        ])
+          .then(function (values2) {
+            // Got the rest of the data
+            return Object.assign(cfd, {
+              details: {
+                address: cfdAddress.toLowerCase(),
+                closed: values[3],
+                status: parseInt(values[0][7]),
+                liquidated: values[2][0],
+                upgradeCalledBy: values[2][1].toLowerCase(),
+                buyer: values[0][0].toLowerCase(),
+                buyerIsSelling: values[0][5],
+                seller: values[0][1].toLowerCase(),
+                sellerIsSelling: values[0][6],
+                market: values2[0],
+                notionalAmountDai: fromContractBigNumber(values[0][4]),
+                buyerInitialNotional: fromContractBigNumber(values[1][0]),
+                sellerInitialNotional: fromContractBigNumber(values[1][1]),
+                strikePrice: fromContractBigNumber(values[0][3]),
+                buyerSaleStrikePrice: fromContractBigNumber(values[1][4]),
+                sellerSaleStrikePrice: fromContractBigNumber(values[1][5]),
+                buyerDepositBalance: fromContractBigNumber(values[1][2]),
+                sellerDepositBalance: fromContractBigNumber(values[1][3]),
+                buyerInitialStrikePrice: fromContractBigNumber(values[1][6]),
+                sellerInitialStrikePrice: fromContractBigNumber(values[1][7]),
+                buyerLiquidationPrice: fromContractBigNumber(values2[1]),
+                sellerLiquidationPrice: fromContractBigNumber(values2[2])
+              }
+            })
+          })
+          .catch(error => {
+            console.log(error)
+            return undefined
+          })
+      })
+      .catch(error => {
+        console.log(error)
+        return undefined
+      })
   }
 
   /**
@@ -171,9 +176,15 @@ export default class CFDAPI {
   async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
+    if (
+      (await cfd.methods
+        .isContractParty(accountProxy.options.address)
+        .call()) === false
+    ) {
       return Promise.reject(
-        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
+        new Error(
+          `${accountProxy.options.address} is not a party to CFD ${cfdAddress}`
+        )
       )
     }
 
@@ -181,7 +192,11 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return this.proxyApi.proxyChangeStrikePrice(accountProxy, cfd, desiredStrikePriceBN)
+    return this.proxyApi.proxyChangeStrikePrice(
+      accountProxy,
+      cfd,
+      desiredStrikePriceBN
+    )
   }
 
   /**
@@ -194,12 +209,25 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async sellCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, timeLimit = 0) {
+  async sellCFD(
+    cfdAddress,
+    sellerAccountProxy,
+    desiredStrikePrice,
+    timeLimit = 0
+  ) {
     const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(sellerAccountProxy.options.address).call()) === false) {
+    if (
+      (await cfd.methods
+        .isContractParty(sellerAccountProxy.options.address)
+        .call()) === false
+    ) {
       return Promise.reject(
-        new Error(`${sellerAccountProxy.options.address} is not a party to CFD ${cfdAddress}`)
+        new Error(
+          `${
+          sellerAccountProxy.options.address
+          } is not a party to CFD ${cfdAddress}`
+        )
       )
     }
 
@@ -207,7 +235,12 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return this.proxyApi.proxySellPrepare(sellerAccountProxy, cfd, desiredStrikePriceBN, timeLimit)
+    return this.proxyApi.proxySellPrepare(
+      sellerAccountProxy,
+      cfd,
+      desiredStrikePriceBN,
+      timeLimit
+    )
   }
 
   /**
@@ -312,45 +345,45 @@ export default class CFDAPI {
   }
 
   /**
-     * Check for liquidation
-     * @param cfdAddress, Address of the contract
-     * @param account, Account address of the user
-     */
+   * Check for liquidation
+   * @param cfdAddress, Address of the contract
+   * @param account, Account address of the user
+   */
   attemptContractLiquidation(cfdAddress, account) {
-    const self = this;
-    return Promise.all([
-      this.web3.eth.getCodeAsync(cfdAddress)
-    ]).then(() => {
-      // Contract address exists
-      const cfd = getContract(cfdAddress, self.web3);
-      return cfd.methods.liquidate().send({ from: account, gas: 200000 });
-    }).catch(error => {
-      throw new Error(error);
-    });
+    const self = this
+    return Promise.all([this.web3.eth.getCodeAsync(cfdAddress)])
+      .then(() => {
+        // Contract address exists
+        const cfd = getContract(cfdAddress, self.web3)
+        return cfd.methods.liquidate().send({ from: account, gas: 200000 })
+      })
+      .catch(error => {
+        throw new Error(error)
+      })
   }
   /**
    * Check for liquidation with a signed transaction (for the daemon)
    * @param cfdAddress, Address of the contract
    */
   attemptContractLiquidationDaemon(cfdAddress) {
-    const self = this;
-    return Promise.all([
-      this.web3.eth.getCodeAsync(cfdAddress)
-    ]).then(() => {
-      // Contract address exists
-      const cfd = getContract(cfdAddress, self.web3);
-      return signAndSendTransaction(
-        self.web3,
-        self.config.daemonAccountAddr,
-        self.privateKey,
-        self.config.priceFeedsInternalContractAddr,
-        cfd.methods.liquidate().encodeABI(),
-        self.config.gasPrice,
-        200000
-      );
-    }).catch(error => {
-      throw new Error(error);
-    });
+    const self = this
+    return Promise.all([this.web3.eth.getCodeAsync(cfdAddress)])
+      .then(() => {
+        // Contract address exists
+        const cfd = getContract(cfdAddress, self.web3)
+        return signAndSendTransaction(
+          self.web3,
+          self.config.daemonAccountAddr,
+          self.privateKey,
+          cfdAddress,
+          cfd.methods.liquidate().encodeABI(),
+          self.config.gasPrice,
+          200000
+        )
+      })
+      .catch(error => {
+        throw new Error(error)
+      })
   }
 
   /**
@@ -362,11 +395,19 @@ export default class CFDAPI {
    *          on the outcome.
    */
   async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice) {
-    const cfd = getContract(cfdAddress, this.web3);
+    const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(sellerAccountProxy.options.address).call()) === false) {
+    if (
+      (await cfd.methods
+        .isContractParty(sellerAccountProxy.options.address)
+        .call()) === false
+    ) {
       return Promise.reject(
-        new Error(`${sellerAccountProxy.options.address} is not a party to CFD ${cfdAddress}`)
+        new Error(
+          `${
+          sellerAccountProxy.options.address
+          } is not a party to CFD ${cfdAddress}`
+        )
       )
     }
 
@@ -374,7 +415,11 @@ export default class CFDAPI {
       desiredStrikePrice
     ).toFixed()
 
-    return this.proxyApi.proxySellUpdate(sellerAccountProxy, cfd, desiredStrikePriceBN)
+    return this.proxyApi.proxySellUpdate(
+      sellerAccountProxy,
+      cfd,
+      desiredStrikePriceBN
+    )
   }
 
   /**
@@ -384,11 +429,17 @@ export default class CFDAPI {
    * @param valueToAdd, The amount the user wants to add (DAI)
    */
   async topup(cfdAddress, accountProxy, valueToAdd) {
-    const cfd = getContract(cfdAddress, this.web3);
+    const cfd = getContract(cfdAddress, this.web3)
 
-    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
+    if (
+      (await cfd.methods
+        .isContractParty(accountProxy.options.address)
+        .call()) === false
+    ) {
       return Promise.reject(
-        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
+        new Error(
+          `${accountProxy.options.address} is not a party to CFD ${cfdAddress}`
+        )
       )
     }
 
@@ -403,33 +454,22 @@ export default class CFDAPI {
    * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
    */
   async withdraw(cfdAddress, accountProxy, valueToWithdraw) {
-    const cfd = getContract(cfdAddress, this.web3);
-    if ((await cfd.methods.isContractParty(accountProxy.options.address).call()) === false) {
+    const cfd = getContract(cfdAddress, this.web3)
+    if (
+      (await cfd.methods
+        .isContractParty(accountProxy.options.address)
+        .call()) === false
+    ) {
       return Promise.reject(
-        new Error(`${accountProxy.options.address} is not a party to CFD ${cfdAddress}`)
+        new Error(
+          `${accountProxy.options.address} is not a party to CFD ${cfdAddress}`
+        )
       )
     }
 
     const value = safeValue(valueToWithdraw)
     return this.proxyApi.proxyWithdraw(accountProxy, cfd, value)
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   /**
    * Get all contracts for a specific market
@@ -442,17 +482,20 @@ export default class CFDAPI {
    */
   contractsForMarket(
     marketId,
-    { fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false }
+    {
+      fromBlock = this.config.deploymentBlockNumber || 0,
+      includeLiquidated = false
+    }
   ) {
-    const self = this;
-    const market = this.marketIdStrToBytes(marketId);
+    const self = this
+    const market = this.marketIdStrToBytes(marketId)
     // Function to get one CFD details
-    const getDetailsCfd = async address => self.getCFD(address);
+    const getDetailsCfd = async address => self.getCFD(address)
     // Function to get the CFDs from addresses
     const getCFDs = async events => {
       let results = await Promise.all(
-        events.map((ev) => {
-          return getDetailsCfd(ev.address);
+        events.map(ev => {
+          return getDetailsCfd(ev.address)
         })
       )
       return results
@@ -460,30 +503,36 @@ export default class CFDAPI {
 
     return new Promise((resolve, reject) => {
       // Get all the events
-      getAllEventsWithName("LogCFDFactoryNew", this.cfdFactory, fromBlock).then((events) => {
-        if (events == undefined || events.length <= 0) {
-          resolve([]);
-          return;
-        }
-        // For each event, find the cfd address and filter on the market ID
-        events = events.filter(function (ev) {
-          if (ev.raw.data == undefined || ev.raw.topics.length <= 1)
-            return false;
-          ev.address = '0x' + ev.raw.data.substr(ev.raw.data.length - 40);
-          return (market == ev.raw.topics[1]);
-        });
-        // For each event, get the CFD
-        getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
-          // Check cfd
-          if (cfd == undefined)
-          	return false;
-          // Check if we want to exclude the liquidated
-          if (includeLiquidated == true || cfd.details.closed == false)
-            return true;
-          return false;
-        })));
-      }, (err) => reject(err));
-    });
+      getAllEventsWithName('LogCFDFactoryNew', this.cfdFactory, fromBlock).then(
+        events => {
+          if (events == undefined || events.length <= 0) {
+            resolve([])
+            return
+          }
+          // For each event, find the cfd address and filter on the market ID
+          events = events.filter(function (ev) {
+            if (ev.raw.data == undefined || ev.raw.topics.length <= 1)
+              return false
+            ev.address = '0x' + ev.raw.data.substr(ev.raw.data.length - 40)
+            return market == ev.raw.topics[1]
+          })
+          // For each event, get the CFD
+          getCFDs(events).then(cfds =>
+            resolve(
+              cfds.filter(cfd => {
+                // Check cfd
+                if (cfd == undefined) return false
+                // Check if we want to exclude the liquidated
+                if (includeLiquidated == true || cfd.details.closed == false)
+                  return true
+                return false
+              })
+            )
+          )
+        },
+        err => reject(err)
+      )
+    })
   }
 
   /**
@@ -498,23 +547,25 @@ export default class CFDAPI {
    */
   contractsForParty(
     partyAddress,
-    { fromBlock = this.config.deploymentBlockNumber || 0, includeLiquidated = false }
+    {
+      fromBlock = this.config.deploymentBlockNumber || 0,
+      includeLiquidated = false
+    }
   ) {
-    const self = this;
+    const self = this
     // Function to get one CFD details
-    const getDetailsCfd = async (ev) => {
-      let cfd = await self.getCFD(ev.address);
-      if (cfd == undefined)
-      	return undefined;
-      const block = await self.web3.eth.getBlockAsync(ev.blockNumber);
-      cfd.details.ts = new Date(block.timestamp * 1000);
-      return cfd;
+    const getDetailsCfd = async ev => {
+      let cfd = await self.getCFD(ev.address)
+      if (cfd == undefined) return undefined
+      const block = await self.web3.eth.getBlockAsync(ev.blockNumber)
+      cfd.details.ts = new Date(block.timestamp * 1000)
+      return cfd
     }
     // Function to get the CFDs from addresses
     const getCFDs = async events => {
       let results = await Promise.all(
-        events.map((ev) => {
-          return getDetailsCfd(ev);
+        events.map(ev => {
+          return getDetailsCfd(ev)
         })
       )
       return results
@@ -522,34 +573,52 @@ export default class CFDAPI {
 
     return new Promise((resolve, reject) => {
       // Get all the events
-      getAllEventsWithName("LogCFDRegistryParty", this.cfdRegistry, fromBlock).then((events) => {
-        if (events == undefined || events.length <= 0) {
-          resolve([]);
-          return;
-        }
-        // For each event, find the cfd address
-        events = events.filter(function (ev) {
-          if (ev.raw.topics.length <= 1)
-            return false;
-          ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
-          return true;
-        })
-          // And remove duplicates events (by checking cfd address)
-          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
-        // For each event, get the CFD
-        getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
-          // Check cfd
-          if (cfd == undefined)
-          	return false;
-          // Check if we want to exclude the liquidated
-          if ((cfd.details.buyer.toLowerCase() == partyAddress.toLowerCase() ||
-            cfd.details.seller.toLowerCase() == partyAddress.toLowerCase()) &&
-            (includeLiquidated == true || cfd.details.closed == false))
-            return true;
-          return false;
-        })));
-      }, (err) => reject(err));
-    });
+      getAllEventsWithName(
+        'LogCFDRegistryParty',
+        this.cfdRegistry,
+        fromBlock
+      ).then(
+        events => {
+          if (events == undefined || events.length <= 0) {
+            resolve([])
+            return
+          }
+          // For each event, find the cfd address
+          events = events
+            .filter(function (ev) {
+              if (ev.raw.topics.length <= 1) return false
+              ev.address =
+                '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40)
+              return true
+            })
+            // And remove duplicates events (by checking cfd address)
+            .filter(
+              (ev, i, self) =>
+                i === self.findIndex(t => t.address == ev.address)
+            )
+          // For each event, get the CFD
+          getCFDs(events).then(cfds =>
+            resolve(
+              cfds.filter(cfd => {
+                // Check cfd
+                if (cfd == undefined) return false
+                // Check if we want to exclude the liquidated
+                if (
+                  (cfd.details.buyer.toLowerCase() ==
+                    partyAddress.toLowerCase() ||
+                    cfd.details.seller.toLowerCase() ==
+                    partyAddress.toLowerCase()) &&
+                  (includeLiquidated == true || cfd.details.closed == false)
+                )
+                  return true
+                return false
+              })
+            )
+          )
+        },
+        err => reject(err)
+      )
+    })
   }
 
   /**
@@ -558,17 +627,17 @@ export default class CFDAPI {
    *          fromBlock Block to query events from (default=0)
    * @return a promise with the array of contracts
    */
-  contractsWaitingCounterparty(
-    { fromBlock = this.config.deploymentBlockNumber || 0 }
-  ) {
-    const self = this;
+  contractsWaitingCounterparty({
+    fromBlock = this.config.deploymentBlockNumber || 0
+  }) {
+    const self = this
     // Function to get one CFD details
-    const getDetailsCfd = async address => self.getCFD(address);
+    const getDetailsCfd = async address => self.getCFD(address)
     // Function to get the CFDs from addresses
     const getCFDs = async events => {
       let results = await Promise.all(
-        events.map((ev) => {
-          return getDetailsCfd(ev.address);
+        events.map(ev => {
+          return getDetailsCfd(ev.address)
         })
       )
       return results
@@ -576,32 +645,49 @@ export default class CFDAPI {
 
     return new Promise((resolve, reject) => {
       // Get all the events
-      getAllEventsWithName("LogCFDRegistryNew", this.cfdRegistry, fromBlock).then((events) => {
-        if (events == undefined || events.length <= 0) {
-          resolve([]);
-          return;
-        }
-        // For each event, find the cfd address
-        events = events.filter(function (ev) {
-          if (ev.raw.topics.length <= 1)
-            return false;
-          ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
-          return true;
-        })
-          // And remove duplicates events (by checking cfd address)
-          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
-        // For each event, get the CFD
-        getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
-          // Check cfd
-          if (cfd == undefined)
-          	return false;
-          // Get only the CFD that are not initialized and not closed
-          if (cfd.details.status == STATUS.CREATED && cfd.details.closed == false)
-            return true;
-          return false;
-        })));
-      }, (err) => reject(err));
-    });
+      getAllEventsWithName(
+        'LogCFDRegistryNew',
+        this.cfdRegistry,
+        fromBlock
+      ).then(
+        events => {
+          if (events == undefined || events.length <= 0) {
+            resolve([])
+            return
+          }
+          // For each event, find the cfd address
+          events = events
+            .filter(function (ev) {
+              if (ev.raw.topics.length <= 1) return false
+              ev.address =
+                '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40)
+              return true
+            })
+            // And remove duplicates events (by checking cfd address)
+            .filter(
+              (ev, i, self) =>
+                i === self.findIndex(t => t.address == ev.address)
+            )
+          // For each event, get the CFD
+          getCFDs(events).then(cfds =>
+            resolve(
+              cfds.filter(cfd => {
+                // Check cfd
+                if (cfd == undefined) return false
+                // Get only the CFD that are not initialized and not closed
+                if (
+                  cfd.details.status == STATUS.CREATED &&
+                  cfd.details.closed == false
+                )
+                  return true
+                return false
+              })
+            )
+          )
+        },
+        err => reject(err)
+      )
+    })
   }
 
   /**
@@ -610,17 +696,15 @@ export default class CFDAPI {
    *          fromBlock Block to query events from (default=0)
    * @return a promise with the array of contracts
    */
-  contractsForSale(
-    { fromBlock = this.config.deploymentBlockNumber || 0 }
-  ) {
-    const self = this;
+  contractsForSale({ fromBlock = this.config.deploymentBlockNumber || 0 }) {
+    const self = this
     // Function to get one CFD details
-    const getDetailsCfd = async address => self.getCFD(address);
+    const getDetailsCfd = async address => self.getCFD(address)
     // Function to get the CFDs from addresses
     const getCFDs = async events => {
       let results = await Promise.all(
-        events.map((ev) => {
-          return getDetailsCfd(ev.address);
+        events.map(ev => {
+          return getDetailsCfd(ev.address)
         })
       )
       return results
@@ -628,60 +712,56 @@ export default class CFDAPI {
 
     return new Promise((resolve, reject) => {
       // Get all the events
-      getAllEventsWithName("LogCFDRegistrySale", this.cfdRegistry, fromBlock).then((events) => {
-        if (events == undefined || events.length <= 0) {
-          resolve([]);
-          return;
-        }
-        // For each event, find the cfd address
-        events = events.filter(function (ev) {
-          if (ev.raw.topics.length <= 1)
-            return false;
-          ev.address = '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40);
-          return true;
-        })
-          // And remove duplicates events (by checking cfd address)
-          .filter((ev, i, self) => i === self.findIndex((t) => (t.address == ev.address)));
-        // For each event, get the CFD
-        getCFDs(events).then(cfds => resolve(cfds.filter((cfd) => {
-          // Check cfd
-          if (cfd == undefined)
-          	return false;
-          // Get only the CFD that are not initialized and not closed
-          if (cfd.details.status == STATUS.SALE && cfd.details.closed == false &&
-            (cfd.details.buyerIsSelling == true || cfd.details.sellerIsSelling == true))
-            return true;
-          return false;
-        })));
-      }, (err) => reject(err));
-    });
+      getAllEventsWithName(
+        'LogCFDRegistrySale',
+        this.cfdRegistry,
+        fromBlock
+      ).then(
+        events => {
+          if (events == undefined || events.length <= 0) {
+            resolve([])
+            return
+          }
+          // For each event, find the cfd address
+          events = events
+            .filter(function (ev) {
+              if (ev.raw.topics.length <= 1) return false
+              ev.address =
+                '0x' + ev.raw.topics[1].substr(ev.raw.topics[1].length - 40)
+              return true
+            })
+            // And remove duplicates events (by checking cfd address)
+            .filter(
+              (ev, i, self) =>
+                i === self.findIndex(t => t.address == ev.address)
+            )
+          // For each event, get the CFD
+          getCFDs(events).then(cfds =>
+            resolve(
+              cfds.filter(cfd => {
+                // Check cfd
+                if (cfd == undefined) return false
+                // Get only the CFD that are not initialized and not closed
+                if (
+                  cfd.details.status == STATUS.SALE &&
+                  cfd.details.closed == false &&
+                  (cfd.details.buyerIsSelling == true ||
+                    cfd.details.sellerIsSelling == true)
+                )
+                  return true
+                return false
+              })
+            )
+          )
+        },
+        err => reject(err)
+      )
+    })
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   /**
    * Convert market id in string format to bytes32 format
-   * @param marketIdStr eg. Poloniex_ETH_USD
+   * @param marketIdStr eg. Kyber_ETH_DAI
    * @return bytes32 sha3 of the marketIdStr
    */
   marketIdStrToBytes(marketIdStr) {
