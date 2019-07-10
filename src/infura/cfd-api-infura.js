@@ -109,60 +109,54 @@ export default class CFDAPI {
     const self = this,
       cfd = getContract(cfdAddress, self.web3)
     return Promise.all([
-      cfd.methods.getCfdAttributes().call(), // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
-      cfd.methods.getCfdAttributes2().call(), // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
-      cfd.methods.getCfdAttributes3().call(), // [termninated,upgradeCalledBy]
+      cfd.methods.getCfdAttributes().call(),    // [buyer,seller,market,strikePrice,notionalAmountDai,buyerSelling,sellerSelling,status]
+      cfd.methods.getCfdAttributes2().call(),   // [buyerInitialNotional,sellerInitialNotional,buyerDepositBalance,sellerDepositBalance,buyerSaleStrikePrice,sellerSaleStrikePrice,buyerInitialStrikePrice,sellerInitialStrikePrice]
+      cfd.methods.getCfdAttributes3().call(),   // [termninated,upgradeCalledBy,liquidatedMutually,liquidateMutualCalledBy]
       cfd.methods.closed().call()
-    ])
-      .then(function (values) {
-        // Got all the data, fetch the data that needed previous values
-        return Promise.all([
-          self.marketIdBytesToStr(values[0][2]), // [market]
-          cfd.methods
-            .cutOffPrice(values[0][4], values[1][2], values[1][6], true)
-            .call(), // [buyerLiquidationPrice]
-          cfd.methods
-            .cutOffPrice(values[0][4], values[1][3], values[1][7], false)
-            .call() // [sellerLiquidationPrice]
-        ])
-          .then(function (values2) {
-            // Got the rest of the data
-            return Object.assign(cfd, {
-              details: {
-                address: cfdAddress.toLowerCase(),
-                closed: values[3],
-                status: parseInt(values[0][7]),
-                liquidated: values[2][0],
-                upgradeCalledBy: values[2][1].toLowerCase(),
-                buyer: values[0][0].toLowerCase(),
-                buyerIsSelling: values[0][5],
-                seller: values[0][1].toLowerCase(),
-                sellerIsSelling: values[0][6],
-                market: values2[0],
-                notionalAmountDai: fromContractBigNumber(values[0][4]),
-                buyerInitialNotional: fromContractBigNumber(values[1][0]),
-                sellerInitialNotional: fromContractBigNumber(values[1][1]),
-                strikePrice: fromContractBigNumber(values[0][3]),
-                buyerSaleStrikePrice: fromContractBigNumber(values[1][4]),
-                sellerSaleStrikePrice: fromContractBigNumber(values[1][5]),
-                buyerDepositBalance: fromContractBigNumber(values[1][2]),
-                sellerDepositBalance: fromContractBigNumber(values[1][3]),
-                buyerInitialStrikePrice: fromContractBigNumber(values[1][6]),
-                sellerInitialStrikePrice: fromContractBigNumber(values[1][7]),
-                buyerLiquidationPrice: fromContractBigNumber(values2[1]),
-                sellerLiquidationPrice: fromContractBigNumber(values2[2])
-              }
-            })
-          })
-          .catch(error => {
-            console.log(error)
-            return undefined
-          })
-      })
-      .catch(error => {
-        console.log(error)
-        return undefined
-      })
+    ]).then(function (values) {
+      // Got all the data, fetch the data that needed previous values
+      return Promise.all([
+        self.marketIdBytesToStr(values[0][2]),                                            // [market]
+        cfd.methods.cutOffPrice(values[0][4], values[1][2], values[1][6], true).call(),   // [buyerLiquidationPrice]
+        cfd.methods.cutOffPrice(values[0][4], values[1][3], values[1][7], false).call()   // [sellerLiquidationPrice]
+      ]).then(function (values2) {
+        // Got the rest of the data
+        return Object.assign(cfd, {
+          details: {
+            address: cfdAddress.toLowerCase(),
+            closed: values[3],
+            status: parseInt(values[0][7]),
+            liquidated: values[2][0],
+            upgradeCalledBy: values[2][1].toLowerCase(),
+            liquidatedMutually: values[2][2],
+            liquidateMutualCalledBy: values[2][3].toLowerCase(),
+            buyer: values[0][0].toLowerCase(),
+            buyerIsSelling: values[0][5],
+            seller: values[0][1].toLowerCase(),
+            sellerIsSelling: values[0][6],
+            market: values2[0],
+            notionalAmountDai: fromContractBigNumber(values[0][4]),
+            buyerInitialNotional: fromContractBigNumber(values[1][0]),
+            sellerInitialNotional: fromContractBigNumber(values[1][1]),
+            strikePrice: fromContractBigNumber(values[0][3]),
+            buyerSaleStrikePrice: fromContractBigNumber(values[1][4]),
+            sellerSaleStrikePrice: fromContractBigNumber(values[1][5]),
+            buyerDepositBalance: fromContractBigNumber(values[1][2]),
+            sellerDepositBalance: fromContractBigNumber(values[1][3]),
+            buyerInitialStrikePrice: fromContractBigNumber(values[1][6]),
+            sellerInitialStrikePrice: fromContractBigNumber(values[1][7]),
+            buyerLiquidationPrice: fromContractBigNumber(values2[1]),
+            sellerLiquidationPrice: fromContractBigNumber(values2[2])
+          }
+        })
+      }).catch(error => {
+        console.log(error);
+        return undefined;
+      });
+    }).catch(error => {
+      console.log(error);
+      return undefined;
+    });
   }
 
   /**

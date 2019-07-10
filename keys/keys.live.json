@@ -2,7 +2,7 @@
   "network": "live",
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
-  "deploymentBlockNumber": 7985000,
+  "deploymentBlockNumber": 8080000,
 
   "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
   "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
@@ -11,7 +11,6 @@
 
   "registryAddr": "0xc1c4a78AAf6aFe490cF50786aba503Ece0F91281",
 
-  "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
   "cfdRegistryContractAddr": "0x2807cB2aC9Bab6a00a9E0F549A375FA2fa7d347F",
   "cfdFactoryContractAddr": "0x9F7436432FCC50E941DBf496532f5b8EF4c13861",
   "priceFeedsContractAddr": "0x7D19d8DC18dD5a6Cd72d3D3bb55a84bC2D6A6596",
