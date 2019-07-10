@@ -8,7 +8,7 @@
   "daemonAccountAddr": "0x821aea9a577a9b44299b9c15c88cf3087f3b5544",
   "feeds": {
     "kyber": {
-      "kyberNetworkAddr": "0x118A7b23B7a2e6A57963d017A7E76A4E2636F075",
+      "kyberNetworkProxyAddr": "0x118A7b23B7a2e6A57963d017A7E76A4E2636F075",
       "markets": {
         "Kyber_ETH_DAI": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
         "Kyber_ETH_WBTC": "0xAaF64BFCC32d0F15873a02163e7E500671a4ffcD"

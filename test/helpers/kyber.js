@@ -19,7 +19,7 @@ const addMarketKyber = async (priceFeedsKyber, tokenContractAddr, marketStr) =>
 
 /**
  * Push a given price into the kyber mock contract.
- * @param {Web3.eth.Contract} kyberMock KyberNetwork contract handle
+ * @param {Web3.eth.Contract} kyberMock KyberNetworkProxy contract handle
  * @param {string} tokenAddress Address of token on kyber market
  * @param {BigNumber|string} price value in raw form (eg. '160.5' for 160.60 USD)
  */
@@ -29,24 +29,10 @@ const mockKyberPut = async (kyberMock, tokenAddress, price) => {
   await kyberMock.methods.put(tokenAddress, valueAsBytes32).send()
 }
 
-/**
- * Get current price for given token from mock kyber contract.
- * @param {Web3.eth.Contract} kyberMock KyberNetwork contract handle
- */
-const mockKyberGet = (kyberMock, tokenAddress) =>
-  kyberMock.methods
-    .getExpectedRateOnlyPermission(
-      KyberNativeEthAddress,
-      tokenAddress,
-      Utils.toWei('1', 'ether')
-    )
-    .call()
-
 export {
   EthDaiMarketStr,
   EthWbtcMarketStr,
   KyberNativeEthAddress,
   addMarketKyber,
   mockKyberPut,
-  mockKyberGet
 }

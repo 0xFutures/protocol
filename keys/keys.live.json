@@ -3,29 +3,23 @@
   "gasDefault": 2000000,
   "gasPrice": 2000000000,
   "deploymentBlockNumber": 8080000,
-
   "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
   "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
-
   "daiTokenAddr": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-
   "registryAddr": "0xc1c4a78AAf6aFe490cF50786aba503Ece0F91281",
-
   "cfdRegistryContractAddr": "0x2807cB2aC9Bab6a00a9E0F549A375FA2fa7d347F",
   "cfdFactoryContractAddr": "0x9F7436432FCC50E941DBf496532f5b8EF4c13861",
   "priceFeedsContractAddr": "0x7D19d8DC18dD5a6Cd72d3D3bb55a84bC2D6A6596",
   "priceFeedsKyberContractAddr": "0xa1CB033B81f3386BA8f35C373F3b22A8380B68b4",
-
   "feeds": {
     "kyber": {
-      "kyberNetworkAddr": "0x9ae49C0d7F8F9EF4B864e004FE86Ac8294E20950",
+      "kyberNetworkProxyAddr": "0x9ae49C0d7F8F9EF4B864e004FE86Ac8294E20950",
       "markets": {
         "Kyber_ETH_DAI": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
         "Kyber_ETH_WBTC": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
       }
     }
   },
-
   "cfdProxyContractAddr": "0x5a2dcA47E589517a0AfD12806c8df639FAEc8A0c",
   "dsProxyFactoryContractAddr": "0xF3a37c7D6160077138e837f87e353C29C5969723"
 }

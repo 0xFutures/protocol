@@ -15,13 +15,17 @@ contract PriceFeedsKyber is DBC, Ownable {
     string constant REASON_MUST_BE_ACTIVE_MARKET = "Market must be active to push a value";
     string constant REASON_KYBER_PRICE_CALL_FAILED = "Kyber price call failed";
 
+    /* Adding this bit to the srcQty excludes permissionless reserves from
+       the price fetch */
+    uint public constant BITMASK_EXCLUDE_PERMISSIONLESS = 1 << 255;
+
     /* When getting a price for ETH to some ERC20 then ETH is represented
        by the following address: */
     address constant kyberNativeEthAddr = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     bytes4 constant getExpectedRateCallSig = bytes4(
         keccak256(
-            "getExpectedRateOnlyPermission(address,address,uint256)"
+            "getExpectedRate(address,address,uint256)"
         )
     );
 
@@ -32,14 +36,14 @@ contract PriceFeedsKyber is DBC, Ownable {
     mapping(bytes32 => Market) markets;
     mapping(bytes32 => string) public marketNames;
 
-    address kyberNetworkContract;
+    address kyberNetworkProxyContract;
 
-    constructor(address _kyberNetworkContract) public {
-        setKyberNetworkContract(_kyberNetworkContract);
+    constructor(address _kyberNetworkProxyContract) public {
+        setKyberNetworkProxyContract(_kyberNetworkProxyContract);
     }
 
-    function setKyberNetworkContract(address _kyberNetworkContract) public onlyOwner {
-        kyberNetworkContract = _kyberNetworkContract;
+    function setKyberNetworkProxyContract(address _kyberNetworkProxyContract) public onlyOwner {
+        kyberNetworkProxyContract = _kyberNetworkProxyContract;
     }
 
     function isMarketActive(bytes32 _marketId) public view returns (bool) {
@@ -70,7 +74,7 @@ contract PriceFeedsKyber is DBC, Ownable {
                 getExpectedRateCallSig,
                 kyberNativeEthAddr,
                 _tokenContract,
-                1 ether
+                1 ether | BITMASK_EXCLUDE_PERMISSIONLESS
             )
         );
         marketNames[marketId] = _marketStrId;
@@ -102,7 +106,7 @@ contract PriceFeedsKyber is DBC, Ownable {
 
         bool success;
         bytes memory rspData;
-        (success, rspData) = kyberNetworkContract.staticcall(
+        (success, rspData) = kyberNetworkProxyContract.staticcall(
             market.encodedCall
         );
 

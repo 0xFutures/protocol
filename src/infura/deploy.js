@@ -84,9 +84,8 @@ const deployPriceFeeds = async (web3, config, logFn) => {
   }
 
   logFn('Deploying PriceFeedsKyber ...')
-
   const priceFeedsKyber = await PriceFeedsKyber.deploy({
-    arguments: [config.feeds.kyber.kyberNetworkAddr]
+    arguments: [config.feeds.kyber.kyberNetworkProxyAddr]
   }).send(txOpts)
   logFn(`PriceFeedsKyber: ${priceFeedsKyber.options.address}`)
 

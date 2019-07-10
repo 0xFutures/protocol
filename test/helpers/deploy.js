@@ -5,8 +5,8 @@ import configTest from '../../config.test.json'
 import {
   daiTokenInstance,
   daiTokenInstanceDeployed,
-  kyberNetworkInstance,
-  kyberNetworkInstanceDeployed
+  kyberNetworkProxyInstance,
+  kyberNetworkProxyInstanceDeployed
 } from '../../src/infura/contracts'
 import { deployAll } from '../../src/infura/deploy'
 import {
@@ -53,7 +53,7 @@ const deployMock = async (web3, config, instanceFn) => {
 const deployMocks = async (web3, config) => {
   return {
     daiToken: await deployMock(web3, config, daiTokenInstance),
-    kyberNetwork: await deployMock(web3, config, kyberNetworkInstance)
+    kyberNetworkProxy: await deployMock(web3, config, kyberNetworkProxyInstance)
   }
 }
 
@@ -72,22 +72,22 @@ const deployAllForTest = async ({
   // console.log(new Error().stack)
 
   let daiToken
-  let kyberNetwork
+  let kyberNetworkProxy
 
   // Mock contracts
   if (firstTime) {
     const mocks = await deployMocks(web3, config)
     daiToken = mocks.daiToken
-    kyberNetwork = mocks.kyberNetwork
+    kyberNetworkProxy = mocks.kyberNetworkProxy
   } else {
     daiToken = await daiTokenInstanceDeployed(config, web3)
-    kyberNetwork = await kyberNetworkInstanceDeployed(config, web3)
+    kyberNetworkProxy = await kyberNetworkProxyInstanceDeployed(config, web3)
   }
 
   if (initialPriceKyberDAI) {
     // console.log(`pushing price ${initialPriceKyberDAI}`)
     await mockKyberPut(
-      kyberNetwork,
+      kyberNetworkProxy,
       daiToken.options.address,
       initialPriceKyberDAI
     )
@@ -96,7 +96,7 @@ const deployAllForTest = async ({
   // Deploy ALL
   const configUpdated = Object.assign({}, config)
   configUpdated.daiTokenAddr = daiToken.options.address
-  configUpdated.feeds.kyber.kyberNetworkAddr = kyberNetwork.options.address
+  configUpdated.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
 
   const deployment = await deployAll(web3, configUpdated, firstTime)
   const { priceFeedsKyber } = deployment
@@ -124,9 +124,9 @@ const deployAllForTest = async ({
     // deployed test market details
     markets: MARKETS,
     marketNames: MARKET_NAMES,
-    // add kyberNetwork as it's not in 'deployment' from deployAll
+    // add kyberNetworkProxy as it's not in 'deployment' from deployAll
     // only a test env mock contract
-    kyberNetwork
+    kyberNetworkProxy
   })
 }
 

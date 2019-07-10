@@ -21,7 +21,7 @@ import {
   assertStatus
 } from '../helpers/assert'
 import { deployAllForTest } from '../helpers/deploy'
-import { mockKyberGet, mockKyberPut } from '../helpers/kyber'
+import { mockKyberPut } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
 
 const REJECT_MESSAGE =
@@ -33,7 +33,7 @@ const MAXIMUM_COLLATERAL_PERCENT = new BigNumber(500)
 const ONE_DAI = new BigNumber('1e18')
 const ONE_BN = new BigNumber(1)
 
-describe('ContractForDifference', function() {
+describe('ContractForDifference', function () {
   const ContractForDifference = cfdInstance(web3.currentProvider, config)
 
   // some defaults for testing
@@ -57,7 +57,7 @@ describe('ContractForDifference', function() {
   let priceFeedsKyber
   let cfdRegistry
   let daiToken
-  let kyberNetwork
+  let kyberNetworkProxy
   let markets
   let marketNames
 
@@ -75,20 +75,20 @@ describe('ContractForDifference', function() {
       transferToGuy = accounts[7]
       buyingParty2 = accounts[9]
 
-      // eslint-disable-next-line no-extra-semi
-      ;({
-        cfdRegistry,
-        priceFeeds,
-        priceFeedsKyber,
-        registry,
-        daiToken,
-        kyberNetwork,
-        markets,
-        marketNames
-      } = await deployAllForTest({
-        web3,
-        initialPriceKyberDAI: strikePriceRaw
-      }))
+        // eslint-disable-next-line no-extra-semi
+        ; ({
+          cfdRegistry,
+          priceFeeds,
+          priceFeedsKyber,
+          registry,
+          daiToken,
+          kyberNetworkProxy,
+          markets,
+          marketNames
+        } = await deployAllForTest({
+          web3,
+          initialPriceKyberDAI: strikePriceRaw
+        }))
       strikePriceAdjusted = toContractBigNumber(strikePriceRaw)
       marketId = markets[marketNames.kyberEthDai]
 
@@ -119,8 +119,8 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('initiation', function() {
-    it('creates a new CFD with contract terms', async function() {
+  describe('initiation', function () {
+    it('creates a new CFD with contract terms', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assert.equal(
         await cfd.methods.market().call(),
@@ -169,7 +169,7 @@ describe('ContractForDifference', function() {
       await assertStatus(cfd, STATUS.CREATED)
     })
 
-    it('creates a new CFD with colateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('creates a new CFD with colateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const collateral = minimumCollateral
       const cfd = await newCFD({
         notionalAmount,
@@ -188,7 +188,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('initiates the contract on counterparty deposit()', async function() {
+    it('initiates the contract on counterparty deposit()', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assert.equal(
         await cfd.methods.buyer().call(),
@@ -244,13 +244,13 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('allows deposit with collateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('allows deposit with collateral exactly MINIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, minimumCollateral.toFixed())
       await assertStatus(cfd, STATUS.INITIATED)
     })
 
-    it('can cancel newly created contract before a deposit', async function() {
+    it('can cancel newly created contract before a deposit', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assert.isFalse(
         await cfd.methods.initiated().call(),
@@ -267,7 +267,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('rejects create with collateral less then MINIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('rejects create with collateral less then MINIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const collateral = minimumCollateral.minus(1)
       try {
         await newCFD({ notionalAmount, isBuyer: true, daiValue: collateral })
@@ -277,7 +277,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('rejects create with collateral more then MAXIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('rejects create with collateral more then MAXIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const collateral = maximumCollateral.plus(1)
       try {
         await newCFD({ notionalAmount, isBuyer: true, daiValue: collateral })
@@ -287,7 +287,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('rejects create with notional amount less then minimum', async function() {
+    it('rejects create with notional amount less then minimum', async function () {
       const notionalBelowMinimum = ONE_DAI.minus(1)
       const collateral = notionalBelowMinimum
       try {
@@ -302,7 +302,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('rejects deposit with collateral less then MINIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('rejects deposit with collateral less then MINIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       try {
         const collateral = minimumCollateral.minus(1)
@@ -313,7 +313,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('rejects deposit with collateral more then MAXIMUM_COLLATERAL_PERCENT of the notional', async function() {
+    it('rejects deposit with collateral more then MAXIMUM_COLLATERAL_PERCENT of the notional', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       try {
         const collateral = maximumCollateral.plus(1)
@@ -324,7 +324,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('rejects if market is not registered with price feeds', async function() {
+    it('rejects if market is not registered with price feeds', async function () {
       const badMarket = web3.utils.keccak256('Coinbase_No_Market')
       try {
         await newCFD({ market: badMarket, notionalAmount, isBuyer: true })
@@ -338,10 +338,10 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('forceTerminate()', function() {
+  describe('forceTerminate()', function () {
     const penaltyPercent = new BigNumber('0.05') // 5%
 
-    it('disolves contract and penalises terminator - 1x leverage and price up', async function() {
+    it('disolves contract and penalises terminator - 1x leverage and price up', async function () {
       const collateral1X = notionalAmount
       const cfd = await newCFD({
         notionalAmount,
@@ -388,7 +388,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('disolves contract and penalises terminator - 5x leverage price down', async function() {
+    it('disolves contract and penalises terminator - 5x leverage price down', async function () {
       const leverage = 5
       const collateral5X = minimumCollateral
 
@@ -438,7 +438,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('disolves contract and penalises terminator - after seller side has been sold', async function() {
+    it('disolves contract and penalises terminator - after seller side has been sold', async function () {
       const buyer = buyingParty2
       const seller = counterpartyAccount
 
@@ -489,8 +489,8 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('transferPosition()', function() {
-    it('transfers seller side ownership', async function() {
+  describe('transferPosition()', function () {
+    it('transfers seller side ownership', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
       assert.equal(
@@ -528,7 +528,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('transfers buyer side ownership', async function() {
+    it('transfers buyer side ownership', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
       assert.equal(
@@ -565,7 +565,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('can transfer before initiated (before a counterparty via deposit())', async function() {
+    it('can transfer before initiated (before a counterparty via deposit())', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       const txReceipt = await cfd.methods.transferPosition(transferToGuy).send({
         from: creatorAccount
@@ -588,7 +588,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it("can't transfer to one of the 2 contract parties", async function() {
+    it("can't transfer to one of the 2 contract parties", async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
 
@@ -613,10 +613,10 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('liquidation via threshold reached - call liquidate()', function() {
+  describe('liquidation via threshold reached - call liquidate()', function () {
     // #11 ensures the contract does not disolve if the daemon is wrong for
     // some reason about the liquidate threshold being reached
-    it('rejects the update if called and the threshold has not been reached', async function() {
+    it('rejects the update if called and the threshold has not been reached', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
 
@@ -637,7 +637,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('disolves the contract - 1x leverage both sides, price rise - kyber price feed', async function() {
+    it('disolves the contract - 1x leverage both sides, price rise - kyber price feed', async function () {
       // push price onto the mock kyber contract
       const ethDaiPrice = '211.99'
       const ethDaiPriceAdjusted = toContractBigNumber(ethDaiPrice)
@@ -682,7 +682,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('disolves the contract - 5x leverage both sides, price rise', async function() {
+    it('disolves the contract - 5x leverage both sides, price rise', async function () {
       const collateral5X = minimumCollateral
 
       const cfd = await newCFD({
@@ -729,7 +729,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('disolves the contract - 5x leverage both sides, price falls', async function() {
+    it('disolves the contract - 5x leverage both sides, price falls', async function () {
       const collateral5X = minimumCollateral
 
       const cfd = await newCFD({
@@ -770,8 +770,8 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('liquidation via liquidateMutual()', function() {
-    it('succeeds when both parties call', async function() {
+  describe('liquidation via liquidateMutual()', function () {
+    it('succeeds when both parties call', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
 
@@ -791,7 +791,7 @@ describe('ContractForDifference', function() {
       assert.isTrue(await cfd.methods.liquidatedMutually().call())
     })
 
-    it('first caller can reverse intent to liquidate', async function() {
+    it('first caller can reverse intent to liquidate', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, counterpartyAccount, notionalAmount.toFixed())
       await cfd.methods.liquidateMutual().send({
@@ -814,8 +814,8 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('price movement calculations', function() {
-    it('percentOf() calculates percentage of an amount', async function() {
+  describe('price movement calculations', function () {
+    it('percentOf() calculates percentage of an amount', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assertEqualBN(
         await cfd.methods.percentOf(1000, 1).call(),
@@ -831,7 +831,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('percentChange() calculates percentage change of 2 amounts', async function() {
+    it('percentChange() calculates percentage change of 2 amounts', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       assertEqualBN(
         await cfd.methods.percentChange(10000, 9000).call(),
@@ -847,7 +847,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('changeInDai() calculates value change based on new price', async function() {
+    it('changeInDai() calculates value change based on new price', async function () {
       const price = toContractBigNumber('100')
       const amount = ONE_DAI
       const cfd = await newCFD({
@@ -877,8 +877,8 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('cutOffPrice()', function() {
-    it('calculates dynamic percentage correctly for each side', async function() {
+  describe('cutOffPrice()', function () {
+    it('calculates dynamic percentage correctly for each side', async function () {
       const notional = ONE_DAI.times(10)
       const strikePrice = toContractBigNumber('1000')
 
@@ -958,7 +958,7 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('calculateCollateralAmount()', function() {
+  describe('calculateCollateralAmount()', function () {
     let defaultInitialStrikePrice
     let defaultNotional = notionalAmount
     let defaultCFD
@@ -998,7 +998,7 @@ describe('ContractForDifference', function() {
       return price.plus(price.times(new BigNumber(by)))
     }
 
-    it('buyer and seller 1x leverage and price goes up', async function() {
+    it('buyer and seller 1x leverage and price goes up', async function () {
       const priceMovement = '0.1'
       const newPrice = adjustPrice({ by: priceMovement })
       await assertCollateral({
@@ -1015,7 +1015,7 @@ describe('ContractForDifference', function() {
       })
     })
 
-    it('buyer and seller 1x leverage and price goes down', async function() {
+    it('buyer and seller 1x leverage and price goes down', async function () {
       const priceMovement = '-0.1'
       const newPrice = adjustPrice({ by: priceMovement })
       await assertCollateral({
@@ -1032,7 +1032,7 @@ describe('ContractForDifference', function() {
       })
     })
 
-    it('buyer and seller 5x leverage and price goes up', async function() {
+    it('buyer and seller 5x leverage and price goes up', async function () {
       const leverage = 5
       const priceMovement = new BigNumber('0.1')
       const newPrice = adjustPrice({ by: priceMovement })
@@ -1055,7 +1055,7 @@ describe('ContractForDifference', function() {
       })
     })
 
-    it('buyer and seller 5x leverage and price goes down', async function() {
+    it('buyer and seller 5x leverage and price goes down', async function () {
       const leverage = 5
       const priceMovement = new BigNumber('-0.1')
       const newPrice = adjustPrice({ by: priceMovement })
@@ -1078,7 +1078,7 @@ describe('ContractForDifference', function() {
       })
     })
 
-    it('buyer at 1x and seller at 5x leverage and price goes up', async function() {
+    it('buyer at 1x and seller at 5x leverage and price goes up', async function () {
       const leverageBuyer = 1
       const leverageSeller = 5
 
@@ -1111,14 +1111,14 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('calculateNewNotional', function() {
+  describe('calculateNewNotional', function () {
     let cfd
 
     before(async () => {
       cfd = await newCFD({ notionalAmount, isBuyer: true })
     })
 
-    it('calculates the new notional correctly', async function() {
+    it('calculates the new notional correctly', async function () {
       assertEqualBN(
         await cfd.methods
           .calculateNewNotional(
@@ -1142,7 +1142,7 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('sale', function() {
+  describe('sale', function () {
     let buyer
     let seller
 
@@ -1155,7 +1155,7 @@ describe('ContractForDifference', function() {
 
     it(
       `view functions isBuyerSelling, isSellerSelling, isSelling ` +
-        `work correctly`,
+      `work correctly`,
       async () => {
         // initiate contract
         const cfd = await newCFD({ notionalAmount, isBuyer: true })
@@ -1202,7 +1202,7 @@ describe('ContractForDifference', function() {
     //  - a buyer comes along and buys that side with 2x leverage
     //  - seller gets back full collateral
     //
-    it('a buyer buys the "on sale" position with enough collateral - 2X', async function() {
+    it('a buyer buys the "on sale" position with enough collateral - 2X', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1328,7 +1328,7 @@ describe('ContractForDifference', function() {
     //  - a buyer comes along and buys that side
     //  - new notional amount is set
     //
-    it('new notional correct when buyer sells at 20% higher strike price', async function() {
+    it('new notional correct when buyer sells at 20% higher strike price', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1373,7 +1373,7 @@ describe('ContractForDifference', function() {
     //  - a buyer comes along and buys that side
     //  - new notional amount is set
     //
-    it('new notional correct when seller sells at 20% lower strike price', async function() {
+    it('new notional correct when seller sells at 20% lower strike price', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1421,7 +1421,7 @@ describe('ContractForDifference', function() {
     //  - assert the selling parties receive collateral amounts
     //  - assert CFD values are all correct after the sales
     //
-    it('both sides can be on sale at once with different terms', async function() {
+    it('both sides can be on sale at once with different terms', async function () {
       const buyBuyerSide = true
       const collateral1X = notionalAmount
       const collateral2X = notionalAmount.dividedBy(2)
@@ -1576,7 +1576,7 @@ describe('ContractForDifference', function() {
       assert.equal(await cfd.methods.sellerSaleStrikePrice().call(), 0)
     })
 
-    it('buyer buy rejected with collateral less then 20% of the notional', async function() {
+    it('buyer buy rejected with collateral less then 20% of the notional', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1598,7 +1598,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('buyer can cancel a sale', async function() {
+    it('buyer can cancel a sale', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
@@ -1620,7 +1620,7 @@ describe('ContractForDifference', function() {
       assert.equal(await cfd.methods.buyerSaleStrikePrice().call(), 0)
     })
 
-    it('seller can cancel a sale', async function() {
+    it('seller can cancel a sale', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
@@ -1642,7 +1642,7 @@ describe('ContractForDifference', function() {
       assert.equal(await cfd.methods.sellerSaleStrikePrice().call(), 0)
     })
 
-    it('buyer can update sale price', async function() {
+    it('buyer can update sale price', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
@@ -1656,7 +1656,7 @@ describe('ContractForDifference', function() {
       assertEqualBN(await cfd.methods.buyerSaleStrikePrice().call(), newPrice)
     })
 
-    it('seller can update sale price', async function() {
+    it('seller can update sale price', async function () {
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
       const saleStrikePrice = strikePriceAdjusted.times(1.05)
@@ -1672,12 +1672,12 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('topup and withdraw', function() {
+  describe('topup and withdraw', function () {
     before(async () => {
       await putNewPrice(strikePriceAdjusted)
     })
 
-    it('allows topup up', async function() {
+    it('allows topup up', async function () {
       const collateral2X = notionalAmount.dividedBy(2)
       const cfd = await newCFD({
         notionalAmount,
@@ -1728,7 +1728,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('allows withdraw and returns money to callers', async function() {
+    it('allows withdraw and returns money to callers', async function () {
       const collateral1X = notionalAmount
       const cfd = await newCFD({
         notionalAmount,
@@ -1786,7 +1786,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('rejects withdraw that brings the collateral down below minimum', async function() {
+    it('rejects withdraw that brings the collateral down below minimum', async function () {
       const collateral1X = notionalAmount
 
       const cfd = await newCFD({
@@ -1830,7 +1830,7 @@ describe('ContractForDifference', function() {
     })
   })
 
-  describe('check selling over liquidation price', function() {
+  describe('check selling over liquidation price', function () {
     let buyer
     let seller
 
@@ -1841,7 +1841,7 @@ describe('ContractForDifference', function() {
       await putNewPrice(strikePriceAdjusted)
     })
 
-    it('selling at liquidation price as buyer', async function() {
+    it('selling at liquidation price as buyer', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1868,7 +1868,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('selling at liquidation price as seller', async function() {
+    it('selling at liquidation price as seller', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1895,7 +1895,7 @@ describe('ContractForDifference', function() {
       }
     })
 
-    it('selling over liquidation price as buyer', async function() {
+    it('selling over liquidation price as buyer', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -1919,7 +1919,7 @@ describe('ContractForDifference', function() {
       )
     })
 
-    it('selling under liquidation price as seller', async function() {
+    it('selling under liquidation price as seller', async function () {
       // initiate contract
       const cfd = await newCFD({ notionalAmount, isBuyer: true })
       await deposit(cfd, seller, notionalAmount.toFixed())
@@ -2017,7 +2017,7 @@ describe('ContractForDifference', function() {
 
   const putNewPrice = newValueContractBN =>
     mockKyberPut(
-      kyberNetwork,
+      kyberNetworkProxy,
       daiToken.options.address,
       fromContractBigNumber(newValueContractBN.toFixed())
     )

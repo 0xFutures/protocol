@@ -13,7 +13,7 @@ import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
 import RegistryJSON from '../../abi/Registry.json'
 
 import MockDAITokenJSON from '../../abi/DAIToken.json'
-import MockKyberNetworkJSON from '../../abi/KyberNetwork.json'
+import MockKyberNetworkProxyJSON from '../../abi/KyberNetworkProxy.json'
 
 /**********************************************************
  *  Contract handles for deployed contracts.
@@ -119,11 +119,11 @@ const daiTokenInstanceDeployed = async (config, web3) =>
 const daiTokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)
 
-const kyberNetworkInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, config.feeds.kyber.kyberNetworkAddr, MockKyberNetworkJSON)
+const kyberNetworkProxyInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, config.feeds.kyber.kyberNetworkProxyAddr, MockKyberNetworkProxyJSON)
 
-const kyberNetworkInstance = (web3Provider, config) =>
-  contractInstance(MockKyberNetworkJSON, web3Provider, config)
+const kyberNetworkProxyInstance = (web3Provider, config) =>
+  contractInstance(MockKyberNetworkProxyJSON, web3Provider, config)
 
 /**
  * Create a handle to an instance of a contract already deployed on the
@@ -209,8 +209,8 @@ module.exports = {
   dsProxyInstanceDeployed,
   dsProxyFactoryInstance,
   dsProxyFactoryInstanceDeployed,
-  kyberNetworkInstance,
-  kyberNetworkInstanceDeployed,
+  kyberNetworkProxyInstance,
+  kyberNetworkProxyInstanceDeployed,
   forwardFactoryInstance,
   priceFeedsInstance,
   priceFeedsInstanceDeployed,

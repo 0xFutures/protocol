@@ -47,6 +47,26 @@ if (fs.existsSync(configFileKovan)) {
   }
 }
 
+// add live network if config file has been created
+const configFileLive = './config.live.json'
+if (fs.existsSync(configFileLive)) {
+  const configLive = require(configFileLive)
+  networks.live = {
+    provider: function () {
+      return new HDWalletProvider(
+        configLive.hdWalletMnemonic,
+        configLive.rpcAddr,
+        0,
+        5
+      )
+    },
+    network_id: 1,
+    from: configLive.ownerAccountAddr,
+    gas: defaultGasLimit,
+    gasPrice: configLive.gasPrice
+  }
+}
+
 module.exports = {
   compilers: {
     solc: {

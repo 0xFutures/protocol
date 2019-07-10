@@ -2,7 +2,7 @@ import { assert } from 'chai'
 import * as Utils from 'web3-utils'
 
 import {
-  kyberNetworkInstance,
+  kyberNetworkProxyInstance,
   priceFeedsInstance,
   priceFeedsKyberInstance
 } from '../../src/infura/contracts'
@@ -17,7 +17,7 @@ const EthWbtcMarketStr = 'Kyber_ETH_WBTC'
 const EthDaiMarket = {
   name: EthDaiMarketStr,
   id: Utils.sha3(EthDaiMarketStr),
-  tokenAddress: Utils.randomHex(20) // stub fake address - KyberNetwork doesn't call through to token
+  tokenAddress: Utils.randomHex(20) // stub fake address - KyberNetworkProxy doesn't call through to token
 }
 
 const EthWbtcMarket = {
@@ -29,7 +29,7 @@ const EthWbtcMarket = {
 describe('PriceFeeds', function() {
   const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
   const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)
-  const KyberNetworkMock = kyberNetworkInstance(web3.currentProvider, config)
+  const KyberNetworkProxyMock = kyberNetworkProxyInstance(web3.currentProvider, config)
 
   const OWNER_ACCOUNT = config.ownerAccountAddr
 
@@ -39,14 +39,14 @@ describe('PriceFeeds', function() {
 
   let pfkContract
   let pfContract
-  let kyberNetworkContract
+  let kyberNetworkProxyContract
 
   beforeEach(async () => {
-    kyberNetworkContract = await KyberNetworkMock.deploy({}).send(txOpts)
+    kyberNetworkProxyContract = await KyberNetworkProxyMock.deploy({}).send(txOpts)
 
     // PriceFeedsKyber contract
     pfkContract = await PriceFeedsKyber.deploy({
-      arguments: [kyberNetworkContract.options.address]
+      arguments: [kyberNetworkProxyContract.options.address]
     }).send(txOpts)
 
     await pfkContract.methods
@@ -54,7 +54,7 @@ describe('PriceFeeds', function() {
       .send()
 
     await mockKyberPut(
-      kyberNetworkContract,
+      kyberNetworkProxyContract,
       EthDaiMarket.tokenAddress,
       marketValueStr
     )
@@ -103,7 +103,7 @@ describe('PriceFeeds', function() {
 
     describe('market zero value reverts', () => {
       it('kyber', async () => {
-        await kyberNetworkContract.methods
+        await kyberNetworkProxyContract.methods
           .put(EthDaiMarket.tokenAddress, '0x0')
           .send()
         await assertReverts(

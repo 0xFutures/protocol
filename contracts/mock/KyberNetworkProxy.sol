@@ -1,19 +1,15 @@
 pragma solidity ^0.5.0;
 
 /**
- * Mock version of the KyberNetwork contract for getting the
+ * Mock version of the KyberNetworkProxy contract for getting the
  * market rates in test and development.
+ * see https://developer.kyber.network/docs/API_ABI-KyberNetworkProxy/
  */
 
-// solium-disable no-empty-blocks
-interface ERC20 {}
-
-contract KyberNetwork {
+contract KyberNetworkProxy {
     mapping(address => uint) rates;
 
-    function getExpectedRateOnlyPermission(ERC20 src, ERC20 dest, uint srcQty)
-        public
-        view
+    function getExpectedRate(address src, address dest, uint srcQty) public view
         returns (uint expectedRate, uint slippageRate)
     {
         uint rate = rates[address(dest)];

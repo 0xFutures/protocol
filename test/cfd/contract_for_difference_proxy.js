@@ -129,7 +129,7 @@ describe('ContractForDifferenceProxy', function() {
       ethDaiPriceAdjusted.times(1.951)
     )
     await mockKyberPut(
-      deployment.kyberNetwork,
+      deployment.kyberNetworkProxy,
       daiToken.options.address,
       newMarketPrice
     )
