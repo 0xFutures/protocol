@@ -20,19 +20,19 @@ import MockKyberNetworkJSON from '../../abi/KyberNetwork.json'
  *********************************************************/
 
 const cfdFactoryInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'cfdFactoryContractAddr', CFDFactoryJSON)
+  deployedInstance(config, web3, config.cfdFactoryContractAddr, CFDFactoryJSON)
 
 const cfdRegistryInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'cfdRegistryContractAddr', CFDRegistryJSON)
+  deployedInstance(config, web3, config.cfdRegistryContractAddr, CFDRegistryJSON)
 
 const cfdProxyInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'cfdProxyContractAddr', CFDProxyJSON)
+  deployedInstance(config, web3, config.cfdProxyContractAddr, CFDProxyJSON)
 
 const priceFeedsInstanceDeployed = async (config, web3) =>
   deployedInstance(
     config,
     web3,
-    'priceFeedsContractAddr',
+    config.priceFeedsContractAddr,
     PriceFeedsJSON,
     config.PriceFeedsKyberContractAddr
   )
@@ -41,18 +41,18 @@ const priceFeedsKyberInstanceDeployed = async (config, web3) =>
   deployedInstance(
     config,
     web3,
-    'priceFeedsKyberContractAddr',
+    config.priceFeedsKyberContractAddr,
     PriceFeedsKyberJSON
   )
 
 const registryInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'registryAddr', RegistryJSON)
+  deployedInstance(config, web3, config.registryAddr, RegistryJSON)
 
 const dsProxyFactoryInstanceDeployed = async (config, web3) =>
   deployedInstance(
     config,
     web3,
-    'dsProxyFactoryContractAddr',
+    config.dsProxyFactoryContractAddr,
     DSProxyFactoryJSON
   )
 
@@ -114,13 +114,13 @@ const dsProxyInstance = (web3Provider, config) =>
  *********************************************************/
 
 const daiTokenInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'daiTokenAddr', MockDAITokenJSON)
+  deployedInstance(config, web3, config.daiTokenAddr, MockDAITokenJSON)
 
 const daiTokenInstance = (web3Provider, config) =>
   contractInstance(MockDAITokenJSON, web3Provider, config)
 
 const kyberNetworkInstanceDeployed = async (config, web3) =>
-  deployedInstance(config, web3, 'kyberNetworkAddr', MockKyberNetworkJSON)
+  deployedInstance(config, web3, config.feeds.kyber.kyberNetworkAddr, MockKyberNetworkJSON)
 
 const kyberNetworkInstance = (web3Provider, config) =>
   contractInstance(MockKyberNetworkJSON, web3Provider, config)
@@ -145,7 +145,7 @@ const deployedContractInstance = async (
   if (code === '0x0' || code === '0x') {
     throw new Error(
       `${contractJSON.contractName} contract NOT deployed at ${addr}.` +
-        ` Check the address and network settings.`
+      ` Check the address and network settings.`
     )
   }
   return new web3.eth.Contract(contractJSON.abi, addr, {
@@ -158,12 +158,12 @@ const deployedContractInstance = async (
 const deployedInstance = (
   config,
   web3,
-  addrKey,
+  instanceAddr,
   abiJSON,
   defaultFrom = config.ownerAccountAddr
 ) =>
   deployedContractInstance(
-    config[addrKey],
+    instanceAddr,
     abiJSON,
     defaultFrom,
     config.gasPrice,

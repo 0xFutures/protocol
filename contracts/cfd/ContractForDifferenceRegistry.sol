@@ -21,9 +21,6 @@ contract ContractForDifferenceRegistry is DBC, Ownable {
 
     mapping(address => bool) public cfds;
 
-    constructor() public {
-    }
-
     function setFactory(address _factory) public onlyOwner {
         factory = _factory;
     }
