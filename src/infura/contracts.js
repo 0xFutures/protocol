@@ -7,6 +7,7 @@ import CFDRegistryJSON from '../../abi/ContractForDifferenceRegistry.json'
 import CFDProxyJSON from '../../abi/ContractForDifferenceProxy.json'
 import DSProxyFactoryJSON from '../../abi/DSProxyFactory.json'
 import DSProxyJSON from '../../abi/DSProxy.json'
+import KyberFacadeJSON from '../../abi/KyberFacade.json'
 import PriceFeedsJSON from '../../abi/PriceFeeds.json'
 import PriceFeedsKyberJSON from '../../abi/PriceFeedsKyber.json'
 import ForwardFactoryJSON from '../../abi/ForwardFactory.json'
@@ -109,6 +110,9 @@ const dsProxyFactoryInstance = (web3Provider, config) =>
 const dsProxyInstance = (web3Provider, config) =>
   contractInstance(DSProxyJSON, web3Provider, config)
 
+const kyberFacadeInstance = (web3Provider, config) =>
+  contractInstance(KyberFacadeJSON, web3Provider, config)
+
 /**********************************************************
  *  Contract handles to mock and test only contracts.
  *********************************************************/
@@ -209,6 +213,7 @@ module.exports = {
   dsProxyInstanceDeployed,
   dsProxyFactoryInstance,
   dsProxyFactoryInstanceDeployed,
+  kyberFacadeInstance,
   kyberNetworkProxyInstance,
   kyberNetworkProxyInstanceDeployed,
   forwardFactoryInstance,
