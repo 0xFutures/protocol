@@ -25,7 +25,7 @@ contract KyberFacade is Ownable {
     // Kyber trades require a non 0 maximum destination amount. Since we don't
     // need to restrict on a maximum set it to a very large amount that won't
     // be hit
-    uint constant MAX_DEST_AMOUNT = 10**18 * 10**9; // 1 billion DAI
+    uint constant MAX_DEST_AMOUNT = 1e18 * 1e9; // 1 billion DAI
 
     /*
      * State
@@ -67,7 +67,7 @@ contract KyberFacade is Ownable {
             _daiToken,
             msg.value
         );
-        destAmount = kyber.tradeWithHint(
+        destAmount = kyber.tradeWithHint.value(msg.value)(
             NATIVE_ETH, // src token - ETH
             msg.value, // ETH amount
             _daiToken, // dest token - DAI

@@ -45,7 +45,7 @@ contract KyberNetworkProxy {
         returns(uint destAmount)
     {
         (uint rate,) = getExpectedRate(src, dest, srcAmount);
-        destAmount = rate * srcAmount;
+        destAmount = rate * srcAmount / 1e18;
         daiToken.transfer(destAddress, destAmount);
     }
 

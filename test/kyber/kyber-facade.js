@@ -6,6 +6,8 @@ import { assertEqualBN } from '../helpers/assert'
 import { deployMocks } from '../helpers/deploy'
 import { config, web3 } from '../helpers/setup'
 
+const oneEthBN = Utils.toBN(Utils.toWei('1', 'ether'))
+
 const KyberFacade = kyberFacadeInstance(web3.currentProvider, config)
 
 let daiToken
@@ -16,7 +18,6 @@ let kyberNetworkProxy
 describe('KyberFacade', function () {
   beforeEach(async () => {
     const mocks = await deployMocks(web3, config)
-
     daiToken = mocks.daiToken
     daiTokenAddr = daiToken.options.address
     kyberNetworkProxy = mocks.kyberNetworkProxy
@@ -32,8 +33,8 @@ describe('KyberFacade', function () {
   it('ethToDai', async () => {
     const accounts = await web3.eth.getAccounts()
     const destAddress = accounts[5]
-    const ethDaiPrice = kyberNetworkProxy.methods.rates(daiTokenAddr).call()
-    const ethAmount = Utils.toWei('1', 'ether')
+    const ethDaiPrice = await kyberNetworkProxy.methods.rates(daiTokenAddr).call()
+    const ethAmount = oneEthBN
 
     await kyberFacade.methods.ethToDai(
       daiTokenAddr,
@@ -44,7 +45,7 @@ describe('KyberFacade', function () {
 
     assertEqualBN(
       await daiToken.methods.balanceOf(destAddress).call(),
-      ethDaiPrice.times(ethAmount),
+      Utils.toBN(ethDaiPrice).mul(ethAmount).div(oneEthBN),
       'DAI transfer amount incorrect'
     )
   })

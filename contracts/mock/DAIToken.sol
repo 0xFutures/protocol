@@ -7,7 +7,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
  */
 contract DAIToken is ERC20 {
     string public constant symbol = "DAI";
-    uint public constant initialSupply = 10000 * 1e18;
+    uint public constant initialSupply = 1e6 * 1e18; // 1 million DAI
 
     constructor() public {
         _mint(msg.sender, initialSupply);

@@ -63,7 +63,7 @@ const deployMocks = async (web3, config) => {
     [daiToken.options.address]
   )
 
-  const daiAmountInKyberReserve = new BigNumber('1e18').times(100) // 100 DAI
+  const daiAmountInKyberReserve = Utils.toBN(new BigNumber('1e18').times(10000)) // 10000 DAI
   await daiToken.methods.transfer(
     kyberNetworkProxy.options.address,
     daiAmountInKyberReserve.toString()
