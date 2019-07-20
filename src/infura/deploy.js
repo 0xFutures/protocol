@@ -7,6 +7,7 @@ import {
   daiTokenInstanceDeployed,
   dsProxyFactoryInstance,
   forwardFactoryInstance,
+  kyberFacadeInstance,
   priceFeedsInstance,
   priceFeedsInstanceDeployed,
   priceFeedsKyberInstance,
@@ -130,6 +131,7 @@ const deployCFD = async (web3, config, logFn) => {
   const CFDFactory = cfdFactoryInstance(web3.currentProvider, config)
   const CFDRegistry = cfdRegistryInstance(web3.currentProvider, config)
   const CFDProxy = cfdProxyInstance(web3.currentProvider, config)
+  const KyberFacade = kyberFacadeInstance(web3.currentProvider, config)
 
   logFn('\nDeploying ForwardFactory ...')
   const ff = await ForwardFactory.deploy({}).send({
@@ -138,6 +140,19 @@ const deployCFD = async (web3, config, logFn) => {
     gasPrice: config.gasPrice
   })
   logFn(`ForwardFactory: ${ff.options.address}`)
+
+  logFn('Deploying KyberFacade ...')
+  const kyberFacade = await KyberFacade.deploy({
+    arguments: [
+      config.feeds.kyber.kyberNetworkProxyAddr,
+      config.feeds.kyber.walletId,
+    ]
+  }).send({
+    from: config.ownerAccountAddr,
+    gas: 1000000,
+    gasPrice: config.gasPrice
+  })
+  logFn(`KyberFacade: ${kyberFacade.options.address}`)
 
   logFn('Deploying ContractForDifferenceLibrary ...')
   const cfdLib = await CFDLibrary.deploy({}).send({
@@ -176,7 +191,8 @@ const deployCFD = async (web3, config, logFn) => {
       registryAddr,
       cfd.options.address,
       ff.options.address,
-      priceFeeds.options.address
+      priceFeeds.options.address,
+      kyberFacade.options.address
     ]
   }).send({
     from: config.ownerAccountAddr,

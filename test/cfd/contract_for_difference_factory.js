@@ -6,7 +6,8 @@ const {
   cfdInstance,
   cfdFactoryInstance,
   cfdRegistryInstance,
-  forwardFactoryInstance
+  forwardFactoryInstance,
+  kyberFacadeInstance
 } = require('../../src/infura/contracts')
 const { EMPTY_ACCOUNT, logGas } = require('../../src/infura/utils')
 
@@ -14,7 +15,7 @@ const { assertEqualBN } = require('../helpers/assert')
 const { deployAllForTest } = require('../helpers/deploy')
 const { config, web3 } = require('../helpers/setup')
 
-describe('ContractForDifferenceFactory', function() {
+describe('ContractForDifferenceFactory', function () {
   const ContractForDifference = cfdInstance(web3.currentProvider, config)
   const ContractForDifferenceFactory = cfdFactoryInstance(
     web3.currentProvider,
@@ -25,6 +26,7 @@ describe('ContractForDifferenceFactory', function() {
     config
   )
   const ForwardFactory = forwardFactoryInstance(web3.currentProvider, config)
+  const KyberFacade = kyberFacadeInstance(web3.currentProvider, config)
 
   const OWNER_ACCOUNT = config.ownerAccountAddr
 
@@ -41,22 +43,30 @@ describe('ContractForDifferenceFactory', function() {
 
     let priceFeeds
       // eslint-disable-next-line no-extra-semi
-    ;({ priceFeeds, registry, daiToken } = await deployAllForTest({
-      web3,
-      initialPriceKyberDAI: strikePrice
-    }))
+      ; ({ priceFeeds, registry, daiToken } = await deployAllForTest({
+        web3,
+        initialPriceKyberDAI: strikePrice
+      }))
 
     // create the CFD Factory
     const cfdRegistry = await ContractForDifferenceRegistry.deploy({}).send()
 
     const cfd = await ContractForDifference.deploy({}).send({ gas: 7000000 })
     const ff = await ForwardFactory.deploy({}).send()
+    const kyberFacade = await KyberFacade.deploy({
+      arguments: [
+        config.feeds.kyber.kyberNetworkProxyAddr,
+        config.feeds.kyber.walletId,
+      ]
+    }).send()
+
     cfdFactory = await ContractForDifferenceFactory.deploy({
       arguments: [
         registry.options.address,
         cfd.options.address,
         ff.options.address,
-        priceFeeds.options.address
+        priceFeeds.options.address,
+        kyberFacade.options.address
       ]
     }).send({ gas: 3000000 })
 
