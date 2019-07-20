@@ -31,7 +31,7 @@ const ethDaiPrice = '275.20'
 const ethDaiPriceAdjusted = toContractBigNumber(ethDaiPrice)
 const notionalAmountDai = new BigNumber('1e18') // 1 DAI
 
-describe('ContractForDifferenceProxy', function() {
+describe('ContractForDifferenceProxy', function () {
   let deployment
   let proxyApi
 

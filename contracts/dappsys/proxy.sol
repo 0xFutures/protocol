@@ -44,6 +44,7 @@ contract DSProxy is Ownable {
     function execute(address _target, bytes memory _data)
         public
         onlyOwner
+        payable
         returns (bytes memory response)
     {
         require(_target != address(0), "ds-proxy-target-address-required");

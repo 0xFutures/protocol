@@ -78,4 +78,21 @@ contract KyberFacade is Ownable {
             PERMISSIONED_ONLY_HINT
         );
     }
+
+    /**
+     * Get the expected ETH to DAI rate for the next trade
+     * (see getExpectedRate for details).
+     * @param _ethValue An amount of ETH to get the expected rate for.
+     */
+    function daiRate(address _daiToken, uint _ethValue)
+        public
+        view
+        returns (uint rate)
+    {
+        (rate,) = kyber.getExpectedRate(
+            NATIVE_ETH,
+            _daiToken,
+            _ethValue
+        );
+    }
 }

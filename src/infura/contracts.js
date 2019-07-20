@@ -29,6 +29,9 @@ const cfdRegistryInstanceDeployed = async (config, web3) =>
 const cfdProxyInstanceDeployed = async (config, web3) =>
   deployedInstance(config, web3, config.cfdProxyContractAddr, CFDProxyJSON)
 
+const kyberFacadeInstanceDeployed = async (config, web3) =>
+  deployedInstance(config, web3, config.kyberFacadeContractAddr, KyberFacadeJSON)
+
 const priceFeedsInstanceDeployed = async (config, web3) =>
   deployedInstance(
     config,
@@ -214,6 +217,7 @@ module.exports = {
   dsProxyFactoryInstance,
   dsProxyFactoryInstanceDeployed,
   kyberFacadeInstance,
+  kyberFacadeInstanceDeployed,
   kyberNetworkProxyInstance,
   kyberNetworkProxyInstanceDeployed,
   forwardFactoryInstance,

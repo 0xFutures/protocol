@@ -230,7 +230,8 @@ const deployCFD = async (web3, config, logFn) => {
   const updatedConfig = Object.assign({}, config, {
     cfdFactoryContractAddr: cfdFactory.options.address,
     cfdRegistryContractAddr: cfdRegistry.options.address,
-    cfdProxyContractAddr: cfdProxy.options.address
+    cfdProxyContractAddr: cfdProxy.options.address,
+    kyberFacadeContractAddr: kyberFacade.options.address,
   })
 
   return {
@@ -238,6 +239,7 @@ const deployCFD = async (web3, config, logFn) => {
     cfdFactory,
     cfdRegistry,
     cfdProxy,
+    kyberFacade,
     updatedConfig
   }
 }

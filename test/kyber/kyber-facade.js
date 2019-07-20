@@ -1,4 +1,3 @@
-import { assert } from 'chai'
 import * as Utils from 'web3-utils'
 
 import { kyberFacadeInstance } from '../../src/infura/contracts'
