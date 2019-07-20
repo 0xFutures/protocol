@@ -17,7 +17,7 @@
   "feeds": {
     "kyber": {
       "kyberNetworkProxyAddr": "0x692f391bCc85cefCe8C237C01e1f636BbD70EA4D",
-      "walletId": "ADD ME",
+      "walletId": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
       "markets": {
         "Kyber_ETH_DAI": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
         "Kyber_ETH_MKR": "0xAaF64BFCC32d0F15873a02163e7E500671a4ffcD"
