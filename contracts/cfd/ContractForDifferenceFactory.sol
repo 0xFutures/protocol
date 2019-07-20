@@ -130,10 +130,11 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         payable
         returns (ContractForDifference cfd)
     {
-        uint daiAmount = kyberFacade.ethToDai(
+        uint daiAmount = kyberFacade.ethToDai.value(msg.value)(
             address(registry.getDAI()),
             address(this)
         );
+
         cfd = createContractInternal(
             _marketId,
             _strikePrice,
@@ -173,14 +174,21 @@ contract ContractForDifferenceFactory is DBC, Ownable {
             ForwardFactory(forwardFactory).createForwarder(cfdModel)
         );
 
-        require(
-            registry.getDAI().transferFrom(
-                _daiWithCaller == true ? msg.sender : address(this),
-                address(cfd),
-                _value
-            ),
-            REASON_DAI_TRANSFER_FAILED
-        );
+        if (_daiWithCaller == true) {
+            require(
+                registry.getDAI().transferFrom(
+                    msg.sender,
+                    address(cfd),
+                    _value
+                ),
+                REASON_DAI_TRANSFER_FAILED
+            );
+        } else {
+            require(
+                registry.getDAI().transfer(address(cfd), _value),
+                REASON_DAI_TRANSFER_FAILED
+            );
+        }
 
         address creator = msg.sender;
         cfd.createNew(

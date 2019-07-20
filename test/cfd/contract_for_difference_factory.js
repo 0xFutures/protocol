@@ -36,14 +36,15 @@ describe('ContractForDifferenceFactory', function () {
   let cfdFactory
   let daiToken
   let registry
+  let kyberNetworkProxy
   let strikePrice
 
   before(async () => {
-    strikePrice = new BigNumber('800.0')
+    strikePrice = new BigNumber('250.0')
 
     let priceFeeds
       // eslint-disable-next-line no-extra-semi
-      ; ({ priceFeeds, registry, daiToken } = await deployAllForTest({
+      ; ({ priceFeeds, registry, daiToken, kyberNetworkProxy } = await deployAllForTest({
         web3,
         initialPriceKyberDAI: strikePrice
       }))
@@ -77,30 +78,8 @@ describe('ContractForDifferenceFactory', function () {
     ])
   })
 
-  it('creates a new CFD given valid terms and value', async () => {
-    const notionalAmount = new BigNumber('1e18') // 1 DAI
-    const initialValue = notionalAmount
-    await daiToken.methods
-      .approve(cfdFactory.options.address, initialValue.toFixed())
-      .send({
-        from: OWNER_ACCOUNT
-      })
-
-    const txReceipt = await cfdFactory.methods
-      .createContract(
-        MARKET_ID,
-        strikePrice.toFixed(),
-        notionalAmount.toFixed(),
-        true,
-        initialValue.toFixed()
-      )
-      .send({
-        gas: 2500000,
-        from: OWNER_ACCOUNT
-      })
-    logGas(`CFDFactory.createContract`, txReceipt)
-
-    const cfdAddrStr = txReceipt.events.LogCFDFactoryNew.raw.data
+  const assertCFD = async (createCFDTxReceipt, notionalAmount) => {
+    const cfdAddrStr = createCFDTxReceipt.events.LogCFDFactoryNew.raw.data
     const cfdAddr = '0x' + cfdAddrStr.substr(cfdAddrStr.length - 40)
     const cfd = getContract(cfdAddr, web3)
 
@@ -159,5 +138,61 @@ describe('ContractForDifferenceFactory', function () {
       await registry.methods.allCFDs(cfd.options.address).call(),
       'registry cfd address does not match the factory'
     )
+  }
+
+  it('creates a new CFD with DAI given valid terms and value', async () => {
+    const notionalAmount = new BigNumber('1e18') // 1 DAI
+    const daiValue = notionalAmount
+
+    await daiToken.methods
+      .approve(cfdFactory.options.address, daiValue.toFixed())
+      .send({
+        from: OWNER_ACCOUNT
+      })
+
+    const txReceipt = await cfdFactory.methods
+      .createContract(
+        MARKET_ID,
+        strikePrice.toFixed(),
+        notionalAmount.toFixed(),
+        true,
+        daiValue.toFixed()
+      )
+      .send({
+        gas: 2500000,
+        from: OWNER_ACCOUNT
+      })
+
+    logGas(`CFDFactory.createContract`, txReceipt)
+
+    await assertCFD(txReceipt, notionalAmount)
+  })
+
+  it('creates a new CFD with ETH given valid terms and value', async () => {
+    const notionalAmount = new BigNumber('1e18') // 1 DAI
+
+    const daiPrice = new BigNumber(await kyberNetworkProxy.methods.rates(
+      daiToken.options.address
+    ).call())
+
+    // equivalent to 1 DAI in ETH
+    const ethValue = notionalAmount.div(daiPrice).times('1e18')
+
+    const txReceipt = await cfdFactory.methods
+      .createContractWithETH(
+        MARKET_ID,
+        strikePrice.toFixed(),
+        notionalAmount.toFixed(),
+        true
+      )
+      .send({
+        gas: 1000000,
+        from: OWNER_ACCOUNT,
+        value: ethValue
+      })
+
+    logGas(`CFDFactory.createContractWithETH`, txReceipt)
+
+    await assertCFD(txReceipt, notionalAmount)
   })
 })
