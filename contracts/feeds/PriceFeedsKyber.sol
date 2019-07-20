@@ -2,6 +2,7 @@ pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "../DBC.sol";
+import "../Registry.sol";
 
 
 /**
@@ -36,14 +37,14 @@ contract PriceFeedsKyber is DBC, Ownable {
     mapping(bytes32 => Market) markets;
     mapping(bytes32 => string) public marketNames;
 
-    address kyberNetworkProxyContract;
+    Registry public registry;
 
-    constructor(address _kyberNetworkProxyContract) public {
-        setKyberNetworkProxyContract(_kyberNetworkProxyContract);
+    constructor(address _registry) public {
+        setRegistry(_registry);
     }
 
-    function setKyberNetworkProxyContract(address _kyberNetworkProxyContract) public onlyOwner {
-        kyberNetworkProxyContract = _kyberNetworkProxyContract;
+    function setRegistry(address _registry) public onlyOwner {
+        registry = Registry(_registry);
     }
 
     function isMarketActive(bytes32 _marketId) public view returns (bool) {
@@ -106,7 +107,7 @@ contract PriceFeedsKyber is DBC, Ownable {
 
         bool success;
         bytes memory rspData;
-        (success, rspData) = kyberNetworkProxyContract.staticcall(
+        (success, rspData) = address(registry.getKyberNetworkProxy()).staticcall(
             market.encodedCall
         );
 

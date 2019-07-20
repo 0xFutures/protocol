@@ -56,7 +56,7 @@ describe('ContractForDifferenceFactory', function () {
     const ff = await ForwardFactory.deploy({}).send()
     const kyberFacade = await KyberFacade.deploy({
       arguments: [
-        config.feeds.kyber.kyberNetworkProxyAddr,
+        registry.options.address,
         config.feeds.kyber.walletId,
       ]
     }).send()

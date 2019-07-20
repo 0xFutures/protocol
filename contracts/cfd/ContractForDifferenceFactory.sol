@@ -130,11 +130,7 @@ contract ContractForDifferenceFactory is DBC, Ownable {
         payable
         returns (ContractForDifference cfd)
     {
-        uint daiAmount = kyberFacade.ethToDai.value(msg.value)(
-            address(registry.getDAI()),
-            address(this)
-        );
-
+        uint daiAmount = kyberFacade.ethToDai.value(msg.value)(address(this));
         cfd = createContractInternal(
             _marketId,
             _strikePrice,

@@ -1,6 +1,7 @@
 pragma solidity ^0.5.0;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "../Registry.sol";
 import "./KyberNetworkProxyInterface.sol";
 
 /**
@@ -31,18 +32,21 @@ contract KyberFacade is Ownable {
      * State
      */
 
-    KyberNetworkProxyInterface kyber;
+    Registry public registry;
     address kyberWalletId;
 
-
-    constructor(
-        address _kyberNetworkProxyAddr,
-        address _kyberWalletId
-    ) public {
-        kyber = KyberNetworkProxyInterface(_kyberNetworkProxyAddr);
-        kyberWalletId = _kyberWalletId;
+    constructor(address _registry, address _kyberWalletId) public {
+        setRegistry(_registry);
+        setKyberWalletId(_kyberWalletId);
     }
 
+    function setRegistry(address _registry) public onlyOwner {
+        registry = Registry(_registry);
+    }
+
+    function setKyberWalletId(address _kyberWalletId) public onlyOwner {
+        kyberWalletId = _kyberWalletId;
+    }
 
     /**
      * Trade ETH for DAI with:
@@ -51,26 +55,23 @@ contract KyberFacade is Ownable {
      *  - a maximum 2% slip from the current expected rate
      *  - an unreachable maximum destination token amount (effectively no max)
      *
-     * @param _daiToken DAI ERC20 token contract address
      * @param _destAddress Receiver of DAI tokens
      */
-    function ethToDai(
-        address _daiToken,
-        address _destAddress
-    )
+    function ethToDai(address _destAddress)
         public
         payable
         returns (uint destAmount)
     {
-        (uint currentExpectedRate,) = kyber.getExpectedRate(
+        address daiToken = address(registry.getDAI());
+        (uint currentExpectedRate,) = registry.getKyberNetworkProxy().getExpectedRate(
             NATIVE_ETH,
-            _daiToken,
+            daiToken,
             msg.value
         );
-        destAmount = kyber.tradeWithHint.value(msg.value)(
+        destAmount = registry.getKyberNetworkProxy().tradeWithHint.value(msg.value)(
             NATIVE_ETH, // src token - ETH
             msg.value, // ETH amount
-            _daiToken, // dest token - DAI
+            daiToken, // dest token - DAI
             _destAddress, // DAI transferred to here
             MAX_DEST_AMOUNT,
             currentExpectedRate / 100 * 98, // allow a maximum 2% slip
@@ -84,14 +85,14 @@ contract KyberFacade is Ownable {
      * (see getExpectedRate for details).
      * @param _ethValue An amount of ETH to get the expected rate for.
      */
-    function daiRate(address _daiToken, uint _ethValue)
+    function daiRate(uint _ethValue)
         public
         view
         returns (uint rate)
     {
-        (rate,) = kyber.getExpectedRate(
+        (rate,) = registry.getKyberNetworkProxy().getExpectedRate(
             NATIVE_ETH,
-            _daiToken,
+            address(registry.getDAI()),
             _ethValue
         );
     }

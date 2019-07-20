@@ -4,6 +4,7 @@ import * as Utils from 'web3-utils'
 import {
   priceFeedsKyberInstance
 } from '../../src/infura/contracts'
+import { deployRegistry } from '../../src/infura/deploy'
 import { assertEqualBN } from '../helpers/assert'
 import { deployMocks } from '../helpers/deploy'
 import {
@@ -39,17 +40,25 @@ describe('PriceFeedsKyber', function () {
 
   let pfContract
   let kyberNetworkProxy
+  let registry
 
   beforeEach(async () => {
     const mocks = await deployMocks(web3, config)
     kyberNetworkProxy = mocks.kyberNetworkProxy
     EthDaiMarket.tokenAddress = mocks.daiToken.options.address
+
+    const newConfig = Object.assign({}, config)
+    newConfig.daiTokenAddr = EthDaiMarket.tokenAddress
+    newConfig.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
+
+    const deployRsp = await deployRegistry(web3, newConfig, () => { })
+    registry = deployRsp.registry
   })
 
   describe('read', () => {
     beforeEach(async () => {
       pfContract = await PriceFeedsKyber.deploy({
-        arguments: [kyberNetworkProxy.options.address]
+        arguments: [registry.options.address]
       }).send()
     })
 
@@ -84,7 +93,7 @@ describe('PriceFeedsKyber', function () {
 
   it('supports adding and removing markets', async () => {
     const feeds = await PriceFeedsKyber.deploy({
-      arguments: [kyberNetworkProxy.options.address]
+      arguments: [registry.options.address]
     }).send()
 
     assert.isFalse(await feeds.methods.isMarketActive(EthDaiMarket.id).call())

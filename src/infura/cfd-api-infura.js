@@ -130,7 +130,6 @@ export default class CFDAPI {
     // approximation of the actual rate that the trade will get but should be
     // quite close
     const daiRate = await this.kyberFacade.methods.daiRate(
-      this.daiToken.options.address,
       new BigNumber('1e18').toString()
     ).call()
     const depositETH = depositDAI.div(daiRate).times(new BigNumber('1e18'))

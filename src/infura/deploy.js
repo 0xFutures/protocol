@@ -54,6 +54,15 @@ const deployRegistry = async (web3, config, logFn) => {
   })
   logFn('done\n')
 
+  logFn('Calling registry.setKyberNetworkProxy ...')
+  await registry.methods.setKyberNetworkProxy(
+    config.feeds.kyber.kyberNetworkProxyAddr
+  ).send({
+    gas: config.gasDefault,
+    gasPrice: config.gasPrice
+  })
+  logFn('done\n')
+
   const updatedConfig = Object.assign({}, config, {
     registryAddr: registry.options.address
   })
@@ -86,7 +95,7 @@ const deployPriceFeeds = async (web3, config, logFn) => {
 
   logFn('Deploying PriceFeedsKyber ...')
   const priceFeedsKyber = await PriceFeedsKyber.deploy({
-    arguments: [config.feeds.kyber.kyberNetworkProxyAddr]
+    arguments: [config.registryAddr]
   }).send(txOpts)
   logFn(`PriceFeedsKyber: ${priceFeedsKyber.options.address}`)
 
@@ -144,7 +153,7 @@ const deployCFD = async (web3, config, logFn) => {
   logFn('Deploying KyberFacade ...')
   const kyberFacade = await KyberFacade.deploy({
     arguments: [
-      config.feeds.kyber.kyberNetworkProxyAddr,
+      config.registryAddr,
       config.feeds.kyber.walletId,
     ]
   }).send({
@@ -361,4 +370,4 @@ const deployAll = async (
   }
 }
 
-export { deployAll }
+export { deployAll, deployRegistry }

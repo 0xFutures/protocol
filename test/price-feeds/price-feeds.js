@@ -5,6 +5,7 @@ import {
   priceFeedsInstance,
   priceFeedsKyberInstance
 } from '../../src/infura/contracts'
+import { deployRegistry } from '../../src/infura/deploy'
 import { assertEqualBN } from '../helpers/assert'
 import { deployMocks } from '../helpers/deploy'
 import { EthDaiMarketStr } from '../helpers/kyber'
@@ -29,9 +30,15 @@ describe('PriceFeeds', function () {
     kyberNetworkProxy = mocks.kyberNetworkProxy
     EthDaiMarket.tokenAddress = mocks.daiToken.options.address
 
+    const newConfig = Object.assign({}, config)
+    newConfig.daiTokenAddr = EthDaiMarket.tokenAddress
+    newConfig.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
+    const deployRsp = await deployRegistry(web3, newConfig, () => { })
+    const registry = deployRsp.registry
+
     // PriceFeedsKyber contract
     pfkContract = await PriceFeedsKyber.deploy({
-      arguments: [kyberNetworkProxy.options.address]
+      arguments: [registry.options.address]
     }).send()
     await pfkContract.methods
       .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress)
