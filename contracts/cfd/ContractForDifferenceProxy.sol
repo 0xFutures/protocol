@@ -41,6 +41,28 @@ contract ContractForDifferenceProxy {
     }
 
     /**
+     * ContractForDifferenceFactory.createContractWithETH
+     */
+    function createContractWithETH(
+        ContractForDifferenceFactory _cfdf,
+        bytes32 _marketId,
+        uint _strikePrice,
+        uint _notionalAmountDai,
+        bool _isBuyer
+    )
+        external
+        payable
+        returns (ContractForDifference cfd)
+    {
+        cfd = _cfdf.createContractWithETH.value(msg.value)(
+            _marketId,
+            _strikePrice,
+            _notionalAmountDai,
+            _isBuyer
+        );
+    }
+
+    /**
      * ContractForDifference.deposit
      */
     function deposit(

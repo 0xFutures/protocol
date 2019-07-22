@@ -1,5 +1,3 @@
-var Tx = require('ethereumjs-tx')
-
 const BigNumber = require('bignumber.js')
 BigNumber.config({ DECIMAL_PLACES: 30 })
 
@@ -91,7 +89,7 @@ const signAndSendTransaction = (
   gasPrice,
   pushGasLimit = 100000
 ) => {
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     // Get the transaction count for the nonce
     web3.eth
       .getTransactionCount(account)
@@ -116,12 +114,12 @@ const signAndSendTransaction = (
               // Send the transaction
               web3.eth
                 .sendSignedTransaction(resp.rawTransaction)
-                .once('receipt', function(receipt) {
+                .once('receipt', function (receipt) {
                   // Transaction has been mined
                   console.log('[API-Infura] Transaction mined!')
                   resolve(receipt)
                 })
-                .on('error', function(error) {
+                .on('error', function (error) {
                   // Error
                   reject(error)
                 })
@@ -176,7 +174,7 @@ const getAllEventsWithName = (
         if (error || events == undefined) reject(error)
         else {
           // Filter the events (using the topics array for now, since event name is missing)
-          events = events.filter(function(ev) {
+          events = events.filter(function (ev) {
             if (
               ev == undefined ||
               ev.raw == undefined ||

@@ -8,18 +8,20 @@
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
   "registryAddr": "0x78b9fE5C58aAffcDFDaddb3e33fce4E3Da26b801",
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0xeE58524BBeBf2C411edBDaf5f0Ac0B8cfE4BA455",
-  "cfdFactoryContractAddr": "0xAD2CeDAb76c976383484C327483D7e922ab45ADD",
-  "priceFeedsContractAddr": "0x5d4664B996F2D0d86f6913F47Ea46C56bb46A42E",
-  "priceFeedsInternalContractAddr": "0x5759a9C18bA019C950e2C3dCD4a6713122aEDA22",
-  "priceFeedsExternalContractAddr": "0x0E5a1D665056daA361070DB9EE586A56c923405B",
-  "markets": {
-    "internal": [
-      "Coinbase_BTC",
-      "Coinbase_ETH"
-    ],
-    "external": {}
-  },
-  "cfdProxyContractAddr": "0x3E3FB3eF808B7A9F2E566929e9cD5DEE054055F5",
-  "dsProxyFactoryContractAddr": "0x7315b11954fBa6317b80363F40E5e543cEabC873"
+  "cfdRegistryContractAddr": "0xf237d7c788160261e2d3ff879f54e5faa801bda2",
+  "cfdFactoryContractAddr": "0xf6362ac8bcf1f5314e4d4c99478c77614a5b2d46",
+  "cfdProxyContractAddr": "0x45946c9d20b626d98c5290303929c33fd2197752",
+  "dsProxyFactoryContractAddr": "0xdd6bf4ccece9b61b12106aac8da2190b5c33a60d",
+  "priceFeedsContractAddr": "0xd8ba67141e93e59196a3741b8f2bbdc547c2149e",
+  "priceFeedsKyberContractAddr": "0xb913b7f4bb97cd45c644de0fab1f2ac74c61ff75",
+  "feeds": {
+    "kyber": {
+      "kyberNetworkProxyAddr": "0x692f391bCc85cefCe8C237C01e1f636BbD70EA4D",
+      "walletId": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
+      "markets": {
+        "Kyber_ETH_DAI": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
+        "Kyber_ETH_MKR": "0xAaF64BFCC32d0F15873a02163e7E500671a4ffcD"
+      }
+    }
+  }
 }

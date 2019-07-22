@@ -22,6 +22,7 @@ copyABI 'ContractForDifferenceRegistry'
 copyABI 'DSProxyFactory'
 copyABI 'DSProxy'
 copyABI 'DAIToken'
+copyABI 'KyberFacade'
 copyABI 'KyberNetworkProxy'
 
 cd -

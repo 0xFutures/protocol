@@ -34,10 +34,12 @@ const MARKETS = {
  * @param config Config instance (see config.<env>.json)
  * @return contract instance
  */
-const deployMock = async (web3, config, instanceFn) => {
+const deployMock = async (web3, config, instanceFn, constructorArgs = []) => {
   web3.eth.defaultAccount = config.ownerAccountAddr
   const contractHandle = instanceFn(web3.currentProvider, config)
-  const deployedInstance = await contractHandle.deploy({}).send({
+  const deployedInstance = await contractHandle.deploy({
+    arguments: constructorArgs
+  }).send({
     from: config.ownerAccountAddr,
     gas: config.gasDefault
   })
@@ -45,16 +47,36 @@ const deployMock = async (web3, config, instanceFn) => {
 }
 
 /**
- * Deploy mock tokens for testing.
+ * Deploy mock tokens for testing. 
+ * Setup the kyberNetworkProxy mock with a market price and DAI tokens.
  * @param web3 Connected Web3 instance
  * @param config Config instance (see config.<env>.json)
  * @return contract instance
  */
 const deployMocks = async (web3, config) => {
-  return {
-    daiToken: await deployMock(web3, config, daiTokenInstance),
-    kyberNetworkProxy: await deployMock(web3, config, kyberNetworkProxyInstance)
-  }
+  const daiToken = await deployMock(web3, config, daiTokenInstance)
+
+  const kyberNetworkProxy = await deployMock(
+    web3,
+    config,
+    kyberNetworkProxyInstance,
+    [daiToken.options.address]
+  )
+
+  const daiAmountInKyberReserve = Utils.toBN(new BigNumber('1e18').times(10000)) // 10000 DAI
+  await daiToken.methods.transfer(
+    kyberNetworkProxy.options.address,
+    daiAmountInKyberReserve.toString()
+  ).send()
+
+  const daiTokenPriceStr = '164.625'
+  await mockKyberPut(
+    kyberNetworkProxy,
+    daiToken.options.address,
+    daiTokenPriceStr
+  )
+
+  return { daiToken, kyberNetworkProxy }
 }
 
 /**
@@ -68,9 +90,6 @@ const deployAllForTest = async ({
   initialPriceKyberDAI, // push this price for kyber DAI market
   seedAccounts = [] // array of accounts to seed with DAI
 }) => {
-  // console.log(`TOP`)
-  // console.log(new Error().stack)
-
   let daiToken
   let kyberNetworkProxy
 
@@ -84,8 +103,8 @@ const deployAllForTest = async ({
     kyberNetworkProxy = await kyberNetworkProxyInstanceDeployed(config, web3)
   }
 
+  // override the default price inserted in deployMocks with a specific price
   if (initialPriceKyberDAI) {
-    // console.log(`pushing price ${initialPriceKyberDAI}`)
     await mockKyberPut(
       kyberNetworkProxy,
       daiToken.options.address,

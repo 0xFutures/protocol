@@ -9,6 +9,17 @@ import {
 } from './contracts'
 import { logGas, unpackAddress } from './utils'
 
+const createCFDTxRspToCfdInstance = (web3, config, eventHash, txEvents) => {
+  const cfdPartyEvent = Object.entries(txEvents).find(
+    e => e[1].raw.topics[0] === eventHash
+  )[1]
+  const cfdAddr = unpackAddress(cfdPartyEvent.raw.topics[1])
+
+  const cfd = cfdInstance(web3, config)
+  cfd.options.address = cfdAddr
+  return cfd
+}
+
 /**
  * A Proxy is created for each user in the 0xfutures system. This enables
  * bundling multiple steps into a single transaction. For example instead
@@ -87,7 +98,7 @@ export default class Proxy {
     userAddress
   ) {
     var self = this
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
       // Find the proxy address
       self.dsProxyFactory
         .getPastEvents('Created', {
@@ -167,15 +178,37 @@ export default class Proxy {
       isBuyer,
       value.toString()
     ])
+    return createCFDTxRspToCfdInstance(
+      this.web3,
+      this.config,
+      this.eventHashLogCFDRegistryParty,
+      txRsp.events
+    )
+  }
 
-    const cfdPartyEvent = Object.entries(txRsp.events).find(
-      e => e[1].raw.topics[0] === this.eventHashLogCFDRegistryParty
-    )[1]
-    const cfdAddr = unpackAddress(cfdPartyEvent.raw.topics[1])
-
-    const cfd = cfdInstance(this.web3, this.config)
-    cfd.options.address = cfdAddr
-    return cfd
+  async proxyCreateCFDWithETH({
+    proxy,
+    marketId,
+    strikePrice,
+    notional,
+    isBuyer,
+    valueETH
+  }) {
+    const txRsp = await this.proxyTx(proxy, 'createContractWithETH', [
+      this.cfdFactory.options.address,
+      marketId,
+      strikePrice.toString(),
+      notional.toString(),
+      isBuyer
+    ],
+      valueETH.toString()
+    )
+    return createCFDTxRspToCfdInstance(
+      this.web3,
+      this.config,
+      this.eventHashLogCFDRegistryParty,
+      txRsp.events
+    )
   }
 
   proxyDeposit(proxy, cfd, value) {
@@ -268,14 +301,16 @@ export default class Proxy {
    * @param {DSProxy} proxy
    * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} msgData Transaction msg.data to send
+   * @param {string} ethValue (optional) ETH amount
    */
-  async proxySendTransaction(proxy, msgData) {
+  async proxySendTransaction(proxy, msgData, ethValue) {
     return proxy.methods['execute(address,bytes)'](
       this.cfdProxy.options.address,
       msgData
     ).send({
       from: await proxy.methods.owner().call(),
-      gas: 2750000
+      gas: 2750000,
+      value: ethValue
     })
   }
 
@@ -284,10 +319,11 @@ export default class Proxy {
    * @param {DSProxy} proxy
    * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} method Signature/name of method to call on proxy
+   * @param {string} ethValue (optional) ETH amount
    */
-  async proxyTx(proxy, method, methodArgs) {
+  async proxyTx(proxy, method, methodArgs, ethValue) {
     const msgData = this.cfdProxy.methods[method](...methodArgs).encodeABI()
-    const txRsp = await this.proxySendTransaction(proxy, msgData)
+    const txRsp = await this.proxySendTransaction(proxy, msgData, ethValue)
     logGas(`CFD ${method} (through proxy)`, txRsp)
     return txRsp
   }

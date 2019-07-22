@@ -27,7 +27,7 @@ const ACCOUNT_PARTY = 7
 const ACCOUNT_COUNTERPARTY = 8
 const ACCOUNT_THIRDPARTY = 9
 
-describe('cfd-api.js', function() {
+describe('cfd-api.js', function () {
   let daiToken
 
   let buyer, seller
@@ -73,11 +73,11 @@ describe('cfd-api.js', function() {
         thirdParty = accounts[ACCOUNT_THIRDPARTY]
 
         let updatedConfig
-        ;({ daiToken, updatedConfig } = await deployAllForTest({
-          web3,
-          initialPriceKyberDAI: price,
-          seedAccounts: [buyer, seller, party, counterparty, thirdParty]
-        }))
+          ; ({ daiToken, updatedConfig } = await deployAllForTest({
+            web3,
+            initialPriceKyberDAI: price,
+            seedAccounts: [buyer, seller, party, counterparty, thirdParty]
+          }))
 
         const config = updatedConfig
 
@@ -136,8 +136,9 @@ describe('cfd-api.js', function() {
       })
   })
 
-  it('newCFD creates new contracts', async () => {
-    const cfd = await api.newCFD(
+
+  const newCFDTest = async (newCFDFnName) => {
+    const cfd = await api[newCFDFnName](
       marketStr,
       price,
       notionalAmountDai,
@@ -169,7 +170,11 @@ describe('cfd-api.js', function() {
 
     // clean up
     await api.cancelNew(cfd.options.address, buyerProxy)
-  })
+  }
+
+  it('newCFD creates new contract', () => newCFDTest('newCFD'))
+
+  it('newCFDWithETH creates new contract', () => newCFDTest('newCFDWithETH'))
 
   it('check cfdPartyIsBuyer contract details', async () => {
     const cfd = await api.getCFD(cfdPartyIsBuyer.options.address)
@@ -421,7 +426,7 @@ describe('cfd-api.js', function() {
     )
   })
 
-  describe('contractsForParty', function() {
+  describe('contractsForParty', function () {
     const callAndAssert = (party, options, assertFn) =>
       api
         .contractsForParty(party, options)
@@ -469,7 +474,7 @@ describe('cfd-api.js', function() {
     })
   })
 
-  describe('contractsWaitingCounterparty', function() {
+  describe('contractsWaitingCounterparty', function () {
     it('returns contracts awaiting a deposit', done => {
       api
         .newCFD(marketStr, price, notionalAmountDai, leverage, true, buyerProxy)
@@ -489,7 +494,7 @@ describe('cfd-api.js', function() {
     })
   })
 
-  describe('contractsForSale', function() {
+  describe('contractsForSale', function () {
     it('returns contracts for sale', async () => {
       const cfd = await newCFDInitiated(partyProxy, counterpartyProxy, true)
       await api.sellCFD(cfd.options.address, counterpartyProxy, price)
@@ -506,7 +511,7 @@ describe('cfd-api.js', function() {
     })
   })
 
-  describe('changeSaleCFD', function() {
+  describe('changeSaleCFD', function () {
     it('change sale price for a CFD for sale', async () => {
       const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
 
@@ -529,7 +534,7 @@ describe('cfd-api.js', function() {
     })
   })
 
-  describe('cancelSale', function() {
+  describe('cancelSale', function () {
     it('cancel a sale for a CFD', async () => {
       const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
 
@@ -543,7 +548,7 @@ describe('cfd-api.js', function() {
     })
   })
 
-  describe('topup & withdraw', function() {
+  describe('topup & withdraw', function () {
     let cfd
     const valueAdd = new BigNumber('2e18') // 2 DAI
 

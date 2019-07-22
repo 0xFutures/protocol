@@ -7,6 +7,7 @@ import {
   cfdFactoryInstanceDeployed,
   cfdRegistryInstanceDeployed,
   daiTokenInstanceDeployed,
+  kyberFacadeInstanceDeployed,
   priceFeedsInstanceDeployed
 } from './contracts'
 import {
@@ -85,6 +86,62 @@ export default class CFDAPI {
       notional: notionalBN.toFixed(),
       isBuyer,
       value
+    })
+  }
+
+  /**
+   * Create a new CFD with ETH. Collateral DAI is bought on the fly using the
+   * given ETH.
+   *
+   * @param marketIdStr Contract for this market (eg. "Kyber_ETH_DAI")
+   * @param strikePrice Contract strike price
+   * @param notionalAmountDai Contract amount
+   * @param leverage The leverage (between 0.01 and 5.00)
+   * @param isBuyer Creator wants to be contract buyer or seller
+   * @param creatorProxy Proxy of creator of the new CFD
+   *
+   * @return Promise resolving to a new cfd contract instance on
+   *            success or a promise failure if the tx failed
+   */
+  async newCFDWithETH(
+    marketIdStr,
+    strikePrice,
+    notionalAmountDai,
+    leverage,
+    isBuyer,
+    creatorProxy
+  ) {
+    assertBigNumberOrString(strikePrice)
+    assertBigNumberOrString(notionalAmountDai)
+    assertBigNumberOrString(leverage)
+
+    const strikePriceBN = toContractBigNumber(strikePrice).toFixed()
+    const marketId = this.marketIdStrToBytes(marketIdStr)
+    const leverageValue = parseFloat(leverage)
+
+    if (isNaN(leverageValue) === true || leverageValue === 0) {
+      return Promise.reject(new Error(`invalid leverage`))
+    }
+
+    const notionalBN = new BigNumber(notionalAmountDai)
+    const depositDAI = notionalBN.dividedBy(leverageValue)
+
+    // get the expected ETH to DAI rate for an amount of 1 ETH - this is an 
+    // approximation of the actual rate that the trade will get but should be
+    // quite close
+    const daiRate = await this.kyberFacade.methods.daiRate(
+      new BigNumber('1e18').toString()
+    ).call()
+    const depositETH = depositDAI.div(daiRate).times(new BigNumber('1e18'))
+    const valueETH = safeValue(depositETH)
+
+    return await this.proxyApi.proxyCreateCFDWithETH({
+      proxy: creatorProxy,
+      marketId,
+      strikePrice: strikePriceBN,
+      notional: notionalBN.toFixed(),
+      isBuyer,
+      valueETH
     })
   }
 
@@ -810,6 +867,7 @@ export default class CFDAPI {
     this.cfdFactory = await cfdFactoryInstanceDeployed(this.config, this.web3)
     this.cfdRegistry = await cfdRegistryInstanceDeployed(this.config, this.web3)
     this.daiToken = await daiTokenInstanceDeployed(this.config, this.web3)
+    this.kyberFacade = await kyberFacadeInstanceDeployed(this.config, this.web3)
     this.priceFeeds = await priceFeedsInstanceDeployed(this.config, this.web3)
     this.proxyApi = await ProxyAPI.newInstance(this.config, this.web3)
     return this

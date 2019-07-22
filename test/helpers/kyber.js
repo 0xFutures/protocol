@@ -2,6 +2,10 @@ import BigNumber from 'bignumber.js'
 import * as Utils from 'web3-utils'
 
 import { toContractBigNumber } from '../../src/infura/utils'
+import {
+  kyberNetworkProxyInstance,
+} from '../../src/infura/contracts'
+import { deployMocks } from '../../test/helpers/deploy'
 
 const EthDaiMarketStr = 'Kyber_ETH_DAI'
 const EthWbtcMarketStr = 'Kyber_ETH_WBTC'

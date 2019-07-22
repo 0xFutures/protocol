@@ -3,29 +3,42 @@ pragma solidity ^0.5.0;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "./DBC.sol";
+import "./kyber/KyberNetworkProxyInterface.sol";
 
 contract Registry is DBC, Ownable {
 
     string constant REASON_MUST_BE_LATEST_FACTORY = "Only latest CFD Factory can add new CFDs";
+
+    string constant KEY_CFD_FACTORY_LATEST = "CFDFactoryLatest";
+    string constant KEY_DAI = "DAI";
+    string constant KEY_KYBER_NETWORK_PROXY = "KyberNetworkProxy";
 
     mapping(bytes32 => address) contracts;
 
     bytes32 proxyCodeHash;
 
     function getCFDFactoryLatest() public view returns (address) {
-        return get("CFDFactoryLatest");
+        return get(KEY_CFD_FACTORY_LATEST);
     }
 
     function setCFDFactoryLatest(address _addr) public onlyOwner {
-        set("CFDFactoryLatest", _addr);
+        set(KEY_CFD_FACTORY_LATEST, _addr);
     }
 
     function getDAI() public view returns (ERC20) {
-        return ERC20(get("DAI"));
+        return ERC20(get(KEY_DAI));
     }
 
     function setDAI(address _addr) public onlyOwner {
-        set("DAI", _addr);
+        set(KEY_DAI, _addr);
+    }
+
+    function getKyberNetworkProxy() public view returns (KyberNetworkProxyInterface) {
+        return KyberNetworkProxyInterface(get(KEY_KYBER_NETWORK_PROXY));
+    }
+
+    function setKyberNetworkProxy(address _addr) public onlyOwner {
+        set(KEY_KYBER_NETWORK_PROXY, _addr);
     }
 
     function getProxyCodeHash() public view returns (bytes32) {

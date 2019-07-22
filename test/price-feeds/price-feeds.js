@@ -2,67 +2,52 @@ import { assert } from 'chai'
 import * as Utils from 'web3-utils'
 
 import {
-  kyberNetworkProxyInstance,
   priceFeedsInstance,
   priceFeedsKyberInstance
 } from '../../src/infura/contracts'
-import { toContractBigNumber } from '../../src/infura/utils'
+import { deployRegistry } from '../../src/infura/deploy'
 import { assertEqualBN } from '../helpers/assert'
-import { mockKyberPut } from '../helpers/kyber'
+import { deployMocks } from '../helpers/deploy'
+import { EthDaiMarketStr } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
-
-const EthDaiMarketStr = 'Kyber_ETH_DAI'
-const EthWbtcMarketStr = 'Kyber_ETH_WBTC'
 
 const EthDaiMarket = {
   name: EthDaiMarketStr,
   id: Utils.sha3(EthDaiMarketStr),
-  tokenAddress: Utils.randomHex(20) // stub fake address - KyberNetworkProxy doesn't call through to token
+  tokenAddress: undefined // added at create
 }
 
-const EthWbtcMarket = {
-  name: EthWbtcMarketStr,
-  id: Utils.sha3(EthWbtcMarketStr),
-  tokenAddress: undefined
-}
-
-describe('PriceFeeds', function() {
+describe('PriceFeeds', function () {
   const PriceFeeds = priceFeedsInstance(web3.currentProvider, config)
   const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)
-  const KyberNetworkProxyMock = kyberNetworkProxyInstance(web3.currentProvider, config)
-
-  const OWNER_ACCOUNT = config.ownerAccountAddr
-
-  const marketValueStr = '164.625'
-
-  const txOpts = { from: OWNER_ACCOUNT, gas: 2000000 }
 
   let pfkContract
   let pfContract
-  let kyberNetworkProxyContract
+  let kyberNetworkProxy
 
   beforeEach(async () => {
-    kyberNetworkProxyContract = await KyberNetworkProxyMock.deploy({}).send(txOpts)
+    const mocks = await deployMocks(web3, config)
+    kyberNetworkProxy = mocks.kyberNetworkProxy
+    EthDaiMarket.tokenAddress = mocks.daiToken.options.address
+
+    const newConfig = Object.assign({}, config)
+    newConfig.daiTokenAddr = EthDaiMarket.tokenAddress
+    newConfig.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
+    const deployRsp = await deployRegistry(web3, newConfig, () => { })
+    const registry = deployRsp.registry
 
     // PriceFeedsKyber contract
     pfkContract = await PriceFeedsKyber.deploy({
-      arguments: [kyberNetworkProxyContract.options.address]
-    }).send(txOpts)
-
+      arguments: [registry.options.address]
+    }).send()
     await pfkContract.methods
       .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress)
       .send()
 
-    await mockKyberPut(
-      kyberNetworkProxyContract,
-      EthDaiMarket.tokenAddress,
-      marketValueStr
-    )
-
     // PriceFeeds contract
     pfContract = await PriceFeeds.deploy({
       arguments: [pfkContract.options.address]
-    }).send(txOpts)
+    }).send()
   })
 
   const REVERT_MESSAGE =
@@ -87,7 +72,7 @@ describe('PriceFeeds', function() {
     it('kyber ok', async () => {
       assertEqualBN(
         await pfContract.methods.read(EthDaiMarket.id).call(),
-        toContractBigNumber(marketValueStr),
+        await kyberNetworkProxy.methods.rates(EthDaiMarket.tokenAddress).call(),
         'read() value for kyber market wrong'
       )
     })
@@ -103,7 +88,7 @@ describe('PriceFeeds', function() {
 
     describe('market zero value reverts', () => {
       it('kyber', async () => {
-        await kyberNetworkProxyContract.methods
+        await kyberNetworkProxy.methods
           .put(EthDaiMarket.tokenAddress, '0x0')
           .send()
         await assertReverts(
