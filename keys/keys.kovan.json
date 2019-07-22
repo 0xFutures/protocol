@@ -8,12 +8,12 @@
   "daiTokenAddr": "0xC4375B7De8af5a38a93548eb8453a498222C4fF2",
   "registryAddr": "0x20610ee765cda09d3ce4e87a370aa8ef4c25fb47",
   "feedContractAddr": "0x362720e7fa1c3465e516cfd1b85436d2bb255838",
-  "cfdRegistryContractAddr": "0x2a64380d350309287a8acde268936f4db2861053",
-  "cfdFactoryContractAddr": "0xb78709bdc15e09849398ac9134b8414cd5c1e859",
-  "cfdProxyContractAddr": "0xacc4ce471c70d5c5c6ec38bd2235c0a6e89d4e86",
-  "dsProxyFactoryContractAddr": "0xaf8863e4f903d3586ef74ee7165888780eae4735",
-  "priceFeedsContractAddr": "0x4ae9228c03ab8a5b2cce42e4d9ee21ba0f4cdb70",
-  "priceFeedsKyberContractAddr": "0x00b47fbbee59426d9d33bd9c950f4e701c387c3d",
+  "cfdRegistryContractAddr": "0x272588ac161157ebb67a1e675cce3252c4ff7437",
+  "cfdFactoryContractAddr": "0xb6adcd3615f2a52889813f44d5f78e29e2a264a0",
+  "cfdProxyContractAddr": "0xd1e13d6e62c31bb7fc177072c3c814b4191e4dd8",
+  "dsProxyFactoryContractAddr": "0xc4cd156d44df6db98ecea9a2a751c681e25b15b1",
+  "priceFeedsContractAddr": "0xf69119fce73bef2245f6d87cb5a9fbb15f747281",
+  "priceFeedsKyberContractAddr": "0xe69960adfbc89be20abed0c87576a25a534407a3",
   "feeds": {
     "kyber": {
       "kyberNetworkProxyAddr": "0x118A7b23B7a2e6A57963d017A7E76A4E2636F075",
@@ -24,5 +24,5 @@
       }
     }
   },
-  "kyberFacadeContractAddr": "0xa079d737e9a5c1bd76cdcf0dbed5cb1898c2af88"
+  "kyberFacadeContractAddr": "0x012c81e04a32785e8efdfd3b6a100f389ef24d0f"
 }
