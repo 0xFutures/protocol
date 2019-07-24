@@ -6,6 +6,7 @@ import {
   cfdProxyInstance,
   daiTokenInstanceDeployed,
   dsProxyFactoryInstance,
+  dsProxyFactoryInstanceDeployed,
   forwardFactoryInstance,
   kyberFacadeInstance,
   priceFeedsInstance,
@@ -304,15 +305,27 @@ const deployAll = async (
 
   let config = initialConfig
   let registry
+  let dsProxyFactory
+
   if (firstTime === true) {
     // create registry
-    const { registry: registryInstance, updatedConfig } = await deployRegistry(
+    const { registry: registryInstance, updatedConfig: configAfterRegistry } = await deployRegistry(
       web3,
       config,
       log
     )
-    config = updatedConfig
     registry = registryInstance
+    config = configAfterRegistry
+
+    // create proxy
+    const { updatedConfig: configAfterProxy, dsProxyFactory: dsProxyFactoryInstance } = await deployProxy(
+      web3,
+      config,
+      log,
+      registry
+    )
+    dsProxyFactory = dsProxyFactoryInstance
+    config = configAfterProxy
   } else {
     //
     // Not first deploy - so just get handle to existing Registry contract
@@ -323,6 +336,7 @@ const deployAll = async (
       )
     }
     registry = await registryInstanceDeployed(config, web3)
+    dsProxyFactory = await dsProxyFactoryInstanceDeployed(config, web3)
   }
 
   // DAIToken handle
@@ -348,14 +362,6 @@ const deployAll = async (
     cfdProxy
   } = await deployCFD(web3, config, log)
   config = configAfterCFD
-
-  const { updatedConfig: configAfterProxy, dsProxyFactory } = await deployProxy(
-    web3,
-    config,
-    log,
-    registry
-  )
-  config = configAfterProxy
 
   return {
     cfdFactory,
