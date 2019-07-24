@@ -299,7 +299,6 @@ export default class Proxy {
   /**
    * Send transaction to CFD proxy
    * @param {DSProxy} proxy
-   * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} msgData Transaction msg.data to send
    * @param {string} ethValue (optional) ETH amount
    */
@@ -317,8 +316,8 @@ export default class Proxy {
   /**
    * Helper function to build msg.data and call sendTransaction.
    * @param {DSProxy} proxy
-   * @param {ContractForDifferenceProxy} cfdProxy
    * @param {string} method Signature/name of method to call on proxy
+   * @param {array} methodArgs Method arguments
    * @param {string} ethValue (optional) ETH amount
    */
   async proxyTx(proxy, method, methodArgs, ethValue) {
