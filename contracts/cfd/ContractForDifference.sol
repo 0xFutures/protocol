@@ -288,10 +288,11 @@ contract ContractForDifference is DBC {
         address _cfdRegistryAddr,
         address _feedsAddr
     )
-        // NOTE on security: any address can call this however if the CFD
-        // instance has not yet been added to the ContractForDifferentRegistry
+        // NOTE on security: any address can call this however if this CFD
+        // address has not yet been added to the ContractForDifferentRegistry
         // (which only ContractForDifferenceFactory can do) then this
         // function will fail at registerParty() below.
+        //
         // Of course someone can call this with a fake
         // ContractForDifferenceRegistry but then nothing will touch
         // or change the state of the 0xfutures set of deployed contracts.
@@ -308,16 +309,18 @@ contract ContractForDifference is DBC {
         buyerDepositBalance = oldCfd.buyerDepositBalance();
         buyerInitialNotional = oldCfd.buyerInitialNotional();
         buyerInitialStrikePrice = oldCfd.buyerInitialStrikePrice();
+        buyerSelling = oldCfd.buyerSelling();
 
         sellerDepositBalance = oldCfd.sellerDepositBalance();
         sellerInitialNotional = oldCfd.sellerInitialNotional();
         sellerInitialStrikePrice = oldCfd.sellerInitialStrikePrice();
+        sellerSelling = oldCfd.sellerSelling();
 
         cfdRegistryAddr = _cfdRegistryAddr;
         registry = Registry(_registryAddr);
         feedsAddr = _feedsAddr;
 
-        initiated = true;
+        initiated = oldCfd.initiated();
 
         ContractForDifferenceRegistry(cfdRegistryAddr).registerParty(seller);
     }
@@ -966,25 +969,30 @@ contract ContractForDifference is DBC {
      * @dev Upgrade contract to a new version. This involves creating a new CFD
      *      at the latest contract set - transferring over all properties and
      *      value from this one to the new one.
-     *      An upgrade requires a call to this function from both parties. Then
-     *      upgrade will happen when the second party makes the call.
+     *
+     *      For INITIATED status an upgrade requires a call to this function
+     *      from both parties. The upgrade will happen when the second party
+     *      makes the call.
+     *
+     *      For CREATED status an upgrade only requires a call from the single
+     *      contract party.
      */
     function upgrade()
         external
         pre_cond(isContractParty(msg.sender), REASON_ONLY_CONTRACT_PARTIES)
-        pre_cond(isActive(), REASON_MUST_BE_ACTIVE)
-        pre_cond(isSelling(msg.sender) == false, REASON_MUST_NOT_BE_SELLER)
+        pre_cond(closed == false , REASON_MUST_NOT_BE_CLOSED)
         pre_cond(msg.sender != upgradeCalledBy, REASON_UPGRADE_ALREADY_SET)
         pre_cond(registry.allCFDs(address(this)) != registry.getCFDFactoryLatest(), REASON_UPGRADE_ALREADY_LATEST)
     {
-        // 1st call to initiate upgrade process
-        if (upgradeCalledBy == address(0)) {
+        // 1st call to initiate upgrade process (after CREATED status)
+        if (upgradeCalledBy == address(0) && status() != Status.CREATED) {
             upgradeCalledBy = msg.sender;
             return;
         }
 
-        // if here then then this is the 2nd call, invoked by the opposite, so
-        // kick off the upgrade process
+        // if here then then either status is CREATED or this is the 2nd
+        // upgrade() call on an active / 2 party contract, invoked by the
+        // opposite, so kick off the upgrade process
         upgradeable = true;
         address cfdFactoryLatest = registry.getCFDFactoryLatest();
         address newCfd = address(ContractForDifferenceFactory(cfdFactoryLatest).createByUpgrade());

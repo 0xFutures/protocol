@@ -30,7 +30,7 @@ const price = '67.00239'
 const isBigNumber = num =>
   typeof num === 'object' && 'e' in num && 'c' in num && 's' in num
 
-describe('cfd upgrade', function() {
+describe('cfd upgrade', function () {
   let buyer
   let seller
   let notionalAmountDai
@@ -42,13 +42,13 @@ describe('cfd upgrade', function() {
   const deployFullSet = async ({ config = configBase, firstTime }) => {
     let updatedConfig
       // eslint-disable-next-line no-extra-semi
-    ;({ updatedConfig } = await deployAllForTest({
-      web3,
-      initialPriceKyberDAI: price,
-      firstTime,
-      config,
-      seedAccounts: [buyer, seller]
-    }))
+      ; ({ updatedConfig } = await deployAllForTest({
+        web3,
+        initialPriceKyberDAI: price,
+        firstTime,
+        config,
+        seedAccounts: [buyer, seller]
+      }))
     return updatedConfig
   }
 
@@ -80,6 +80,36 @@ describe('cfd upgrade', function() {
     return { buyerProxy, sellerProxy }
   }
 
+  const assertPropsMatch = (oldCFD, newCFD) => {
+    const cfdProps = [
+      'closed',
+      'liquidated',
+      'buyer',
+      'buyerIsSelling',
+      'seller',
+      'sellerIsSelling',
+      'market',
+      'notionalAmountDai',
+      'buyerInitialNotional',
+      'sellerInitialNotional',
+      'strikePrice',
+      'buyerSaleStrikePrice',
+      'sellerSaleStrikePrice',
+      'buyerDepositBalance',
+      'sellerDepositBalance',
+      'buyerInitialStrikePrice',
+      'sellerInitialStrikePrice',
+      'buyerLiquidationPrice',
+      'sellerLiquidationPrice'
+    ]
+    cfdProps.forEach(prop => {
+      const msg = `${prop} should match`
+      isBigNumber(oldCFD[prop])
+        ? assertEqualBN(oldCFD[prop], newCFD[prop], msg)
+        : assert.equal(oldCFD[prop], newCFD[prop], msg)
+    })
+  }
+
   before(done => {
     notionalAmountDai = new BigNumber('1e18') // 1 DAI
     web3.eth
@@ -95,7 +125,7 @@ describe('cfd upgrade', function() {
       })
   })
 
-  it('core upgrade flow succeeds', async () => {
+  it('upgrade contract with status INITIATED', async () => {
     const deploymentConfig = { v1: {}, v2: {} }
 
     //
@@ -192,37 +222,126 @@ describe('cfd upgrade', function() {
 
     const newCFD = await cfdAPI.getCFD(newCFDAddr)
     const oldCFD = await cfdAPI.getCFD(cfd.options.address)
+    assertPropsMatch(oldCFD, newCFD)
 
-    assert.equal(STATUS.INITIATED, newCFD.details.status, `status initiated`)
+    assert.equal(newCFD.details.status, STATUS.INITIATED, `new status initiated`)
+  })
 
-    const cfdProps = [
-      'closed',
-      'liquidated',
-      'buyer',
-      'buyerIsSelling',
-      'seller',
-      'sellerIsSelling',
-      'market',
-      'notionalAmountDai',
-      'buyerInitialNotional',
-      'sellerInitialNotional',
-      'strikePrice',
-      'buyerSaleStrikePrice',
-      'sellerSaleStrikePrice',
-      'buyerDepositBalance',
-      'sellerDepositBalance',
-      'buyerInitialStrikePrice',
-      'sellerInitialStrikePrice',
-      'buyerLiquidationPrice',
-      'sellerLiquidationPrice'
-    ]
+  it('upgrade contract with status CREATED - no one has joined the other side yet', async () => {
+    const deploymentConfig = { v1: {}, v2: {} }
 
-    cfdProps.forEach(prop => {
-      const msg = `${prop} should match`
-      isBigNumber(oldCFD[prop])
-        ? assertEqualBN(oldCFD[prop], newCFD[prop], msg)
-        : assert.equal(oldCFD[prop], newCFD[prop], msg)
+    // Deploy full set of 0xfutures contracts and party proxies
+    deploymentConfig.v1 = await deployFullSet({ firstTime: true })
+    const { buyerProxy } = await createProxies(
+      deploymentConfig.v1,
+      buyer,
+      seller
+    )
+    cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)
+    const daiToken = await daiTokenInstanceDeployed(deploymentConfig.v1, web3)
+
+    // Create a CFD with a buyer side but no seller yet
+    const cfd = await cfdAPI.newCFD(
+      marketStr,
+      price,
+      notionalAmountDai,
+      leverage,
+      true, // buyer side
+      buyerProxy
+    )
+
+    // Deploy new set of contracts
+    deploymentConfig.v2 = await deployFullSet({
+      config: deploymentConfig.v1,
+      firstTime: false
     })
+
+    // Upgrade the contract - should work with only one call from the buyer
+    const cfdBalanceBefore = await daiToken.methods
+      .balanceOf(cfd.options.address)
+      .call()
+    const txUpgrade = await cfdAPI.upgradeCFD(cfd.options.address, buyerProxy)
+
+    // Check the old contract
+    assert.equal(
+      0,
+      await daiToken.methods.balanceOf(cfd.options.address).call(),
+      'balance transferred out'
+    )
+    await assertStatus(cfd, STATUS.CLOSED, `old cfd status closed`)
+
+    // Check the new contract
+    const newCFDAddr = unpackAddress(txUpgrade.events[7].raw.data)
+    assertEqualBN(
+      cfdBalanceBefore,
+      await daiToken.methods.balanceOf(newCFDAddr).call(),
+      'balance transferred in'
+    )
+
+    // Check all props match on old and new contracts
+    const newCFD = await cfdAPI.getCFD(newCFDAddr)
+    const oldCFD = await cfdAPI.getCFD(cfd.options.address)
+    assertPropsMatch(oldCFD, newCFD)
+
+    // check new cfd status 
+    assert.equal(newCFD.details.status, STATUS.CREATED, `new cfd status initiated`)
+  })
+
+  it('upgrade contract with one side on sale', async () => {
+    const deploymentConfig = { v1: {}, v2: {} }
+
+    // Deploy full set of 0xfutures contracts and party proxies
+    deploymentConfig.v1 = await deployFullSet({ firstTime: true })
+    const { buyerProxy, sellerProxy } = await createProxies(
+      deploymentConfig.v1,
+      buyer,
+      seller
+    )
+    cfdAPI = await CFDAPI.newInstance(deploymentConfig.v1, web3)
+    const daiToken = await daiTokenInstanceDeployed(deploymentConfig.v1, web3)
+
+    // create CFD with buyer and seller and put one side on sale
+    const cfd = await newCFDInitiated(buyerProxy, sellerProxy, true)
+    await cfdAPI.sellCFD(cfd.options.address, buyerProxy, price, 0)
+    await assertStatus(cfd, STATUS.SALE)
+
+    // Deploy new set of contracts
+    deploymentConfig.v2 = await deployFullSet({
+      config: deploymentConfig.v1,
+      firstTime: false
+    })
+
+    // Upgrade the contract - should work with only one call from the buyer
+    const cfdBalanceBefore = await daiToken.methods
+      .balanceOf(cfd.options.address)
+      .call()
+    await cfdAPI.upgradeCFD(cfd.options.address, buyerProxy)
+    const txUpgrade = await cfdAPI.upgradeCFD(cfd.options.address, sellerProxy)
+
+    // Check the old contract
+    assert.equal(
+      0,
+      await daiToken.methods.balanceOf(cfd.options.address).call(),
+      'balance transferred out'
+    )
+    await assertStatus(cfd, STATUS.CLOSED, `old cfd status closed`)
+
+    // Check the new contract
+    const newCFDAddr = unpackAddress(txUpgrade.events[7].raw.data)
+    assertEqualBN(
+      cfdBalanceBefore,
+      await daiToken.methods.balanceOf(newCFDAddr).call(),
+      'balance transferred in'
+    )
+
+    // Check all props match on old and new contracts
+    const newCFD = await cfdAPI.getCFD(newCFDAddr)
+    const oldCFD = await cfdAPI.getCFD(cfd.options.address)
+    assertPropsMatch(oldCFD, newCFD)
+
+    // explicitly check side is still on sale
+    assert.isTrue(newCFD.details.buyerIsSelling, `buyerSelling should still be set`)
+    assert.equal(newCFD.details.status, STATUS.SALE, `status should still be SALE`)
   })
 
   it('upgrade rejected for contract already at latest version', async () => {
