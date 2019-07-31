@@ -10,7 +10,7 @@ import { assertEqualAddress, assertStatus } from './helpers/assert'
 import { deployAllForTest } from './helpers/deploy'
 import { web3 } from './helpers/setup'
 
-const marketStr = 'Kyber_ETH_DAI'
+const marketStr = 'ETH/DAI'
 const marketId = Utils.sha3(marketStr)
 
 const price = '67.00239'

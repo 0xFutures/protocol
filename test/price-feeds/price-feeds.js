@@ -8,7 +8,7 @@ import {
 import { deployRegistry } from '../../src/infura/deploy'
 import { assertEqualBN } from '../helpers/assert'
 import { deployMocks } from '../helpers/deploy'
-import { EthDaiMarketStr } from '../helpers/kyber'
+import { EthDaiMarketStr, KyberNativeEthAddress } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
 
 const EthDaiMarket = {
@@ -41,7 +41,7 @@ describe('PriceFeeds', function () {
       arguments: [registry.options.address]
     }).send()
     await pfkContract.methods
-      .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress)
+      .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress, KyberNativeEthAddress)
       .send()
 
     // PriceFeeds contract

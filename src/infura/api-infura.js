@@ -90,14 +90,15 @@ export default class API {
   /**
    * Add a new kyber market feed.
    * @param marketIdStr Market ID for new market (eg. "Kyber_ETH_DAI")
-   * @param tokenAddr Address of ERC20 token on market
+   * @param tokenAddr Address "from" of ERC20 token on market
+   * @param tokenAddrTo Address "to" of ERC20 token on market
    * @return Promise resolving to the transaction receipt
    */
-  async addMarketKyber(marketIdStr, tokenAddr) {
+  async addMarketKyber(marketIdStr, tokenAddr, tokenAddrTo) {
     const self = this
     return new Promise(function(resolve, reject) {
       self.priceFeedsKyber.methods
-        .addMarket(marketIdStr, tokenAddr)
+        .addMarket(marketIdStr, tokenAddr, tokenAddrTo)
         .send({
           from: self.config.ownerAccountAddr,
           gas: addMarketGasLimit

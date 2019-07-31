@@ -7,8 +7,8 @@ import {
 } from '../../src/infura/contracts'
 import { deployMocks } from '../../test/helpers/deploy'
 
-const EthDaiMarketStr = 'Kyber_ETH_DAI'
-const EthWbtcMarketStr = 'Kyber_ETH_WBTC'
+const EthDaiMarketStr = 'ETH/DAI'
+const EthWbtcMarketStr = 'ETH/WBTC'
 
 const KyberNativeEthAddress = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
 
@@ -16,10 +16,11 @@ const KyberNativeEthAddress = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  * Add market to PriceFeedsKyber contract.
  * @param {Web3.eth.Contract} PriceFeedsKyber PriceFeedsKyber contract handle
  * @param {Web3.eth.Contract} tokenContractAddr Token contract address (eg. DAI ERC20)
+ * @param {Web3.eth.Contract} tokenContractAddrTo Token contract address (eg. DAI ERC20)
  * @param {string} marketStr String id of market
  */
-const addMarketKyber = async (priceFeedsKyber, tokenContractAddr, marketStr) =>
-  priceFeedsKyber.methods.addMarket(marketStr, tokenContractAddr).send()
+const addMarketKyber = async (priceFeedsKyber, tokenContractAddr, tokenContractAddrTo, marketStr) =>
+  priceFeedsKyber.methods.addMarket(marketStr, tokenContractAddr, tokenContractAddrTo).send()
 
 /**
  * Push a given price into the kyber mock contract.

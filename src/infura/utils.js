@@ -46,6 +46,8 @@ const nowSecs = () => Math.floor(Date.now() / 1000)
 
 const isValidMarketId = id => /^[A-Za-z]+_[A-Z]+_[A-Z]+$/i.test(id)
 
+const isValidContractAddr = contractAddr => /^0x.+/i.test(contractAddr)
+
 const isEthereumAddress = addr => /0x[a-f0-9]{40,}/i.test(addr)
 
 // convert from 64 digit long to 40 digit long
@@ -215,5 +217,6 @@ module.exports = {
   getAllEventsWithName,
   getFunctionSignature,
   signAndSendTransaction,
-  unpackAddress
+  unpackAddress,
+  isValidContractAddr
 }

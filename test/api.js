@@ -5,6 +5,7 @@ import API from '../src/infura/api-infura'
 
 import { deployAllForTest } from './helpers/deploy'
 import { config as configBase, web3 } from './helpers/setup'
+import { KyberNativeEthAddress } from './helpers/kyber'
 
 const priceKyberDAI = '456.99'
 
@@ -76,9 +77,9 @@ describe('api.js', function() {
   })
 
   it('addMarketKyber()', async () => {
-    const newMarketStr = 'Kyber_ETH_MKR'
+    const newMarketStr = 'ETH/MKR'
     const tokenAddr = Utils.randomHex(20)
-    const txRsp = await api.addMarketKyber(newMarketStr, tokenAddr)
+    const txRsp = await api.addMarketKyber(newMarketStr, tokenAddr, KyberNativeEthAddress)
     assert(txRsp.events.hasOwnProperty('LogPriceFeedsKyberMarketAdded'))
   })
 })

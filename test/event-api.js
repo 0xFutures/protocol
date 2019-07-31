@@ -8,7 +8,7 @@ import ProxyAPI from '../src/infura/proxy'
 import { deployAllForTest } from './helpers/deploy'
 import { web3 } from './helpers/setup'
 
-const marketStr = 'Kyber_ETH_DAI'
+const marketStr = 'ETH/DAI'
 const price = '67.00239'
 
 // TEST ACCOUNTS (indexes into web3.eth.accounts)

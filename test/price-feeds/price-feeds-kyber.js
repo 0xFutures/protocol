@@ -23,17 +23,19 @@ const ONE_ETH = web3.utils.toWei(web3.utils.toBN(1), 'ether')
 const EthDaiMarket = {
   name: EthDaiMarketStr,
   id: Utils.sha3(EthDaiMarketStr),
-  tokenAddress: undefined // added on create in helper func
+  tokenAddress: undefined, // added on create in helper func
+  tokenAddressTo: KyberNativeEthAddress
 }
 
 const EthWbtcMarket = {
   name: EthWbtcMarketStr,
   id: Utils.sha3(EthWbtcMarketStr),
-  tokenAddress: Utils.randomHex(20)
+  tokenAddress: Utils.randomHex(20),
+  tokenAddressTo: KyberNativeEthAddress
 }
 
 const addMarket = (feedsContract, market) =>
-  feedsContract.methods.addMarket(market.name, market.tokenAddress).send()
+  feedsContract.methods.addMarket(market.name, market.tokenAddress, market.tokenAddressTo).send()
 
 describe('PriceFeedsKyber', function () {
   const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)

@@ -13,7 +13,8 @@ import {
   EthDaiMarketStr,
   EthWbtcMarketStr,
   addMarketKyber,
-  mockKyberPut
+  mockKyberPut,
+  KyberNativeEthAddress
 } from './kyber'
 
 // test testing
@@ -125,6 +126,7 @@ const deployAllForTest = async ({
   await addMarketKyber(
     priceFeedsKyber,
     daiToken.options.address,
+    KyberNativeEthAddress,
     MARKET_NAMES.kyberEthDai
   )
 

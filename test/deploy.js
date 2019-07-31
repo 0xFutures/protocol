@@ -22,7 +22,7 @@ const ACCOUNT_SELLER = 7
 
 const ONE_DAI = new BigNumber('1e18')
 
-const marketStr = 'Kyber_ETH_DAI'
+const marketStr = 'ETH/DAI'
 const price = '67.00239'
 
 describe('deploy.js', function() {

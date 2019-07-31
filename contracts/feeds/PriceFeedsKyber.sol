@@ -20,10 +20,6 @@ contract PriceFeedsKyber is DBC, Ownable {
        the price fetch */
     uint public constant BITMASK_EXCLUDE_PERMISSIONLESS = 1 << 255;
 
-    /* When getting a price for ETH to some ERC20 then ETH is represented
-       by the following address: */
-    address constant kyberNativeEthAddr = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
-
     bytes4 constant getExpectedRateCallSig = bytes4(
         keccak256(
             "getExpectedRate(address,address,uint256)"
@@ -32,6 +28,7 @@ contract PriceFeedsKyber is DBC, Ownable {
 
     struct Market  {
         address tokenContract;
+        address tokenContractTo;
         bytes encodedCall;
     }
     mapping(bytes32 => Market) markets;
@@ -48,18 +45,20 @@ contract PriceFeedsKyber is DBC, Ownable {
     }
 
     function isMarketActive(bytes32 _marketId) public view returns (bool) {
-        return markets[_marketId].tokenContract != address(0);
+        return markets[_marketId].tokenContract != address(0) && markets[_marketId].tokenContractTo != address(0);
     }
 
     /**
      * Add a new Kyber market
-     * @param _marketStrId String id of market. eg. "Kyber_ETH_DAI"
-     * @param _tokenContract Address of ERC20 Token on Kyber market.
+     * @param _marketStrId String id of market. eg. "ETH/DAI"
+     * @param _tokenContract Address "From" of ERC20 Token on Kyber market.
+     * @param _tokenContractTo Address "To" of ERC20 Token on Kyber market.
      * @return marketId bytes32 keccak256 of the _marketStrId
      */
     function addMarket(
         string calldata _marketStrId,
-        address _tokenContract
+        address _tokenContract,
+        address _tokenContractTo
     )
         external
         onlyOwner
@@ -69,11 +68,12 @@ contract PriceFeedsKyber is DBC, Ownable {
 
         markets[marketId] = Market(
             _tokenContract,
+            _tokenContractTo,
             // store the call signature to the get market price for
             // 1 ETH of the token
             abi.encodeWithSelector(
                 getExpectedRateCallSig,
-                kyberNativeEthAddr,
+                _tokenContractTo,
                 _tokenContract,
                 1 ether | BITMASK_EXCLUDE_PERMISSIONLESS
             )
@@ -88,17 +88,18 @@ contract PriceFeedsKyber is DBC, Ownable {
         onlyOwner
         pre_cond(isMarketActive(_marketId), REASON_MUST_BE_ACTIVE_MARKET)
     {
-        markets[_marketId] = Market(address(0x0), abi.encode(0x0));
+        markets[_marketId] = Market(address(0x0), address(0x0), abi.encode(0x0));
         emit LogPriceFeedsKyberMarketRemoved(_marketId);
     }
 
     function getMarket(bytes32 _marketId)
         public
         view
-        returns (address tokenContract, bytes memory encodedCall)
+        returns (address tokenContract, address tokenContractTo, bytes memory encodedCall)
     {
         Market memory market = markets[_marketId];
         tokenContract = market.tokenContract;
+        tokenContractTo = market.tokenContractTo;
         encodedCall = market.encodedCall;
     }
 

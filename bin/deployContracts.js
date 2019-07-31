@@ -46,7 +46,7 @@ const deploy = async () => {
     for (const marketKey in kyberMarkets) {
       console.log(marketKey)
       await deployment.priceFeedsKyber.methods
-        .addMarket(marketKey, kyberMarkets[marketKey])
+        .addMarket(marketKey, kyberMarkets[marketKey].from , kyberMarkets[marketKey].to)
         .send({
           gasPrice: 8000000000
         })

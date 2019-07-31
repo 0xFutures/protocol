@@ -24,7 +24,7 @@ const REJECT_MESSAGE =
 const ACCOUNT_BUYER = 5
 const ACCOUNT_SELLER = 6
 
-const marketStr = 'Kyber_ETH_DAI'
+const marketStr = 'ETH/DAI'
 const price = '67.00239'
 
 const isBigNumber = num =>

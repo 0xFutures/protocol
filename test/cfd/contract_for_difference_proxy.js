@@ -26,7 +26,7 @@ const ACCOUNT_THIRD_PARTY = 7
 
 const MAX_UINT256 = new BigNumber(2).exponentiatedBy(256).minus(1)
 
-const marketId = web3.utils.sha3('Kyber_ETH_DAI')
+const marketId = web3.utils.sha3('ETH/DAI')
 const ethDaiPrice = '275.20'
 const ethDaiPriceAdjusted = toContractBigNumber(ethDaiPrice)
 const notionalAmountDai = new BigNumber('1e18') // 1 DAI

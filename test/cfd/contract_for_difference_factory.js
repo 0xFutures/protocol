@@ -30,7 +30,7 @@ describe('ContractForDifferenceFactory', function () {
 
   const OWNER_ACCOUNT = config.ownerAccountAddr
 
-  const MARKET_STR = 'Kyber_ETH_DAI'
+  const MARKET_STR = 'ETH/DAI'
   const MARKET_ID = web3.utils.sha3(MARKET_STR)
 
   let cfdFactory
