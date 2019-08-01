@@ -16,7 +16,7 @@
   "priceFeedsKyberContractAddr": "0xfbba792ce0c17ff4018fe937170955de9ee412bd",
   "feeds": {
     "kyber": {
-      "kyberNetworkProxyAddr": "0x118A7b23B7a2e6A57963d017A7E76A4E2636F075",
+      "kyberNetworkProxyAddr": "0x692f391bCc85cefCe8C237C01e1f636BbD70EA4D",
       "walletId": "0x2cd17edce92e3af7c6f66516258d5702d0bc8942",
       "markets": {
         "ETH/DAI": {
