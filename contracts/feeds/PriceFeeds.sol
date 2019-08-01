@@ -10,7 +10,7 @@ contract PriceFeeds {
     string constant REASON_MARKET_INACTIVE_OR_UNKNOWN = "Price requested for inactive or unknown market";
     string constant REASON_MARKET_VALUE_ZERO = "Market price is zero";
 
-    PriceFeedsKyber feedKyber;
+    PriceFeedsKyber public feedKyber;
 
     constructor(address _kyber) public {
         feedKyber = PriceFeedsKyber(_kyber);

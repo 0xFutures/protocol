@@ -31,7 +31,7 @@ contract PriceFeedsKyber is DBC, Ownable {
         address tokenContractTo;
         bytes encodedCall;
     }
-    mapping(bytes32 => Market) markets;
+    mapping(bytes32 => Market) public markets;
     mapping(bytes32 => string) public marketNames;
 
     Registry public registry;
