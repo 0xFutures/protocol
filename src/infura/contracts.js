@@ -37,8 +37,7 @@ const priceFeedsInstanceDeployed = async (config, web3) =>
     config,
     web3,
     config.priceFeedsContractAddr,
-    PriceFeedsJSON,
-    config.PriceFeedsKyberContractAddr
+    PriceFeedsJSON
   )
 
 const priceFeedsKyberInstanceDeployed = async (config, web3) =>
