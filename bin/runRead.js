@@ -1,6 +1,6 @@
 import {existsSync, readFileSync} from 'fs'
 import Web3 from 'web3'
-import API from '../src/api'
+import API from '../src/infura/api-infura'
 
 if (process.argv.length < 4 || !existsSync(process.argv[2])) {
   console.error(`Usage: ${process.argv[1]} <config file> <market id>`)
@@ -13,6 +13,6 @@ const marketId = process.argv[3]
 
 API.newInstance(config, web3)
   .then(api => api.read(marketId))
-  .then(({read, ts}) =>
-    console.log(`read: ${read} timestamp: ${ts} [${Date(ts)}]`)
-  )
+  .then((res) => {
+    console.log(res.toNumber())
+  })
