@@ -75,8 +75,9 @@ export default class API {
    */
   async read(marketIdStr) {
     const marketId = this.marketIdStrToBytes(marketIdStr)
+    const decimals = this.getMarketDecimals(marketIdStr)
     const price = await this.priceFeeds.methods.read(marketId).call()
-    return fromContractBigNumber(price)
+    return fromContractBigNumber(price, decimals)
   }
 
   /**
@@ -182,6 +183,19 @@ export default class API {
    */
   marketIdBytesToStr(marketId) {
     return this.priceFeeds.methods.marketName(marketId).call()
+  }
+
+  /**
+   * Look in the config file for the market decimals
+   * If not found, returns the default erc20 decimals, which is 18
+   */
+  getMarketDecimals(marketId) {
+    var markets = this.config.feeds.kyber.markets, decimals = 18;
+    for (var marketIdStr in markets) {
+      if (marketIdStr.toLowerCase() == marketId.toLowerCase() && markets[marketIdStr].decimals != undefined)
+        decimals = parseInt(markets[marketIdStr].decimals);
+    }
+    return decimals;
   }
 
   /**
