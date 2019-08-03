@@ -125,8 +125,8 @@ const deployAllForTest = async ({
   // console.log(`creating market kyber dai`)
   await addMarketKyber(
     priceFeedsKyber,
-    daiToken.options.address,
     KyberNativeEthAddress,
+    daiToken.options.address,
     MARKET_NAMES.kyberEthDai
   )
 

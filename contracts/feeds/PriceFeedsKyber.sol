@@ -69,12 +69,11 @@ contract PriceFeedsKyber is DBC, Ownable {
         markets[marketId] = Market(
             _tokenContract,
             _tokenContractTo,
-            // store the call signature to the get market price for
-            // 1 ETH of the token
+            // store the call signature to get market price for those tokens
             abi.encodeWithSelector(
                 getExpectedRateCallSig,
-                _tokenContractTo,
                 _tokenContract,
+                _tokenContractTo,
                 1 ether | BITMASK_EXCLUDE_PERMISSIONLESS
             )
         );

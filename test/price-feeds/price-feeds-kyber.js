@@ -23,15 +23,15 @@ const ONE_ETH = web3.utils.toWei(web3.utils.toBN(1), 'ether')
 const EthDaiMarket = {
   name: EthDaiMarketStr,
   id: Utils.sha3(EthDaiMarketStr),
-  tokenAddress: undefined, // added on create in helper func
-  tokenAddressTo: KyberNativeEthAddress
+  tokenAddress: KyberNativeEthAddress,
+  tokenAddressTo: undefined // added on create in helper func
 }
 
 const EthWbtcMarket = {
   name: EthWbtcMarketStr,
   id: Utils.sha3(EthWbtcMarketStr),
-  tokenAddress: Utils.randomHex(20),
-  tokenAddressTo: KyberNativeEthAddress
+  tokenAddress: KyberNativeEthAddress,
+  tokenAddressTo: Utils.randomHex(20)
 }
 
 const addMarket = (feedsContract, market) =>
@@ -47,10 +47,10 @@ describe('PriceFeedsKyber', function () {
   beforeEach(async () => {
     const mocks = await deployMocks(web3, config)
     kyberNetworkProxy = mocks.kyberNetworkProxy
-    EthDaiMarket.tokenAddress = mocks.daiToken.options.address
+    EthDaiMarket.tokenAddressTo = mocks.daiToken.options.address
 
     const newConfig = Object.assign({}, config)
-    newConfig.daiTokenAddr = EthDaiMarket.tokenAddress
+    newConfig.daiTokenAddr = EthDaiMarket.tokenAddressTo
     newConfig.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
 
     const deployRsp = await deployRegistry(web3, newConfig, () => { })
@@ -68,7 +68,7 @@ describe('PriceFeedsKyber', function () {
       await addMarket(pfContract, EthDaiMarket)
       assertEqualBN(
         await pfContract.methods.read(EthDaiMarket.id).call(),
-        await kyberNetworkProxy.methods.rates(EthDaiMarket.tokenAddress).call(),
+        await kyberNetworkProxy.methods.rates(EthDaiMarket.tokenAddressTo).call(),
         'read() value wrong'
       )
     })
@@ -116,7 +116,7 @@ describe('PriceFeedsKyber', function () {
     )
     assert.equal(
       marketDaiDeets.encodedCall,
-      encodedCall(EthDaiMarket.tokenAddress)
+      encodedCall(EthDaiMarket.tokenAddressTo)
     )
 
     const addTx2 = await addMarket(feeds, EthWbtcMarket)
@@ -131,12 +131,12 @@ describe('PriceFeedsKyber', function () {
       .getMarket(EthWbtcMarket.id)
       .call()
     assert.equal(
-      marketWbtcDeets.tokenContract.toLowerCase(),
+      marketWbtcDeets.tokenContract,
       EthWbtcMarket.tokenAddress
     )
     assert.equal(
       marketWbtcDeets.encodedCall,
-      encodedCall(EthWbtcMarket.tokenAddress)
+      encodedCall(EthWbtcMarket.tokenAddressTo)
     )
 
     assert.isTrue(await feeds.methods.isMarketActive(EthDaiMarket.id).call())

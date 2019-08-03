@@ -79,7 +79,7 @@ describe('api.js', function() {
   it('addMarketKyber()', async () => {
     const newMarketStr = 'ETH/MKR'
     const tokenAddr = Utils.randomHex(20)
-    const txRsp = await api.addMarketKyber(newMarketStr, tokenAddr, KyberNativeEthAddress)
+    const txRsp = await api.addMarketKyber(newMarketStr, KyberNativeEthAddress, tokenAddr)
     assert(txRsp.events.hasOwnProperty('LogPriceFeedsKyberMarketAdded'))
   })
 })

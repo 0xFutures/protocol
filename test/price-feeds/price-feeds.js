@@ -14,7 +14,8 @@ import { config, web3 } from '../helpers/setup'
 const EthDaiMarket = {
   name: EthDaiMarketStr,
   id: Utils.sha3(EthDaiMarketStr),
-  tokenAddress: undefined // added at create
+  tokenAddress: KyberNativeEthAddress,
+  tokenAddressTo: undefined // added at create
 }
 
 describe('PriceFeeds', function () {
@@ -28,10 +29,10 @@ describe('PriceFeeds', function () {
   beforeEach(async () => {
     const mocks = await deployMocks(web3, config)
     kyberNetworkProxy = mocks.kyberNetworkProxy
-    EthDaiMarket.tokenAddress = mocks.daiToken.options.address
+    EthDaiMarket.tokenAddressTo = mocks.daiToken.options.address
 
     const newConfig = Object.assign({}, config)
-    newConfig.daiTokenAddr = EthDaiMarket.tokenAddress
+    newConfig.daiTokenAddr = EthDaiMarket.tokenAddressTo
     newConfig.feeds.kyber.kyberNetworkProxyAddr = kyberNetworkProxy.options.address
     const deployRsp = await deployRegistry(web3, newConfig, () => { })
     const registry = deployRsp.registry
@@ -41,7 +42,7 @@ describe('PriceFeeds', function () {
       arguments: [registry.options.address]
     }).send()
     await pfkContract.methods
-      .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress, KyberNativeEthAddress)
+      .addMarket(EthDaiMarket.name, EthDaiMarket.tokenAddress, EthDaiMarket.tokenAddressTo)
       .send()
 
     // PriceFeeds contract
@@ -72,7 +73,7 @@ describe('PriceFeeds', function () {
     it('kyber ok', async () => {
       assertEqualBN(
         await pfContract.methods.read(EthDaiMarket.id).call(),
-        await kyberNetworkProxy.methods.rates(EthDaiMarket.tokenAddress).call(),
+        await kyberNetworkProxy.methods.rates(EthDaiMarket.tokenAddressTo).call(),
         'read() value for kyber market wrong'
       )
     })
@@ -89,7 +90,7 @@ describe('PriceFeeds', function () {
     describe('market zero value reverts', () => {
       it('kyber', async () => {
         await kyberNetworkProxy.methods
-          .put(EthDaiMarket.tokenAddress, '0x0')
+          .put(EthDaiMarket.tokenAddressTo, '0x0')
           .send()
         await assertReverts(
           pfContract,
