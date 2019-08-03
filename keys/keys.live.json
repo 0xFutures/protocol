@@ -7,11 +7,11 @@
   "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
   "daiTokenAddr": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
   "registryAddr": "0xebda6ff399fcff55939f5e361829628131ad84e8",
-  "cfdRegistryContractAddr": "0x02f046513dd8128ee5f44184ba2d60d4f02b6989",
-  "cfdFactoryContractAddr": "0x95d10ab9e6170ba8c882eab7e26d4157ce73aedb",
-  "priceFeedsContractAddr": "0x9196247accc3ee3f499506ee171eea7f42de80f8",
-  "priceFeedsKyberContractAddr": "0x8f2d92df212d0766e5ff99a105976da8e5f44022",
-  "cfdProxyContractAddr": "0x6b70f5a87a2bf887cd2086e5ebbf256fd49e4468",
+  "cfdRegistryContractAddr": "0x5f49bb577898b13f730fea80983e46aee771358d",
+  "cfdFactoryContractAddr": "0x25fd532f5d263561b9decfa8c28145d9e52ddd56",
+  "priceFeedsContractAddr": "0x3ea9e9b8eb80f7b8f2482b6113fe3f930b4e8f5d",
+  "priceFeedsKyberContractAddr": "0x4fdff62e0c962d946a53892bd19e2283a2aabe02",
+  "cfdProxyContractAddr": "0xdb4bc859851c507bbc5497941d758bb668ccd8f9",
   "dsProxyFactoryContractAddr": "0x0aad30272402fd32a0f430f8ebaf1afb8f4e85c5",
   "feeds": {
     "kyber": {
@@ -20,22 +20,26 @@
       "markets": {
         "ETH/DAI": {
           "from": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-          "to": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
+          "to": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+          "decimals": "18"
         },
         "ETH/WBTC": {
           "from": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-          "to": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599"
+          "to": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+          "decimals": "8"
         },
         "WBTC/DAI": {
           "from": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
-          "to": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
+          "to": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
+          "decimals": "18"
         },
         "DAI/USDC": {
           "from": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-          "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+          "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+          "decimals": "6"
         }
       }
     }
   },
-  "kyberFacadeContractAddr": "0x2137f4e23abbee41f022d38f02e232bd4b8ae376"
+  "kyberFacadeContractAddr": "0xc3a1280adea59472904ee47b47e68d6ed0a99580"
 }
