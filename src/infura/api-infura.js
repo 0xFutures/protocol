@@ -75,9 +75,8 @@ export default class API {
    */
   async read(marketIdStr) {
     const marketId = this.marketIdStrToBytes(marketIdStr)
-    const decimals = this.getMarketDecimals(marketIdStr)
     const price = await this.priceFeeds.methods.read(marketId).call()
-    return fromContractBigNumber(price, decimals)
+    return fromContractBigNumber(price)
   }
 
   /**
@@ -98,8 +97,11 @@ export default class API {
   async addMarketKyber(marketIdStr, tokenAddr, tokenAddrTo) {
     const self = this
     return new Promise(function(resolve, reject) {
+      // Find the decimals for the market (default to 18)
+      const decimals = self.getMarketDecimals(marketIdStr)
+      // Add the market
       self.priceFeedsKyber.methods
-        .addMarket(marketIdStr, tokenAddr, tokenAddrTo)
+        .addMarket(marketIdStr, tokenAddr, tokenAddrTo, decimals)
         .send({
           from: self.config.ownerAccountAddr,
           gas: addMarketGasLimit

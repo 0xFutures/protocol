@@ -16,10 +16,6 @@ contract PriceFeedsKyber is DBC, Ownable {
     string constant REASON_MUST_BE_ACTIVE_MARKET = "Market must be active to push a value";
     string constant REASON_KYBER_PRICE_CALL_FAILED = "Kyber price call failed";
 
-    /* Adding this bit to the srcQty excludes permissionless reserves from
-       the price fetch */
-    uint public constant BITMASK_EXCLUDE_PERMISSIONLESS = 1 << 255;
-
     bytes4 constant getExpectedRateCallSig = bytes4(
         keccak256(
             "getExpectedRate(address,address,uint256)"
@@ -53,12 +49,14 @@ contract PriceFeedsKyber is DBC, Ownable {
      * @param _marketStrId String id of market. eg. "ETH/DAI"
      * @param _tokenContract Address "From" of ERC20 Token on Kyber market.
      * @param _tokenContractTo Address "To" of ERC20 Token on Kyber market.
+     * @param _sourceDecimals Integer representing the decimals for the source token
      * @return marketId bytes32 keccak256 of the _marketStrId
      */
     function addMarket(
         string calldata _marketStrId,
         address _tokenContract,
-        address _tokenContractTo
+        address _tokenContractTo,
+        uint _sourceDecimals
     )
         external
         onlyOwner
@@ -74,7 +72,7 @@ contract PriceFeedsKyber is DBC, Ownable {
                 getExpectedRateCallSig,
                 _tokenContract,
                 _tokenContractTo,
-                1 ether | BITMASK_EXCLUDE_PERMISSIONLESS
+                10 ** _sourceDecimals
             )
         );
         marketNames[marketId] = _marketStrId;

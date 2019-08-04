@@ -36,11 +36,10 @@ const toContractBigNumber = number => {
  * @param contractBigNumber BigNumber Contract format number to be adjusted
  * @return BigNumber original value
  */
-const fromContractBigNumber = (number, deci) => {
+const fromContractBigNumber = number => {
   assertBigNumberOrString(number)
   const bn = new BigNumber(number)
-  const decimals = (deci != undefined) ? deci : NUMBER_DECIMALS;
-  return bn.div(new BigNumber(10).pow(decimals))
+  return bn.div(new BigNumber(10).pow(NUMBER_DECIMALS))
 }
 
 const nowSecs = () => Math.floor(Date.now() / 1000)

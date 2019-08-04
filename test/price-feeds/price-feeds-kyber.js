@@ -12,6 +12,7 @@ import {
   EthWbtcMarketStr,
   KyberNativeEthAddress,
   mockKyberPut,
+  DefaultERC20Decimals
 } from '../helpers/kyber'
 import { config, web3 } from '../helpers/setup'
 
@@ -35,7 +36,7 @@ const EthWbtcMarket = {
 }
 
 const addMarket = (feedsContract, market) =>
-  feedsContract.methods.addMarket(market.name, market.tokenAddress, market.tokenAddressTo).send()
+  feedsContract.methods.addMarket(market.name, market.tokenAddress, market.tokenAddressTo, DefaultERC20Decimals).send()
 
 describe('PriceFeedsKyber', function () {
   const PriceFeedsKyber = priceFeedsKyberInstance(web3.currentProvider, config)
@@ -116,7 +117,7 @@ describe('PriceFeedsKyber', function () {
     )
     assert.equal(
       marketDaiDeets.encodedCall,
-      encodedCall(EthDaiMarket.tokenAddressTo)
+      encodedCall(EthDaiMarket.tokenAddress, EthDaiMarket.tokenAddressTo)
     )
 
     const addTx2 = await addMarket(feeds, EthWbtcMarket)
@@ -136,19 +137,19 @@ describe('PriceFeedsKyber', function () {
     )
     assert.equal(
       marketWbtcDeets.encodedCall,
-      encodedCall(EthWbtcMarket.tokenAddressTo)
+      encodedCall(EthWbtcMarket.tokenAddress, EthWbtcMarket.tokenAddressTo)
     )
 
     assert.isTrue(await feeds.methods.isMarketActive(EthDaiMarket.id).call())
     assert.isTrue(await feeds.methods.isMarketActive(EthWbtcMarket.id).call())
   })
 
-  const encodedCall = tokenAddress =>
+  const encodedCall = (tokenAddress, tokenAddressTo) =>
     kyberNetworkProxy.methods
       .getExpectedRate(
-        KyberNativeEthAddress,
         tokenAddress,
-        BITMASK_EXCLUDE_PERMISSIONLESS.or(ONE_ETH).toString()
+        tokenAddressTo,
+        (10 ** 18).toString()
       )
       .encodeABI()
 })

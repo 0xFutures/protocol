@@ -12,6 +12,8 @@ const EthWbtcMarketStr = 'ETH/WBTC'
 
 const KyberNativeEthAddress = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
 
+const DefaultERC20Decimals = 18
+
 /**
  * Add market to PriceFeedsKyber contract.
  * @param {Web3.eth.Contract} PriceFeedsKyber PriceFeedsKyber contract handle
@@ -20,7 +22,7 @@ const KyberNativeEthAddress = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
  * @param {string} marketStr String id of market
  */
 const addMarketKyber = async (priceFeedsKyber, tokenContractAddr, tokenContractAddrTo, marketStr) =>
-  priceFeedsKyber.methods.addMarket(marketStr, tokenContractAddr, tokenContractAddrTo).send()
+  priceFeedsKyber.methods.addMarket(marketStr, tokenContractAddr, tokenContractAddrTo, DefaultERC20Decimals).send()
 
 /**
  * Push a given price into the kyber mock contract.
@@ -40,4 +42,5 @@ export {
   KyberNativeEthAddress,
   addMarketKyber,
   mockKyberPut,
+  DefaultERC20Decimals
 }

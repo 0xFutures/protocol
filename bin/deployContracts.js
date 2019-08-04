@@ -45,6 +45,9 @@ const deploy = async () => {
     const kyberMarkets = config.feeds.kyber.markets
     for (const marketKey in kyberMarkets) {
       console.log(marketKey)
+      // Find the market decimal
+      const decimals = kyberMarkets[marketKey].decimals || 18
+      // Deploy the contract
       await deployment.priceFeedsKyber.methods
         .addMarket(marketKey, kyberMarkets[marketKey].from , kyberMarkets[marketKey].to)
         .send({
