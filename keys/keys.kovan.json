@@ -28,6 +28,11 @@
           "from": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
           "to": "0xAaF64BFCC32d0F15873a02163e7E500671a4ffcD",
           "decimals": "18"
+        },
+        "SALT/ETH": {
+          "from": "0x6fEE5727EE4CdCBD91f3A873ef2966dF31713A04",
+          "to": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          "decimals": "8"
         }
       }
     }
