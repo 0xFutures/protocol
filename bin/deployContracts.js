@@ -44,12 +44,12 @@ const deploy = async () => {
     // run in sequence (in parallel has a nonce issue with hdwallet provider)
     const kyberMarkets = config.feeds.kyber.markets
     for (const marketKey in kyberMarkets) {
-      console.log(marketKey)
       // Find the market decimal
       const decimals = kyberMarkets[marketKey].decimals || 18
+      console.log(marketKey + " (decimals: " + decimals + ")")
       // Deploy the contract
       await deployment.priceFeedsKyber.methods
-        .addMarket(marketKey, kyberMarkets[marketKey].from , kyberMarkets[marketKey].to)
+        .addMarket(marketKey, kyberMarkets[marketKey].from , kyberMarkets[marketKey].to, decimals)
         .send({
           gasPrice: 8000000000
         })
