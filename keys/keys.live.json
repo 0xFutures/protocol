@@ -7,11 +7,11 @@
   "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
   "daiTokenAddr": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
   "registryAddr": "0xebda6ff399fcff55939f5e361829628131ad84e8",
-  "cfdRegistryContractAddr": "0x5f49bb577898b13f730fea80983e46aee771358d",
-  "cfdFactoryContractAddr": "0x25fd532f5d263561b9decfa8c28145d9e52ddd56",
-  "priceFeedsContractAddr": "0x3ea9e9b8eb80f7b8f2482b6113fe3f930b4e8f5d",
-  "priceFeedsKyberContractAddr": "0x4fdff62e0c962d946a53892bd19e2283a2aabe02",
-  "cfdProxyContractAddr": "0xdb4bc859851c507bbc5497941d758bb668ccd8f9",
+  "cfdRegistryContractAddr": "0xc955feeed4856fe2cd77ed43b6aa465c69ba7cee",
+  "cfdFactoryContractAddr": "0xed4efb4793f5dba29fafe148d37477a9181bc44b",
+  "priceFeedsContractAddr": "0x299c59ff915d56a9d0aa8f32e6fc5386dbd6e694",
+  "priceFeedsKyberContractAddr": "0x03d9896d4ad72508685b55f3ed0785c560b1c917",
+  "cfdProxyContractAddr": "0x6e797d79518a23e15f0cc6f693766f7c5c61f7ad",
   "dsProxyFactoryContractAddr": "0x0aad30272402fd32a0f430f8ebaf1afb8f4e85c5",
   "feeds": {
     "kyber": {
@@ -31,7 +31,7 @@
         "WBTC/DAI": {
           "from": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
           "to": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
-          "decimals": "18"
+          "decimals": "8"
         },
         "DAI/USDC": {
           "from": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
@@ -41,5 +41,5 @@
       }
     }
   },
-  "kyberFacadeContractAddr": "0xc3a1280adea59472904ee47b47e68d6ed0a99580"
+  "kyberFacadeContractAddr": "0xa28a11a76d4d0857ca373829d834d0403322822e"
 }
