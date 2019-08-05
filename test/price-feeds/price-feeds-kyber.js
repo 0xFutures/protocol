@@ -149,7 +149,7 @@ describe('PriceFeedsKyber', function () {
       .getExpectedRate(
         tokenAddress,
         tokenAddressTo,
-        (10 ** 18).toString()
+        BITMASK_EXCLUDE_PERMISSIONLESS.or(ONE_ETH).toString()
       )
       .encodeABI()
 })

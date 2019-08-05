@@ -16,6 +16,9 @@ contract PriceFeedsKyber is DBC, Ownable {
     string constant REASON_MUST_BE_ACTIVE_MARKET = "Market must be active to push a value";
     string constant REASON_KYBER_PRICE_CALL_FAILED = "Kyber price call failed";
 
+    /* Adding this bit to the srcQty excludes permissionless reserves from the price fetch */
+    uint public constant BITMASK_EXCLUDE_PERMISSIONLESS = 1 << 255;
+
     bytes4 constant getExpectedRateCallSig = bytes4(
         keccak256(
             "getExpectedRate(address,address,uint256)"
@@ -72,7 +75,7 @@ contract PriceFeedsKyber is DBC, Ownable {
                 getExpectedRateCallSig,
                 _tokenContract,
                 _tokenContractTo,
-                10 ** _sourceDecimals
+                10 ** _sourceDecimals | BITMASK_EXCLUDE_PERMISSIONLESS
             )
         );
         marketNames[marketId] = _marketStrId;
