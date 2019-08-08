@@ -25,12 +25,14 @@ const ONE_ETH = web3.utils.toWei(web3.utils.toBN(1), 'ether')
 const SRC_QTY_ONE_ETH_WITH_BITMASK = BITMASK_EXCLUDE_PERMISSIONLESS.or(ONE_ETH).toString()
 
 // console.log(`1 ETH with Bitmask: ${SRC_QTY_ONE_ETH_WITH_BITMASK}`)
+const paddedLabel = (label) => label + ' '.repeat(20 - label.length)
 
-const logRate = (prefix, rate) => {
+const logRate = (prefix, rate, slippage) => {
   const rateAdjusted = fromContractBigNumber(rate)
-  console.log(`  ${prefix}: ${rateAdjusted} ` +
-    `(reverse: ${new BigNumber('1').div(rateAdjusted)})`
-  )
+  const slippageStr = (slippage) ? ` slippage: ${fromContractBigNumber(slippage)}` : ''
+  const reverse = new BigNumber('1').div(rateAdjusted)
+  console.log(`  ${paddedLabel(prefix)}\t: ${rateAdjusted} ` +
+    `(reverse: ${reverse}${slippageStr})`)
 }
 
 const summary = async () => {
@@ -53,7 +55,7 @@ const summary = async () => {
   await Promise.all(
     Object.entries(MARKETS).map(([marketId]) => {
       return api.read(marketId).then(rate =>
-        console.log(`${marketId}: ${rate}`)
+        console.log(`${paddedLabel(marketId)}: ${rate} `)
       )
     })
   )
@@ -78,9 +80,9 @@ const summary = async () => {
           ONE_ETH.toString()
         ).call()
       ]).then(([ratePermOnly, ratePermLess]) => {
-        console.log(`${marketId}:`)
-        logRate(`permissioned only  `, ratePermOnly.expectedRate)
-        logRate(`incl permissionless`, ratePermLess.expectedRate)
+        console.log(`${marketId}: `)
+        logRate(`permissioned only`, ratePermOnly.expectedRate, ratePermOnly.slippageRate)
+        logRate(`incl permissionless`, ratePermLess.expectedRate, ratePermLess.slippageRate)
       })
     })
   )
@@ -95,12 +97,14 @@ const summary = async () => {
         priceFeeds.methods.read(marketId).call(),
         priceFeedsKyber.methods.read(marketId).call()
       ]).then(([pfRate, pfkRate]) => {
-        console.log(`${marketIdStr}:`)
-        logRate(`PriceFeeds     `, pfRate)
+        console.log(`${marketIdStr}: `)
+        logRate(`PriceFeeds`, pfRate)
         logRate(`PriceFeedsKyber`, pfkRate)
       })
     })
   )
+
+  console.log('\n')
 }
 
 summary().
