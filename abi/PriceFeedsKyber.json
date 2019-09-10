@@ -321,7 +321,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-09-10T14:03:03.129Z",
+  "updatedAt": "2019-09-10T14:09:42.226Z",
   "devdoc": {
     "methods": {
       "addMarket(string,address,address,uint256)": {
