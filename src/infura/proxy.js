@@ -308,7 +308,7 @@ export default class Proxy {
       msgData
     ).send({
       from: await proxy.methods.owner().call(),
-      gas: 275000,
+      gas: 500000,
       value: ethValue
     })
   }
