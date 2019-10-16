@@ -1,6 +1,6 @@
 import {existsSync, readFileSync} from 'fs'
 import Web3 from 'web3'
-import CFDAPI from '../src/cfd-api'
+import CFDAPI from '../src/infura/cfd-api-infura'
 
 if (process.argv.length < 4 || !existsSync(process.argv[2])) {
   console.error(`Usage: ${process.argv[1]} <config file> <cfd address>`)
