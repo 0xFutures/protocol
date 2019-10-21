@@ -4,7 +4,7 @@
   "gasPrice": 20000000000,
   "deploymentBlockNumber": 8250000,
   "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
-  "daemonAccountAddr": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
+  "daemonAccountAddr": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",
   "daiTokenAddr": "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359",
   "registryAddr": "0xebda6ff399fcff55939f5e361829628131ad84e8",
   "cfdRegistryContractAddr": "0xc3bcab27d1f6ad6660a7537745d8b559384eba4d",
@@ -16,7 +16,7 @@
   "feeds": {
     "kyber": {
       "kyberNetworkProxyAddr": "0x818E6FECD516Ecc3849DAf6845e3EC868087B755",
-      "walletId": "0xac2D0e72f8aB200AEb7f72263480fe859A9FB99D",
+      "walletId": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",
       "markets": {
         "ETH/DAI": {
           "from": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
