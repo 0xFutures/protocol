@@ -1,7 +1,7 @@
 {
   "network": "live",
   "gasDefault": 2000000,
-  "gasPrice": 20000000000,
+  "gasPrice": 9000000000,
   "deploymentBlockNumber": 8250000,
   "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
   "daemonAccountAddr": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",

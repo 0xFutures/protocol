@@ -429,7 +429,7 @@ export default class CFDAPI {
           cfdAddress,
           cfd.methods.liquidate().encodeABI(),
           self.config.gasPrice,
-          200000
+          500000
         )
       })
       .catch(error => {
