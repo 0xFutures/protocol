@@ -177,7 +177,7 @@ export default class Proxy {
       notional.toString(),
       isBuyer,
       value.toString()
-    ], 500000)
+    ], 600000)
     return createCFDTxRspToCfdInstance(
       this.web3,
       this.config,
@@ -200,7 +200,7 @@ export default class Proxy {
       strikePrice.toString(),
       notional.toString(),
       isBuyer
-    ], 800000,
+    ], 900000,
       valueETH.toString()
     )
     return createCFDTxRspToCfdInstance(
@@ -216,14 +216,14 @@ export default class Proxy {
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ], 250000)
+    ], 350000)
   }
 
   proxyChangeStrikePrice(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'changeStrikePrice', [
       cfd.options.address,
       newPrice.toString()
-    ], 100000)
+    ], 200000)
   }
 
   async proxySellPrepare(proxy, cfd, desiredStrikePrice, timeLimit) {
@@ -231,14 +231,14 @@ export default class Proxy {
       cfd.options.address,
       desiredStrikePrice.toString(),
       timeLimit
-    ], 100000)
+    ], 200000)
   }
 
   async proxySellUpdate(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'sellUpdate', [
       cfd.options.address,
       newPrice.toString()
-    ], 100000)
+    ], 200000)
   }
 
   async proxySellCancel(proxy, cfd) {
@@ -251,7 +251,7 @@ export default class Proxy {
       this.daiToken.options.address,
       buyBuyerSide,
       buyValue.toString()
-    ], 400000)
+    ], 500000)
   }
 
   async proxyTopup(proxy, cfd, value) {
@@ -259,30 +259,30 @@ export default class Proxy {
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ], 150000)
+    ], 250000)
   }
 
   async proxyWithdraw(proxy, cfd, value) {
     return this.proxyTx(proxy, 'withdraw', [
       cfd.options.address,
       value.toString()
-    ], 250000)
+    ], 350000)
   }
 
   async proxyCancelNew(proxy, cfd) {
-    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], 100000)
+    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], 200000)
   }
 
   async proxyLiquidateMutual(proxy, cfd) {
-    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], 100000)
+    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], 200000)
   }
 
   async proxyLiquidateMutualCancel(proxy, cfd) {
-    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], 75000)
+    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], 150000)
   }
 
   async proxyForceTerminate(proxy, cfd) {
-    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], 300000)
+    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], 400000)
   }
 
   async proxyUpgrade(proxy, cfd) {
@@ -293,7 +293,7 @@ export default class Proxy {
     return this.proxyTx(proxy, 'transferPosition', [
       cfd.options.address,
       newAddress.toString()
-    ], 100000)
+    ], 200000)
   }
 
   /**
