@@ -177,7 +177,7 @@ export default class Proxy {
       notional.toString(),
       isBuyer,
       value.toString()
-    ])
+    ], 500000)
     return createCFDTxRspToCfdInstance(
       this.web3,
       this.config,
@@ -200,7 +200,7 @@ export default class Proxy {
       strikePrice.toString(),
       notional.toString(),
       isBuyer
-    ],
+    ], 800000,
       valueETH.toString()
     )
     return createCFDTxRspToCfdInstance(
@@ -216,14 +216,14 @@ export default class Proxy {
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ])
+    ], 250000)
   }
 
   proxyChangeStrikePrice(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'changeStrikePrice', [
       cfd.options.address,
       newPrice.toString()
-    ])
+    ], 100000)
   }
 
   async proxySellPrepare(proxy, cfd, desiredStrikePrice, timeLimit) {
@@ -231,18 +231,18 @@ export default class Proxy {
       cfd.options.address,
       desiredStrikePrice.toString(),
       timeLimit
-    ])
+    ], 100000)
   }
 
   async proxySellUpdate(proxy, cfd, newPrice) {
     return this.proxyTx(proxy, 'sellUpdate', [
       cfd.options.address,
       newPrice.toString()
-    ])
+    ], 100000)
   }
 
   async proxySellCancel(proxy, cfd) {
-    return this.proxyTx(proxy, 'sellCancel', [cfd.options.address])
+    return this.proxyTx(proxy, 'sellCancel', [cfd.options.address], 75000)
   }
 
   async proxyBuy(proxy, cfd, buyBuyerSide, buyValue) {
@@ -251,7 +251,7 @@ export default class Proxy {
       this.daiToken.options.address,
       buyBuyerSide,
       buyValue.toString()
-    ])
+    ], 400000)
   }
 
   async proxyTopup(proxy, cfd, value) {
@@ -259,41 +259,41 @@ export default class Proxy {
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ])
+    ], 150000)
   }
 
   async proxyWithdraw(proxy, cfd, value) {
     return this.proxyTx(proxy, 'withdraw', [
       cfd.options.address,
       value.toString()
-    ])
+    ], 250000)
   }
 
   async proxyCancelNew(proxy, cfd) {
-    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address])
+    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], 100000)
   }
 
   async proxyLiquidateMutual(proxy, cfd) {
-    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address])
+    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], 100000)
   }
 
   async proxyLiquidateMutualCancel(proxy, cfd) {
-    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address])
+    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], 75000)
   }
 
   async proxyForceTerminate(proxy, cfd) {
-    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address])
+    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], 300000)
   }
 
   async proxyUpgrade(proxy, cfd) {
-    return this.proxyTx(proxy, 'upgrade', [cfd.options.address])
+    return this.proxyTx(proxy, 'upgrade', [cfd.options.address], 2000000)
   }
 
   async proxyTransferPosition(proxy, cfd, newAddress) {
     return this.proxyTx(proxy, 'transferPosition', [
       cfd.options.address,
       newAddress.toString()
-    ])
+    ], 100000)
   }
 
   /**
@@ -302,13 +302,13 @@ export default class Proxy {
    * @param {string} msgData Transaction msg.data to send
    * @param {string} ethValue (optional) ETH amount
    */
-  async proxySendTransaction(proxy, msgData, ethValue) {
+  async proxySendTransaction(proxy, msgData, gasLimit, ethValue) {
     return proxy.methods['execute(address,bytes)'](
       this.cfdProxy.options.address,
       msgData
     ).send({
       from: await proxy.methods.owner().call(),
-      gas: this.config.gasDefault,
+      gas: gasLimit,
       gasPrice: this.config.gasPrice,
       value: ethValue
     })
@@ -319,11 +319,12 @@ export default class Proxy {
    * @param {DSProxy} proxy
    * @param {string} method Signature/name of method to call on proxy
    * @param {array} methodArgs Method arguments
+   * @param {Number} gasLimit How much gas we are willing to spent 
    * @param {string} ethValue (optional) ETH amount
    */
-  async proxyTx(proxy, method, methodArgs, ethValue) {
+  async proxyTx(proxy, method, methodArgs, gasLimit, ethValue) {
     const msgData = this.cfdProxy.methods[method](...methodArgs).encodeABI()
-    const txRsp = await this.proxySendTransaction(proxy, msgData, ethValue)
+    const txRsp = await this.proxySendTransaction(proxy, msgData, gasLimit, ethValue)
     logGas(`CFD ${method} (through proxy)`, txRsp)
     return txRsp
   }
