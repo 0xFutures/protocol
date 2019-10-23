@@ -274,7 +274,7 @@ export default class Proxy {
   }
 
   async proxyLiquidateMutual(proxy, cfd) {
-    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], 200000)
+    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], 300000)
   }
 
   async proxyLiquidateMutualCancel(proxy, cfd) {
