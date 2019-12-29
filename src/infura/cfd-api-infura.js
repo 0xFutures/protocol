@@ -51,6 +51,8 @@ export default class CFDAPI {
    * @param leverage The leverage (between 0.01 and 5.00)
    * @param isBuyer Creator wants to be contract buyer or seller
    * @param creatorProxy Proxy of creator of the new CFD
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -61,7 +63,9 @@ export default class CFDAPI {
     notionalAmountDai,
     leverage,
     isBuyer,
-    creatorProxy
+    creatorProxy,
+    gasLimit,
+    gasPrice
   ) {
     assertBigNumberOrString(strikePrice)
     assertBigNumberOrString(notionalAmountDai)
@@ -85,7 +89,9 @@ export default class CFDAPI {
       strikePrice: strikePriceBN,
       notional: notionalBN.toFixed(),
       isBuyer,
-      value
+      value,
+      gasLimit,
+      gasPrice
     })
   }
 
@@ -99,6 +105,8 @@ export default class CFDAPI {
    * @param leverage The leverage (between 0.01 and 5.00)
    * @param isBuyer Creator wants to be contract buyer or seller
    * @param creatorProxy Proxy of creator of the new CFD
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -109,7 +117,9 @@ export default class CFDAPI {
     notionalAmountDai,
     leverage,
     isBuyer,
-    creatorProxy
+    creatorProxy,
+    gasLimit,
+    gasPrice
   ) {
     assertBigNumberOrString(strikePrice)
     assertBigNumberOrString(notionalAmountDai)
@@ -141,7 +151,9 @@ export default class CFDAPI {
       strikePrice: strikePriceBN,
       notional: notionalBN.toFixed(),
       isBuyer,
-      valueETH
+      valueETH,
+      gasLimit,
+      gasPrice
     })
   }
 
@@ -151,11 +163,11 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async deposit(cfdAddress, depositAccountProxy, amount) {
+  async deposit(cfdAddress, depositAccountProxy, amount, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
     const value = safeValue(amount)
 
-    await this.proxyApi.proxyDeposit(depositAccountProxy, cfd, value)
+    await this.proxyApi.proxyDeposit(depositAccountProxy, cfd, value, gasLimit, gasPrice)
   }
 
   /**
@@ -221,10 +233,12 @@ export default class CFDAPI {
    * @param cfdAddress Address of a deployed CFD
    * @param accountProxy Proxy account making the request
    * @param desiredStrikePrice User wants this strike price value for his CFD
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice) {
+  async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -246,7 +260,9 @@ export default class CFDAPI {
     return this.proxyApi.proxyChangeStrikePrice(
       accountProxy,
       cfd,
-      desiredStrikePriceBN
+      desiredStrikePriceBN,
+      gasLimit,
+      gasPrice
     )
   }
 
@@ -257,6 +273,8 @@ export default class CFDAPI {
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
    * @param timeLimit Sale expired after this time (UNIX epoch seconds).
    *          Defaults to 0 for no limit.
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
@@ -264,7 +282,9 @@ export default class CFDAPI {
     cfdAddress,
     sellerAccountProxy,
     desiredStrikePrice,
-    timeLimit = 0
+    timeLimit = 0,
+    gasLimit,
+    gasPrice
   ) {
     const cfd = getContract(cfdAddress, this.web3)
 
@@ -290,7 +310,9 @@ export default class CFDAPI {
       sellerAccountProxy,
       cfd,
       desiredStrikePriceBN,
-      timeLimit
+      timeLimit,
+      gasLimit,
+      gasPrice
     )
   }
 
@@ -300,14 +322,16 @@ export default class CFDAPI {
    * @param buyerAccountProxy, The proxy address of the account who is buying
    * @param valueToBuy, The amount the user has to pay (DAI)
    * @param isBuyerSide, Boolean if the user is buyer or seller
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide) {
+  async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
     const valueToBuyBN = new BigNumber(valueToBuy)
     const value = safeValue(valueToBuyBN)
-    return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value)
+    return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value, gasLimit, gasPrice)
   }
 
   /**
@@ -315,60 +339,70 @@ export default class CFDAPI {
    * @param cfdAddress, Address of the deployed CFD
    * @param fromAccountProxy, Account who is transferring the position
    * @param toAccount, Account who the position gets transferred too
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async transferPosition(cfdAddress, fromAccountProxy, toAccount) {
+  async transferPosition(cfdAddress, fromAccountProxy, toAccount, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyTransferPosition(fromAccountProxy, cfd, toAccount)
+    return this.proxyApi.proxyTransferPosition(fromAccountProxy, cfd, toAccount, gasLimit, gasPrice)
   }
 
   /**
    * Invoke liquidateMutual functionality.
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The proxy address of the account who is terminating
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async liquidateMutual(cfdAddress, accountProxy) {
+  async liquidateMutual(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyLiquidateMutual(accountProxy, cfd)
+    return this.proxyApi.proxyLiquidateMutual(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
    * Party cancels liquidateMutual (before second party calls to agree)
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The proxy address of the account who is terminating
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async liquidateMutualCancel(cfdAddress, accountProxy) {
+  async liquidateMutualCancel(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyLiquidateMutualCancel(accountProxy, cfd)
+    return this.proxyApi.proxyLiquidateMutualCancel(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
    * Force liquidation a contract
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The proxy address of the account who is terminating
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async forceTerminate(cfdAddress, accountProxy) {
+  async forceTerminate(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyForceTerminate(accountProxy, cfd)
+    return this.proxyApi.proxyForceTerminate(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
    * Cancel a newly created contract (must be non initialized)
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The address of the proxy account who is canceling
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelNew(cfdAddress, accountProxy) {
+  async cancelNew(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyCancelNew(accountProxy, cfd)
+    return this.proxyApi.proxyCancelNew(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
@@ -378,21 +412,23 @@ export default class CFDAPI {
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelSale(cfdAddress, accountProxy) {
+  async cancelSale(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxySellCancel(accountProxy, cfd)
+    return this.proxyApi.proxySellCancel(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
    * Upgrade a contract to the latest deployed version
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The address of the account who is upgrading
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async upgradeCFD(cfdAddress, accountProxy) {
+  async upgradeCFD(cfdAddress, accountProxy, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyUpgrade(accountProxy, cfd)
+    return this.proxyApi.proxyUpgrade(accountProxy, cfd, gasLimit, gasPrice)
   }
 
   /**
@@ -442,10 +478,12 @@ export default class CFDAPI {
    * @param cfdAddress Address of a deployed CFD
    * @param selleraccountProxy Account settling the position.
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice) {
+  async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -469,7 +507,9 @@ export default class CFDAPI {
     return this.proxyApi.proxySellUpdate(
       sellerAccountProxy,
       cfd,
-      desiredStrikePriceBN
+      desiredStrikePriceBN,
+      gasLimit,
+      gasPrice
     )
   }
 
@@ -478,8 +518,10 @@ export default class CFDAPI {
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The address of the account who is topuping
    * @param valueToAdd, The amount the user wants to add (DAI)
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    */
-  async topup(cfdAddress, accountProxy, valueToAdd) {
+  async topup(cfdAddress, accountProxy, valueToAdd, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -495,7 +537,7 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToAdd)
-    return this.proxyApi.proxyTopup(accountProxy, cfd, value)
+    return this.proxyApi.proxyTopup(accountProxy, cfd, value, gasLimit, gasPrice)
   }
 
   /**
@@ -503,8 +545,10 @@ export default class CFDAPI {
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The address of the account who is withdrawing
    * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
    */
-  async withdraw(cfdAddress, accountProxy, valueToWithdraw) {
+  async withdraw(cfdAddress, accountProxy, valueToWithdraw, gasLimit, gasPrice) {
     const cfd = getContract(cfdAddress, this.web3)
     if (
       (await cfd.methods
@@ -519,7 +563,7 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToWithdraw)
-    return this.proxyApi.proxyWithdraw(accountProxy, cfd, value)
+    return this.proxyApi.proxyWithdraw(accountProxy, cfd, value, gasLimit, gasPrice)
   }
 
   /**
