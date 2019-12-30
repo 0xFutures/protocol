@@ -53,8 +53,11 @@ export default class Proxy {
    * Create a new DSProxy for the given user.
    * Later can query proxies by getUserProxy in this class.
    * @param {address} user User of the system - a CFD party
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
+                     (if undefined, will use the default value from config file)
    */
-  async proxyNew(user) {
+  async proxyNew(user, gasLimit = 1000000, gasPrice = undefined) {
     // Function to wait
     const timeout = async ms => {
       return new Promise(resolve => setTimeout(resolve, ms))
@@ -63,7 +66,8 @@ export default class Proxy {
     // Tx1: create proxy contract
     const buildTx = await this.dsProxyFactory.methods.build(user).send({
       from: user,
-      gas: 1000000
+      gas: gasLimit,
+      gasPrice: gasPrice || this.config.gasPrice,
     })
     logGas(`Proxy build`, buildTx)
 
