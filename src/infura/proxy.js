@@ -83,7 +83,7 @@ export default class Proxy {
     )
 
     // Tx2: approve proxy contract transfers of DAI Token
-    await this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+    await this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user, gas: gasLimit })
 
     return proxy
   }
@@ -156,10 +156,17 @@ export default class Proxy {
    * Ask the user to approve his DAI for this proxy
    * @param {address} proxyAddr Address of the proxy
    * @param {address} user User of the system - a CFD party
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
+                     (if undefined, will use the default value from config file)
    * @return {Number} Allowed amount by the user for this proxy
    */
-  approve(proxyAddr, user) {
-    return this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user })
+  approve(proxyAddr, user, gasLimit = 100000, gasPrice = undefined) {
+    return this.daiToken.methods.approve(proxyAddr, '-1').send({
+      from: user,
+      gas: gasLimit,
+      gasPrice: gasPrice || this.config.gasPrice,
+    })
   }
 
   /**
