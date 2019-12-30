@@ -14,7 +14,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2019-12-29T13:29:19.615Z",
+  "updatedAt": "2019-12-30T12:43:46.768Z",
   "devdoc": {
     "methods": {},
     "title": "Contract for difference\r  * Contract for difference for a given market between a\r \"buyer\" (long position) and \"seller\" (short position).\r"
