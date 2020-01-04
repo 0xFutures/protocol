@@ -79,6 +79,34 @@ const STATUS = {
   CLOSED: 3
 }
 
+/**
+ * Helper function to sign and send a transaction when using mobile
+ * @param {Web3} web3 The web3 instance
+ * @param {Object} txParams Transaction object
+ * @param {string} privateKey Private key used to sign transaction
+ */
+const signSendTransactionForMobile = (web3, txParams, privateKey) => {
+  return new Promise((resolve, reject) => {
+    try {
+      web3.eth.accounts.signTransaction(txParams, privateKey).then((signedTx) => {
+        const sentTx = web3.eth.sendSignedTransaction(signedTx.raw || signedTx.rawTransaction);
+        sentTx.on('receipt', receipt => {
+          // do something when receipt comes back
+          return resolve(receipt);
+        });
+        sentTx.on('error', err => {
+          // do something on transaction error
+          return reject(err);
+        });
+      }, (err) => {
+        return reject(err);
+      });
+    } catch(err) {
+      return reject(err);
+    }
+  });
+}
+
 /*
  * Sign and send a raw transaction
  */
@@ -217,6 +245,7 @@ module.exports = {
   getAllEventsWithName,
   getFunctionSignature,
   signAndSendTransaction,
+  signSendTransactionForMobile,
   unpackAddress,
   isValidContractAddr
 }

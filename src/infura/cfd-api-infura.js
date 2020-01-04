@@ -53,6 +53,8 @@ export default class CFDAPI {
    * @param creatorProxy Proxy of creator of the new CFD
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -65,7 +67,8 @@ export default class CFDAPI {
     isBuyer,
     creatorProxy,
     gasLimit,
-    gasPrice
+    gasPrice,
+    privateKey
   ) {
     assertBigNumberOrString(strikePrice)
     assertBigNumberOrString(notionalAmountDai)
@@ -91,7 +94,8 @@ export default class CFDAPI {
       isBuyer,
       value,
       gasLimit,
-      gasPrice
+      gasPrice,
+      privateKey
     })
   }
 
@@ -107,6 +111,8 @@ export default class CFDAPI {
    * @param creatorProxy Proxy of creator of the new CFD
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    *
    * @return Promise resolving to a new cfd contract instance on
    *            success or a promise failure if the tx failed
@@ -119,7 +125,8 @@ export default class CFDAPI {
     isBuyer,
     creatorProxy,
     gasLimit,
-    gasPrice
+    gasPrice,
+    privateKey
   ) {
     assertBigNumberOrString(strikePrice)
     assertBigNumberOrString(notionalAmountDai)
@@ -153,21 +160,24 @@ export default class CFDAPI {
       isBuyer,
       valueETH,
       gasLimit,
-      gasPrice
+      gasPrice,
+      privateKey
     })
   }
 
   /**
    * Deposit is called by a party wishing to join a new CFD.
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    *
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async deposit(cfdAddress, depositAccountProxy, amount, gasLimit, gasPrice) {
+  async deposit(cfdAddress, depositAccountProxy, amount, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
     const value = safeValue(amount)
 
-    await this.proxyApi.proxyDeposit(depositAccountProxy, cfd, value, gasLimit, gasPrice)
+    await this.proxyApi.proxyDeposit(depositAccountProxy, cfd, value, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -235,10 +245,12 @@ export default class CFDAPI {
    * @param desiredStrikePrice User wants this strike price value for his CFD
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice, gasLimit, gasPrice) {
+  async changeStrikePriceCFD(cfdAddress, accountProxy, desiredStrikePrice, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -262,7 +274,8 @@ export default class CFDAPI {
       cfd,
       desiredStrikePriceBN,
       gasLimit,
-      gasPrice
+      gasPrice,
+      privateKey
     )
   }
 
@@ -275,6 +288,8 @@ export default class CFDAPI {
    *          Defaults to 0 for no limit.
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
@@ -284,7 +299,8 @@ export default class CFDAPI {
     desiredStrikePrice,
     timeLimit = 0,
     gasLimit,
-    gasPrice
+    gasPrice,
+    privateKey
   ) {
     const cfd = getContract(cfdAddress, this.web3)
 
@@ -312,7 +328,8 @@ export default class CFDAPI {
       desiredStrikePriceBN,
       timeLimit,
       gasLimit,
-      gasPrice
+      gasPrice,
+      privateKey
     )
   }
 
@@ -324,14 +341,16 @@ export default class CFDAPI {
    * @param isBuyerSide, Boolean if the user is buyer or seller
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide, gasLimit, gasPrice) {
+  async buyCFD(cfdAddress, buyerAccountProxy, valueToBuy, isBuyerSide, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
     const valueToBuyBN = new BigNumber(valueToBuy)
     const value = safeValue(valueToBuyBN)
-    return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value, gasLimit, gasPrice)
+    return this.proxyApi.proxyBuy(buyerAccountProxy, cfd, isBuyerSide, value, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -341,12 +360,14 @@ export default class CFDAPI {
    * @param toAccount, Account who the position gets transferred too
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async transferPosition(cfdAddress, fromAccountProxy, toAccount, gasLimit, gasPrice) {
+  async transferPosition(cfdAddress, fromAccountProxy, toAccount, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyTransferPosition(fromAccountProxy, cfd, toAccount, gasLimit, gasPrice)
+    return this.proxyApi.proxyTransferPosition(fromAccountProxy, cfd, toAccount, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -355,12 +376,14 @@ export default class CFDAPI {
    * @param accountProxy, The proxy address of the account who is terminating
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async liquidateMutual(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async liquidateMutual(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyLiquidateMutual(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxyLiquidateMutual(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -369,12 +392,14 @@ export default class CFDAPI {
    * @param accountProxy, The proxy address of the account who is terminating
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async liquidateMutualCancel(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async liquidateMutualCancel(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyLiquidateMutualCancel(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxyLiquidateMutualCancel(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -383,12 +408,14 @@ export default class CFDAPI {
    * @param accountProxy, The proxy address of the account who is terminating
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async forceTerminate(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async forceTerminate(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyForceTerminate(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxyForceTerminate(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -397,24 +424,30 @@ export default class CFDAPI {
    * @param accountProxy, The address of the proxy account who is canceling
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelNew(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async cancelNew(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyCancelNew(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxyCancelNew(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
    * Cancel a contract for sale (must be for sale)
    * @param cfdAddress, Address of the deployed CFD
    * @param accountProxy, The address of the account who is canceling
+   * @param {Number} gasLimit How much gas we are willing to spent
+   * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async cancelSale(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async cancelSale(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxySellCancel(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxySellCancel(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -423,12 +456,14 @@ export default class CFDAPI {
    * @param accountProxy, The address of the account who is upgrading
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async upgradeCFD(cfdAddress, accountProxy, gasLimit, gasPrice) {
+  async upgradeCFD(cfdAddress, accountProxy, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
-    return this.proxyApi.proxyUpgrade(accountProxy, cfd, gasLimit, gasPrice)
+    return this.proxyApi.proxyUpgrade(accountProxy, cfd, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -480,10 +515,12 @@ export default class CFDAPI {
    * @param desiredStrikePrice Sellers wants to sell at this strike price.
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @return Promise resolving to success with tx details or reject depending
    *          on the outcome.
    */
-  async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, gasLimit, gasPrice) {
+  async changeSaleCFD(cfdAddress, sellerAccountProxy, desiredStrikePrice, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -509,7 +546,8 @@ export default class CFDAPI {
       cfd,
       desiredStrikePriceBN,
       gasLimit,
-      gasPrice
+      gasPrice,
+      privateKey
     )
   }
 
@@ -520,8 +558,10 @@ export default class CFDAPI {
    * @param valueToAdd, The amount the user wants to add (DAI)
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    */
-  async topup(cfdAddress, accountProxy, valueToAdd, gasLimit, gasPrice) {
+  async topup(cfdAddress, accountProxy, valueToAdd, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
 
     if (
@@ -537,7 +577,7 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToAdd)
-    return this.proxyApi.proxyTopup(accountProxy, cfd, value, gasLimit, gasPrice)
+    return this.proxyApi.proxyTopup(accountProxy, cfd, value, gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -547,8 +587,10 @@ export default class CFDAPI {
    * @param valueToWithdraw, The amount the user wants to withdraw (DAI)
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    */
-  async withdraw(cfdAddress, accountProxy, valueToWithdraw, gasLimit, gasPrice) {
+  async withdraw(cfdAddress, accountProxy, valueToWithdraw, gasLimit, gasPrice, privateKey) {
     const cfd = getContract(cfdAddress, this.web3)
     if (
       (await cfd.methods
@@ -563,7 +605,7 @@ export default class CFDAPI {
     }
 
     const value = safeValue(valueToWithdraw)
-    return this.proxyApi.proxyWithdraw(accountProxy, cfd, value, gasLimit, gasPrice)
+    return this.proxyApi.proxyWithdraw(accountProxy, cfd, value, gasLimit, gasPrice, privateKey)
   }
 
   /**

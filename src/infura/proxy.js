@@ -1,4 +1,5 @@
 import Promise from 'bluebird'
+import * as EthereumjsTx from 'ethereumjs-tx'
 import {
   cfdInstance,
   cfdProxyInstanceDeployed,
@@ -7,7 +8,7 @@ import {
   dsProxyInstanceDeployed,
   dsProxyFactoryInstanceDeployed
 } from './contracts'
-import { logGas, unpackAddress } from './utils'
+import { logGas, unpackAddress, signSendTransactionForMobile } from './utils'
 
 const createCFDTxRspToCfdInstance = (web3, config, eventHash, txEvents) => {
   const cfdPartyEvent = Object.entries(txEvents).find(
@@ -56,34 +57,64 @@ export default class Proxy {
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
                      (if undefined, will use the default value from config file)
+   * @param {string} privateKey If we need to manually sign the transaction (if no metamask available)
    */
-  async proxyNew(user, gasLimit = 1000000, gasPrice = undefined) {
+  async proxyNew(user, gasLimit = 1000000, gasPrice = undefined, privateKey = undefined) {
     // Function to wait
     const timeout = async ms => {
       return new Promise(resolve => setTimeout(resolve, ms))
     }
 
     // Tx1: create proxy contract
-    const buildTx = await this.dsProxyFactory.methods.build(user).send({
-      from: user,
-      gas: gasLimit,
-      gasPrice: gasPrice || this.config.gasPrice,
-    })
+    var tx, buildTx;
+
+    // If we need to manually sign the transaction
+    if (privateKey != undefined) {
+      tx = {
+        from: user,
+        to: this.dsProxyFactory.options.address,
+        gas: gasLimit,
+        gasPrice: gasPrice || this.config.gasPrice,
+        data: this.dsProxyFactory.methods.build(user).encodeABI()
+      }
+      buildTx = await signSendTransactionForMobile(this.web3, tx, privateKey);
+    }
+    // Metamask will sign transaction by itself
+    else {
+      tx = this.dsProxyFactory.methods.build(user);
+      buildTx = await tx.send({ from: user, gas: gasLimit, gasPrice: gasPrice || this.config.gasPrice })
+    }
     logGas(`Proxy build`, buildTx)
 
-    const proxyAddr = buildTx.events.Created.returnValues.proxy
+    if (buildTx == undefined || buildTx.status != true)
+      return Promise.reject('Invalid transaction receipt');
+
     // Wait a few seconds to make sure the contract is deployed correctly
     // (used to avoid the getCode() function to fail)
     await timeout(3000)
-    const proxy = await dsProxyInstanceDeployed(
-      this.config,
-      this.web3,
-      proxyAddr,
-      user
-    )
+
+    // Check user proxy
+    const proxy = await this.getUserProxy(undefined, undefined, user);
+    var proxyAddr = (proxy != undefined && proxy.options != undefined) ? proxy.options.address : undefined;
+
+    if (proxyAddr == undefined)
+      return Promise.reject('Cannot get proxy address');
 
     // Tx2: approve proxy contract transfers of DAI Token
-    await this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user, gas: gasLimit })
+    // If we need to manually sign the transaction
+    if (privateKey != undefined) {
+      tx = {
+        from: user,
+        to: this.daiToken.options.address,
+        gas: gasLimit,
+        data: this.daiToken.methods.approve(proxyAddr, '-1').encodeABI()
+      }
+      buildTx = await signSendTransactionForMobile(this.web3, tx, privateKey);
+    }
+    // Metamask will sign transaction by itself
+    else {
+      await this.daiToken.methods.approve(proxyAddr, '-1').send({ from: user, gas: gasLimit })
+    }
 
     return proxy
   }
@@ -159,14 +190,29 @@ export default class Proxy {
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
                      (if undefined, will use the default value from config file)
+   * @param {string} privateKey If we need to manually sign the transaction (if no metamask available)
    * @return {Number} Allowed amount by the user for this proxy
    */
-  approve(proxyAddr, user, gasLimit = 100000, gasPrice = undefined) {
-    return this.daiToken.methods.approve(proxyAddr, '-1').send({
-      from: user,
-      gas: gasLimit,
-      gasPrice: gasPrice || this.config.gasPrice,
-    })
+  approve(proxyAddr, user, gasLimit = 100000, gasPrice = undefined, privateKey = undefined) {
+    // If we need to manually sign the transaction
+    if (privateKey != undefined) {
+      var tx = {
+        from: user,
+        to: this.daiToken.options.address,
+        gas: gasLimit,
+        gasPrice: gasPrice || this.config.gasPrice,
+        data: this.daiToken.methods.approve(proxyAddr, '-1').encodeABI()
+      }
+      return signSendTransactionForMobile(this.web3, tx, privateKey);
+    }
+    // Metamask will sign transaction by itself
+    else {
+      return this.daiToken.methods.approve(proxyAddr, '-1').send({
+        from: user,
+        gas: gasLimit,
+        gasPrice: gasPrice || this.config.gasPrice,
+      })
+    }
   }
 
   /**
@@ -180,7 +226,8 @@ export default class Proxy {
     isBuyer,
     value,
     gasLimit = 600000,
-    gasPrice = undefined
+    gasPrice = undefined,
+    privateKey = undefined
   }) {
     const txRsp = await this.proxyTx(proxy, 'createContract', [
       this.cfdFactory.options.address,
@@ -190,7 +237,7 @@ export default class Proxy {
       notional.toString(),
       isBuyer,
       value.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
     return createCFDTxRspToCfdInstance(
       this.web3,
       this.config,
@@ -207,7 +254,8 @@ export default class Proxy {
     isBuyer,
     valueETH,
     gasLimit = 900000,
-    gasPrice = undefined
+    gasPrice = undefined,
+    privateKey = undefined
   }) {
     const txRsp = await this.proxyTx(proxy, 'createContractWithETH', [
       this.cfdFactory.options.address,
@@ -215,7 +263,7 @@ export default class Proxy {
       strikePrice.toString(),
       notional.toString(),
       isBuyer
-    ], gasLimit, gasPrice,
+    ], gasLimit, gasPrice, privateKey,
       valueETH.toString()
     )
     return createCFDTxRspToCfdInstance(
@@ -226,89 +274,89 @@ export default class Proxy {
     )
   }
 
-  proxyDeposit(proxy, cfd, value, gasLimit = 350000, gasPrice = undefined) {
+  proxyDeposit(proxy, cfd, value, gasLimit = 350000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'deposit', [
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  proxyChangeStrikePrice(proxy, cfd, newPrice, gasLimit = 200000, gasPrice = undefined) {
+  proxyChangeStrikePrice(proxy, cfd, newPrice, gasLimit = 200000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'changeStrikePrice', [
       cfd.options.address,
       newPrice.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxySellPrepare(proxy, cfd, desiredStrikePrice, timeLimit, gasLimit = 200000, gasPrice = undefined) {
+  async proxySellPrepare(proxy, cfd, desiredStrikePrice, timeLimit, gasLimit = 200000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'sellPrepare', [
       cfd.options.address,
       desiredStrikePrice.toString(),
       timeLimit
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxySellUpdate(proxy, cfd, newPrice, gasLimit = 200000, gasPrice = undefined) {
+  async proxySellUpdate(proxy, cfd, newPrice, gasLimit = 200000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'sellUpdate', [
       cfd.options.address,
       newPrice.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxySellCancel(proxy, cfd, gasLimit = 75000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'sellCancel', [cfd.options.address], gasLimit, gasPrice)
+  async proxySellCancel(proxy, cfd, gasLimit = 75000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'sellCancel', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyBuy(proxy, cfd, buyBuyerSide, buyValue, gasLimit = 500000, gasPrice = undefined) {
+  async proxyBuy(proxy, cfd, buyBuyerSide, buyValue, gasLimit = 500000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'buy', [
       cfd.options.address,
       this.daiToken.options.address,
       buyBuyerSide,
       buyValue.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyTopup(proxy, cfd, value, gasLimit = 250000, gasPrice = undefined) {
+  async proxyTopup(proxy, cfd, value, gasLimit = 250000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'topup', [
       cfd.options.address,
       this.daiToken.options.address,
       value.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyWithdraw(proxy, cfd, value, gasLimit = 350000, gasPrice = undefined) {
+  async proxyWithdraw(proxy, cfd, value, gasLimit = 350000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'withdraw', [
       cfd.options.address,
       value.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyCancelNew(proxy, cfd, gasLimit = 200000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], gasLimit, gasPrice)
+  async proxyCancelNew(proxy, cfd, gasLimit = 200000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyLiquidateMutual(proxy, cfd, gasLimit = 500000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], gasLimit, gasPrice)
+  async proxyLiquidateMutual(proxy, cfd, gasLimit = 500000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyLiquidateMutualCancel(proxy, cfd, gasLimit = 150000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], gasLimit, gasPrice)
+  async proxyLiquidateMutualCancel(proxy, cfd, gasLimit = 150000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyForceTerminate(proxy, cfd, gasLimit = 400000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], gasLimit, gasPrice)
+  async proxyForceTerminate(proxy, cfd, gasLimit = 400000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyUpgrade(proxy, cfd, gasLimit = 2000000, gasPrice = undefined) {
-    return this.proxyTx(proxy, 'upgrade', [cfd.options.address], gasLimit, gasPrice)
+  async proxyUpgrade(proxy, cfd, gasLimit = 2000000, gasPrice = undefined, privateKey = undefined) {
+    return this.proxyTx(proxy, 'upgrade', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyTransferPosition(proxy, cfd, newAddress, gasLimit = 200000, gasPrice = undefined) {
+  async proxyTransferPosition(proxy, cfd, newAddress, gasLimit = 200000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'transferPosition', [
       cfd.options.address,
       newAddress.toString()
-    ], gasLimit, gasPrice)
+    ], gasLimit, gasPrice, privateKey)
   }
 
   /**
@@ -318,18 +366,32 @@ export default class Proxy {
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
                      (if undefined, will use the default value from config file)
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @param {string} ethValue (optional) ETH amount
    */
-  async proxySendTransaction(proxy, msgData, gasLimit, gasPrice, ethValue) {
-    return proxy.methods['execute(address,bytes)'](
-      this.cfdProxy.options.address,
-      msgData
-    ).send({
-      from: await proxy.methods.owner().call(),
-      gas: gasLimit,
-      gasPrice: gasPrice || this.config.gasPrice,
-      value: ethValue
-    })
+  async proxySendTransaction(proxy, msgData, gasLimit, gasPrice, privateKey, ethValue) {
+    if (privateKey != undefined) {
+      var tx = {
+        from: await proxy.methods.owner().call(),
+        to: proxy.options.address,
+        gas: gasLimit,
+        gasPrice: gasPrice || this.config.gasPrice,
+        data: proxy.methods['execute(address,bytes)'](this.cfdProxy.options.address, msgData).encodeABI(),
+        value: ethValue
+      }
+      return signSendTransactionForMobile(this.web3, tx, privateKey);
+    } else {
+      return proxy.methods['execute(address,bytes)'](
+        this.cfdProxy.options.address,
+        msgData
+      ).send({
+        from: await proxy.methods.owner().call(),
+        gas: gasLimit,
+        gasPrice: gasPrice || this.config.gasPrice,
+        value: ethValue
+      })
+    }
   }
 
   /**
@@ -340,11 +402,13 @@ export default class Proxy {
    * @param {Number} gasLimit How much gas we are willing to spent
    * @param {Number} gasPrice Price of the gas
                      (if undefined, will use the default value from config file)
+   * @param {string} privateKey User's private key
+                     (if undefined, will use the send function directly)
    * @param {string} ethValue (optional) ETH amount
    */
-  async proxyTx(proxy, method, methodArgs, gasLimit, gasPrice, ethValue) {
+  async proxyTx(proxy, method, methodArgs, gasLimit, gasPrice, privateKey, ethValue) {
     const msgData = this.cfdProxy.methods[method](...methodArgs).encodeABI()
-    const txRsp = await this.proxySendTransaction(proxy, msgData, gasLimit, gasPrice, ethValue)
+    const txRsp = await this.proxySendTransaction(proxy, msgData, gasLimit, gasPrice, privateKey, ethValue)
     logGas(`CFD ${method} (through proxy)`, txRsp)
     return txRsp
   }
@@ -364,6 +428,7 @@ export default class Proxy {
   constructor(config, web3) {
     this.config = config
     this.web3 = web3
+    this.Tx = EthereumjsTx.default;
   }
 
   /**
