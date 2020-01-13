@@ -308,7 +308,7 @@ export default class Proxy {
     return this.proxyTx(proxy, 'sellCancel', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyBuy(proxy, cfd, buyBuyerSide, buyValue, gasLimit = 500000, gasPrice = undefined, privateKey = undefined) {
+  async proxyBuy(proxy, cfd, buyBuyerSide, buyValue, gasLimit = 800000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'buy', [
       cfd.options.address,
       this.daiToken.options.address,
@@ -325,7 +325,7 @@ export default class Proxy {
     ], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyWithdraw(proxy, cfd, value, gasLimit = 350000, gasPrice = undefined, privateKey = undefined) {
+  async proxyWithdraw(proxy, cfd, value, gasLimit = 700000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'withdraw', [
       cfd.options.address,
       value.toString()
@@ -336,7 +336,7 @@ export default class Proxy {
     return this.proxyTx(proxy, 'cancelNew', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyLiquidateMutual(proxy, cfd, gasLimit = 500000, gasPrice = undefined, privateKey = undefined) {
+  async proxyLiquidateMutual(proxy, cfd, gasLimit = 700000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'liquidateMutual', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
@@ -344,7 +344,7 @@ export default class Proxy {
     return this.proxyTx(proxy, 'liquidateMutualCancel', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 
-  async proxyForceTerminate(proxy, cfd, gasLimit = 400000, gasPrice = undefined, privateKey = undefined) {
+  async proxyForceTerminate(proxy, cfd, gasLimit = 700000, gasPrice = undefined, privateKey = undefined) {
     return this.proxyTx(proxy, 'forceTerminate', [cfd.options.address], gasLimit, gasPrice, privateKey)
   }
 

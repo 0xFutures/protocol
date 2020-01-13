@@ -33,15 +33,21 @@ const getMarketsFromEventLogs = (
             return undefined
           }
           const bytesId = market.raw.topics[1]
-          const strId = await self.marketIdBytesToStr(bytesId)
-          return self.priceFeeds.methods
-            .isMarketActive(bytesId)
-            .call()
-            .then(active => {
-              return { bytesId, strId, active }
-            })
+          try {
+            const strId = await self.marketIdBytesToStr(bytesId)
+            return self.priceFeeds.methods
+              .isMarketActive(bytesId)
+              .call()
+              .then(active => {
+                return { bytesId, strId, active }
+              })
+          } catch(err) {
+            return undefined
+          }
         })
-      ).then(onSuccessCallback)
+      ).then((mappedMarkets) => {
+        onSuccessCallback(mappedMarkets.filter((m) => m != undefined))
+      })
     },
     err => {
       onErrorCallback(err)
@@ -102,6 +108,32 @@ export default class API {
       // Add the market
       self.priceFeedsKyber.methods
         .addMarket(marketIdStr, tokenAddr, tokenAddrTo, decimals)
+        .send({
+          from: self.config.ownerAccountAddr,
+          gas: addMarketGasLimit
+        })
+        .once('receipt', function(receipt) {
+          // Transaction has been mined
+          resolve(receipt)
+        })
+        .on('error', function(error) {
+          // Error
+          reject(error)
+        })
+    })
+  }
+
+  /**
+   * Remove a kyber market feed.
+   * @param marketId Market ID for market (eg. "0x1234...")
+   * @return Promise resolving to the transaction receipt
+   */
+  async removeMarketKyber(marketId) {
+    const self = this
+    return new Promise(function(resolve, reject) {
+      // Add the market
+      self.priceFeedsKyber.methods
+        .removeMarket(marketId)
         .send({
           from: self.config.ownerAccountAddr,
           gas: addMarketGasLimit
