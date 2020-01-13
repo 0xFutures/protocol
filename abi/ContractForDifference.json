@@ -1467,7 +1467,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.8",
-  "updatedAt": "2020-01-04T15:21:55.683Z",
+  "updatedAt": "2020-01-13T20:41:22.837Z",
   "devdoc": {
     "methods": {
       "buy(bool,uint256)": {
