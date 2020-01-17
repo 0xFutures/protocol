@@ -63,12 +63,11 @@ export default class API {
    * @param config Configuration object with all properties as per
    *               config.json.template
    * @param web3 Initiated and connected web3 instance
-   * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance(config, web3, privateKey) {
-    const api = new API(config, web3, privateKey)
+  static async newInstance(config, web3) {
+    const api = new API(config, web3)
     await api.initialise()
     return api
   }
@@ -243,12 +242,10 @@ export default class API {
    * @param config Configuration object with all properties as per
    *               config.json.template
    * @param web3 Initiated web3 instance for the network to work with.
-   * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
    */
-  constructor(config, web3, privateKey = undefined) {
+  constructor(config, web3) {
     this.config = config
     this.web3 = web3
-    this.privateKey = privateKey
     // Our pushes queue (since we can only push one at a time)
     this.pushQueue = []
     // When a transaction is pending, that variable will hold the transaction hash

@@ -32,12 +32,11 @@ export default class CFDAPI {
    * @param config Configuration object with all properties as per
    *               config.json.template
    * @param web3 Initiated and connected web3 instance
-   * @param privateKey (optional) The private key used to sign the transactions when using Infura (needed only for the daemon)
    *
    * @return Constructed and initialised instance of this class
    */
-  static async newInstance(config, web3, privateKey) {
-    const api = new CFDAPI(config, web3, privateKey)
+  static async newInstance(config, web3) {
+    const api = new CFDAPI(config, web3)
     await api.initialise()
     return api
   }
@@ -483,30 +482,6 @@ export default class CFDAPI {
         throw new Error(error)
       })
   }
-  /**
-   * Check for liquidation with a signed transaction (for the daemon)
-   * @param cfdAddress, Address of the contract
-   */
-  attemptContractLiquidationDaemon(cfdAddress) {
-    const self = this
-    return Promise.all([this.web3.eth.getCodeAsync(cfdAddress)])
-      .then(() => {
-        // Contract address exists
-        const cfd = getContract(cfdAddress, self.web3)
-        return signAndSendTransaction(
-          self.web3,
-          self.config.daemonAccountAddr,
-          self.privateKey,
-          cfdAddress,
-          cfd.methods.liquidate().encodeABI(),
-          self.config.gasPrice,
-          500000
-        )
-      })
-      .catch(error => {
-        throw new Error(error)
-      })
-  }
 
   /**
    * Fulfill a request to change the sale price for a CFD for sale
@@ -925,12 +900,10 @@ export default class CFDAPI {
    *
    * @param config Configuration object with all properties as per config.json.template
    * @param web3 Initiated web3 instance for the network to work with.
-   * @param privateKey (optional) The private key used to sign the transactions (for using Infura for example)
    */
-  constructor(config, web3, privateKey = undefined) {
+  constructor(config, web3) {
     this.config = config
     this.web3 = web3
-    this.privateKey = privateKey
     this.web3.eth.getCodeAsync = Promise.promisify(this.web3.eth.getCode)
     this.web3.eth.getBlockAsync = Promise.promisify(this.web3.eth.getBlock)
   }
