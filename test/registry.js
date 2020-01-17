@@ -41,7 +41,8 @@ describe('registry.js', function () {
           let res = await registry.methods.setCFDFactoryLatest(anAddr).send({ from: accounts[2] })
           assert.fail(`expected failure`)
         } catch (err) {
-          assert.equal(ERROR_REVERT, err.message)
+          const reg = new RegExp(ERROR_REVERT + '.*')
+          assert.match(err.message, reg)
         }
       })
     })

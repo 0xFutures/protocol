@@ -107,6 +107,7 @@ contract ContractForDifference is DBC {
     string constant REASON_MUST_BE_LESS_THAN_CUTOFF = "Must be less than liquidation price";
     string constant REASON_LIQUIDATE_MUTUAL_ALREADY_SET = "msg.sender already called liquidateMutual";
     string constant REASON_MUST_BE_LIQUIDATE_MUTUAL_CALLER = "msg.sender must be the same as liquidateMutualCalledBy";
+    string constant REASON_INVALID_COLLATERAL_CALCULATION = "Can't calculate the collaterals";
 
     uint public constant FORCE_TERMINATE_PENALTY_PERCENT = 5;
     uint public constant MINIMUM_NOTIONAL_AMOUNT_DAI = 1 * 1e18; // 1 DAI/1 USD
@@ -902,6 +903,7 @@ contract ContractForDifference is DBC {
         returns (uint buyerCollateral, uint sellerCollateral)
     {
         uint marketPrice = latestPrice();
+        uint cfdFullDepositAmount = registry.getDAI().balanceOf(address(this));
 
         buyerCollateral = ContractForDifferenceLibrary.calculateCollateralAmount(
             strikePrice,
@@ -918,24 +920,23 @@ contract ContractForDifference is DBC {
             false
         );
 
-        //
+        // Check if a collateral is equal to zero (meaning the other party gets the full amount)
+        if (buyerCollateral == 0)
+            sellerCollateral = cfdFullDepositAmount;
+        if (sellerCollateral == 0)
+            buyerCollateral = cfdFullDepositAmount;
+
         // calculate and check the remainder - it should be equal to zero
-        //
-        // if not expected log the event and transfer the remainder to the
-        //     owner account - it will be sorted out manually
-        //
-        uint balanceRemainder = registry.getDAI().
-            balanceOf(address(this)).
+        // if not expected log the event and revert
+        uint balanceRemainder = cfdFullDepositAmount.
             sub(buyerCollateral).
             sub(sellerCollateral);
         if (balanceRemainder != 0) {
             emit LogCFDRemainingBalanceUnexpected(balanceRemainder);
+            revert(REASON_INVALID_COLLATERAL_CALCULATION);
         }
 
-        // Transfer the remainder to the owner account. When balance unexpected
-        // is manually resolved the amount can be redistributed.
-        daiTransfer(registry.owner(), balanceRemainder);
-
+        // If forced, the terminator will get a penalty
         if (liquidateForced == true) {
             bool forcingPartyIsBuyer = msg.sender == buyer;
 

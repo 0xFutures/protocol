@@ -147,7 +147,10 @@ library ContractForDifferenceLibrary {
         ) / FACTOR_INT;
         int collateralInt = _isBuyer ? D + difference : D - difference;
 
-        assert(collateralInt >= 0);
+        if (collateralInt < 0)
+            collateralInt = 0;
+        // assert(collateralInt >= 0);
+
         collateral = uint(collateralInt);
     }
 

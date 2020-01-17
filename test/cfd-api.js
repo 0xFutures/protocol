@@ -592,4 +592,50 @@ describe('cfd-api.js', function () {
       )
     })
   })
+
+  describe('liquidate contract with market price over liquidation limit', function () {
+    let cfd
+
+    it('force terminate as buyer while being outside liquidation price', async () => {
+
+      let buyerBalance = await daiToken.methods.balanceOf(buyer).call()
+      let sellerBalance = await daiToken.methods.balanceOf(seller).call()
+
+      assert.equal(
+        await daiToken.methods.balanceOf(buyer).call(),
+        5950000000000000028,
+        'Wrong buyer balance before liquidation'
+      )
+      assert.equal(
+        await daiToken.methods.balanceOf(seller).call(),
+        5000000000000000000,
+        'Wrong seller balance before liquidation'
+      )
+
+      cfd = await proxyApi.proxyCreateCFD({
+        proxy: buyerProxy,
+        marketId,
+        strikePrice: new BigNumber('900e18'),
+        notional: new BigNumber('5e18'),
+        isBuyer: true,
+        value: new BigNumber('1e18')
+      })
+      await proxyApi.proxyDeposit(sellerProxy, cfd, new BigNumber('1e18'))
+
+      await proxyApi.proxyForceTerminate(buyerProxy, cfd)
+
+      assert.equal(
+        await daiToken.methods.balanceOf(buyer).call(),
+        4950000000000000028,
+        'Wrong buyer balance after liquidation'
+      )
+      assert.equal(
+        await daiToken.methods.balanceOf(seller).call(),
+        6000000000000000000,
+        'Wrong seller balance after liquidation'
+      )
+    })
+
+  })
+
 })
