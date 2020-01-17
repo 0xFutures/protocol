@@ -178,7 +178,7 @@
   },
   "networks": {},
   "schemaVersion": "3.0.20",
-  "updatedAt": "2020-01-17T22:17:34.177Z",
+  "updatedAt": "2020-01-17T23:22:11.000Z",
   "devdoc": {
     "methods": {
       "daiRate(uint256)": {
