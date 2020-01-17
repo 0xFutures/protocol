@@ -2,7 +2,6 @@
 *.swp
 build/
 config.kovan.json
-config.live.json
 lib/
 node_modules/
 .vscode

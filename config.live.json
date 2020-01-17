@@ -1,0 +1,42 @@
+{
+  "network": "live",
+  "rpcAddr": "https://mainnet.infura.io/v3/<api-key>",
+  "gasDefault": 8000000,
+  "gasPrice": 12000000000,
+  "deploymentBlockNumber": 10750827,
+
+  "hdWalletMnemonic": "<mnemonic>",
+
+  "ownerAccountAddr": "0x41B8b65f1b5b5F69466cc5AE8D8C7eC2756Bc5CA",
+  "daemonAccountAddr": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",
+  "feesAccountAddr": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",
+
+  "daiTokenAddr": "0x6b175474e89094c44da98b954eedeac495271d0f",
+
+  "registryAddr": "0xebda6ff399fcff55939f5e361829628131ad84e8",
+  
+  "cfdRegistryContractAddr": "0x02f046513dd8128ee5f44184ba2d60d4f02b6989",
+  "cfdFactoryContractAddr": "0x95d10ab9e6170ba8c882eab7e26d4157ce73aedb",
+  "priceFeedsContractAddr": "0x9196247accc3ee3f499506ee171eea7f42de80f8",
+  "priceFeedsKyberContractAddr": "0x8f2d92df212d0766e5ff99a105976da8e5f44022",
+  "cfdProxyContractAddr": "0x6b70f5a87a2bf887cd2086e5ebbf256fd49e4468",
+  "dsProxyFactoryContractAddr": "0x0aad30272402fd32a0f430f8ebaf1afb8f4e85c5",
+  
+  "feeds": {
+    "kyber": {
+      "kyberNetworkProxyAddr": "0x9ae49C0d7F8F9EF4B864e004FE86Ac8294E20950",
+      "walletId": "0xD61CB2330Eba743449188c834a407FFC691f12Fd",
+      "markets": {
+        "ETH/DAI": {
+          "from": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+          "to": "0x6b175474e89094c44da98b954eedeac495271d0f"
+        },
+        "WBTC/DAI": {
+          "from": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+          "to": "0x6b175474e89094c44da98b954eedeac495271d0f"
+        }
+      }
+    }
+  },
+  "kyberFacadeContractAddr": "0x2137f4e23abbee41f022d38f02e232bd4b8ae376"
+}
